@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitHub Repositories for ChatGPT</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>GitHub Repositories for ChatGPT</h1>
+        <p>Connect GitHub and choose which repository owners appear first.</p>
+      </header>
+
+      <form id="settings-form">
+        <label for="github-token">GitHub token</label>
+        <p class="help">
+          The token is kept in this extension's local browser storage. Repository metadata read access is enough.
+        </p>
+        <input
+          id="github-token"
+          name="github-token"
+          type="password"
+          autocomplete="off"
+          placeholder="github_pat_…"
+        />
+
+        <label for="owner-order">Priority owners</label>
+        <p class="help">Enter one user or organization per line. These columns appear first, in this order.</p>
+        <textarea id="owner-order" name="owner-order" rows="6" spellcheck="false"></textarea>
+
+        <div class="actions">
+          <button type="submit">Save settings</button>
+          <button id="clear-token" class="secondary" type="button">Clear token</button>
+        </div>
+        <p id="status" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
