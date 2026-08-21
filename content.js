@@ -392,7 +392,7 @@
 
     if (!groups.length) {
       const empty = document.createElement("div");
-      empty.className = "ghrc-state";
+      empty.className = "ghrc-state ghrc-empty";
       const message = document.createElement("span");
       message.textContent = "Add a GitHub token or repository owner to show repositories here.";
       const settings = document.createElement("button");

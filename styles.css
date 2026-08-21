@@ -302,11 +302,16 @@ html.dark #github-repositories-for-chatgpt {
   text-align: center;
 }
 
+#github-repositories-for-chatgpt .ghrc-empty,
 #github-repositories-for-chatgpt .ghrc-error {
   align-items: center;
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+#github-repositories-for-chatgpt .ghrc-empty {
+  grid-column: 1 / -1;
 }
 
 #github-repositories-for-chatgpt .ghrc-error strong {
