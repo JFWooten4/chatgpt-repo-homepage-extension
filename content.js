@@ -1,5 +1,7 @@
 (() => {
   const WIDGET_ID = "github-repositories-for-chatgpt";
+  const NEW_CHAT_ATTR = "data-ghrc-new-chat";
+  const HIDDEN_WELCOME_CLASS = "ghrc-hidden-welcome";
   const USAGE_STORAGE_KEY = "repositoryUsage";
   const REPOSITORIES_PER_COLUMN = 7;
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -49,6 +51,44 @@
     if (!prompt) return null;
 
     return prompt.closest("form") || prompt.closest('[data-type="unified-composer"]');
+  }
+
+  function clearPageAdjustments() {
+    document.documentElement.removeAttribute(NEW_CHAT_ATTR);
+    document.querySelectorAll(`.${HIDDEN_WELCOME_CLASS}`).forEach((element) => {
+      element.classList.remove(HIDDEN_WELCOME_CLASS);
+    });
+  }
+
+  function hideWelcomeHeading(composer) {
+    const main = composer.closest("main") || document.querySelector("main");
+    if (!main) return;
+    if (main.querySelector(`.${HIDDEN_WELCOME_CLASS}`)) return;
+
+    const composerBounds = composer.getBoundingClientRect();
+    const candidates = [...main.querySelectorAll('h1, h2, [role="heading"]')]
+      .filter((heading) => {
+        if (!heading.textContent.trim() || heading.closest(`#${WIDGET_ID}`)) return false;
+
+        const bounds = heading.getBoundingClientRect();
+        const headingCenter = bounds.left + (bounds.width / 2);
+        const composerCenter = composerBounds.left + (composerBounds.width / 2);
+        const isAboveComposer = bounds.bottom <= composerBounds.top + 8
+          && composerBounds.top - bounds.bottom < 320;
+        const isHorizontallyAligned = Math.abs(headingCenter - composerCenter)
+          < Math.max(160, composerBounds.width / 2);
+        return isAboveComposer && isHorizontallyAligned;
+      })
+      .sort((first, second) => (
+        second.getBoundingClientRect().bottom - first.getBoundingClientRect().bottom
+      ));
+
+    candidates[0]?.classList.add(HIDDEN_WELCOME_CLASS);
+  }
+
+  function applyPageAdjustments(composer) {
+    document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
+    hideWelcomeHeading(composer);
   }
 
   function daysSince(timestamp) {
@@ -391,11 +431,13 @@
 
     if (!isNewChatPage()) {
       existingWidget?.remove();
+      clearPageAdjustments();
       return;
     }
 
     const composer = findComposer();
     if (!composer) return;
+    applyPageAdjustments(composer);
 
     if (existingWidget) {
       if (existingWidget.previousElementSibling !== composer) {

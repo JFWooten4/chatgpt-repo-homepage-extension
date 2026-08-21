@@ -19,6 +19,15 @@
   z-index: 2;
 }
 
+html[data-ghrc-new-chat="true"] .ghrc-hidden-welcome,
+html[data-ghrc-new-chat="true"] button[data-testid="composer-speech-button"],
+html[data-ghrc-new-chat="true"] button[aria-label*="dictat" i],
+html[data-ghrc-new-chat="true"] button[aria-label*="microphone" i],
+html[data-ghrc-new-chat="true"] button[title*="dictat" i],
+html[data-ghrc-new-chat="true"] button[title*="microphone" i] {
+  display: none !important;
+}
+
 html.dark #github-repositories-for-chatgpt {
   --ghrc-accent: #4493f8;
   --ghrc-border: #3d444d;

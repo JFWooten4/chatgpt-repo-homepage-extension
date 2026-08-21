@@ -5,6 +5,8 @@ below the composer on ChatGPT's new-chat page.
 
 The dashboard:
 
+- hides the new-chat welcome heading and dictation microphone while preserving
+  the voice-mode button;
 - shows seven ranked repositories in each owner column;
 - starts with `JFWooten4`, `blocktransfer`, `WhyDRS`, and `stellar`;
 - fills a priority owner from its public repositories when it is not part of the
