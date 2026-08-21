@@ -14,17 +14,12 @@
       </header>
 
       <form id="settings-form">
-        <label for="github-token">GitHub token</label>
+        <label>GitHub tokens</label>
         <p class="help">
-          The token is kept in this extension's local browser storage. Repository metadata read access is enough.
+          Add one fine-grained token per private repository owner. Each token only needs read-only repository metadata access and stays in this extension's local browser storage.
         </p>
-        <input
-          id="github-token"
-          name="github-token"
-          type="password"
-          autocomplete="off"
-          placeholder="github_pat_…"
-        />
+        <div id="github-tokens" class="token-list"></div>
+        <button id="add-token" class="secondary add-token" type="button">Add owner token</button>
 
         <label for="owner-order">Priority owners</label>
         <p class="help">Enter one user or organization per line. These columns appear first, in this order.</p>
@@ -32,11 +27,31 @@
 
         <div class="actions">
           <button type="submit">Save settings</button>
-          <button id="clear-token" class="secondary" type="button">Clear token</button>
+          <button id="clear-tokens" class="secondary" type="button">Clear tokens</button>
         </div>
         <p id="status" role="status" aria-live="polite"></p>
       </form>
     </main>
+
+    <template id="token-row-template">
+      <div class="token-row">
+        <input
+          class="token-owner"
+          type="text"
+          autocomplete="off"
+          aria-label="GitHub resource owner"
+          placeholder="Owner"
+        />
+        <input
+          class="token-value"
+          type="password"
+          autocomplete="off"
+          aria-label="Fine-grained GitHub token"
+          placeholder="github_pat_…"
+        />
+        <button class="secondary remove-token" type="button" aria-label="Remove owner token">Remove</button>
+      </div>
+    </template>
     <script src="options.js"></script>
   </body>
 </html>

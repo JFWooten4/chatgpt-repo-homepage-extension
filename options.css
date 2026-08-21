@@ -78,6 +78,21 @@ textarea {
   resize: vertical;
 }
 
+.token-list {
+  display: grid;
+  gap: 8px;
+}
+
+.token-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(120px, 0.7fr) minmax(220px, 1.6fr) auto;
+}
+
+.add-token {
+  margin-top: 10px;
+}
+
 .actions {
   display: flex;
   gap: 10px;
@@ -102,6 +117,16 @@ button.secondary {
   background: light-dark(#f6f8fa, #21262d);
   border-color: light-dark(#d0d7de, #3d444d);
   color: inherit;
+}
+
+@media (max-width: 620px) {
+  .token-row {
+    grid-template-columns: 1fr;
+  }
+
+  .remove-token {
+    justify-self: start;
+  }
 }
 
 #status {

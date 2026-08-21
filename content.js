@@ -449,7 +449,10 @@
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local" || (!changes.githubToken && !changes.ownerOrder)) return;
+    if (
+      areaName !== "local"
+      || (!changes.githubToken && !changes.githubTokens && !changes.ownerOrder)
+    ) return;
     repositoryRequest = null;
     document.getElementById(WIDGET_ID)?.remove();
     scheduleMount();

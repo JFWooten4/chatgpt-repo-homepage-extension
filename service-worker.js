@@ -1,4 +1,12 @@
-const DEFAULT_OWNER_ORDER = ["JFWooten4", "blocktransfer", "WhyDRS", "stellar"];
+const DEFAULT_OWNER_ORDER = [
+  "JFWooten4",
+  "blocktransfer",
+  "WhyDRS",
+  "stellar",
+  "windsorUwU",
+  "am-only",
+];
+const REQUIRED_TRAILING_OWNERS = ["windsorUwU", "am-only"];
 const REPOSITORIES_PER_PAGE = 100;
 
 function githubHeaders(token) {
@@ -113,33 +121,93 @@ async function loadPublicRepositories(ownerOrder, token = "") {
   return ownerRepositories.flat();
 }
 
+function ownerOrderWithRequiredOwners(ownerOrder) {
+  const requiredKeys = new Set(
+    REQUIRED_TRAILING_OWNERS.map((owner) => owner.toLowerCase()),
+  );
+  const result = ownerOrder.filter((owner) => !requiredKeys.has(owner.toLowerCase()));
+  const stellarIndex = result.findIndex((owner) => owner.toLowerCase() === "stellar");
+  result.splice(
+    stellarIndex >= 0 ? stellarIndex + 1 : result.length,
+    0,
+    ...REQUIRED_TRAILING_OWNERS,
+  );
+  return result;
+}
+
+function configuredTokens(settings) {
+  const ownerTokens = Array.isArray(settings.githubTokens)
+    ? settings.githubTokens
+      .filter((entry) => (
+        entry
+        && typeof entry.owner === "string"
+        && typeof entry.token === "string"
+      ))
+      .map(({ owner, token }) => ({ owner: owner.trim(), token: token.trim() }))
+      .filter(({ owner, token }) => owner && token)
+    : [];
+
+  if (!ownerTokens.length && settings.githubToken.trim()) {
+    ownerTokens.push({ owner: "JFWooten4", token: settings.githubToken.trim() });
+  }
+
+  const seenTokens = new Set();
+  return ownerTokens.filter(({ token }) => {
+    if (seenTokens.has(token)) return false;
+    seenTokens.add(token);
+    return true;
+  });
+}
+
+function uniqueRepositories(repositories) {
+  const seenRepositories = new Set();
+  return repositories.filter((repository) => {
+    const key = repository.full_name.toLowerCase();
+    if (seenRepositories.has(key)) return false;
+    seenRepositories.add(key);
+    return true;
+  });
+}
+
 async function repositoryPayload() {
   const settings = await chrome.storage.local.get({
     githubToken: "",
+    githubTokens: [],
     ownerOrder: DEFAULT_OWNER_ORDER,
   });
-  const ownerOrder = Array.isArray(settings.ownerOrder) && settings.ownerOrder.length
+  const storedOwnerOrder = Array.isArray(settings.ownerOrder) && settings.ownerOrder.length
     ? settings.ownerOrder
     : DEFAULT_OWNER_ORDER;
-  const token = settings.githubToken.trim();
+  const ownerOrder = ownerOrderWithRequiredOwners(storedOwnerOrder);
+  const ownerTokens = configuredTokens(settings);
   let repositories;
 
-  if (token) {
-    repositories = await loadAccessibleRepositories(token);
+  if (ownerTokens.length) {
+    const authenticatedRepositories = await Promise.all(
+      ownerTokens.map(async ({ owner, token }) => {
+        try {
+          return await loadAccessibleRepositories(token);
+        } catch (error) {
+          throw new Error(`${owner}: ${error.message}`);
+        }
+      }),
+    );
+    repositories = uniqueRepositories(authenticatedRepositories.flat());
     const accessibleOwners = new Set(
       repositories.map((repository) => repository.owner.login.toLowerCase()),
     );
     const missingPriorityOwners = ownerOrder.filter(
       (owner) => !accessibleOwners.has(owner.toLowerCase()),
     );
-    const priorityRepositories = await loadPublicRepositories(missingPriorityOwners, token);
+    const priorityRepositories = await loadPublicRepositories(missingPriorityOwners);
     repositories.push(...priorityRepositories);
+    repositories = uniqueRepositories(repositories);
   } else {
     repositories = await loadPublicRepositories(ownerOrder);
   }
 
   return {
-    mode: token ? "authenticated" : "public",
+    mode: ownerTokens.length ? "authenticated" : "public",
     ownerOrder,
     repositories: repositories.map(normalizeRepository),
   };
