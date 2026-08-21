@@ -9,6 +9,8 @@
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
   let mountScheduled = false;
   let repositoryRequest = null;
+  let layoutObserver = null;
+  let observedLayoutContainer = null;
 
   function githubIcon(className = "ghrc-github-icon") {
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -95,6 +97,30 @@
   function applyPageAdjustments(composer) {
     document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
     updateWelcomeHeading(composer);
+  }
+
+  function updateWidgetLayout(widget, composer) {
+    const content = composer.closest("main");
+    const parent = widget.parentElement;
+    if (!content || !parent) return;
+
+    const contentBounds = content.getBoundingClientRect();
+    const parentBounds = parent.getBoundingClientRect();
+    const contentCenter = contentBounds.left + (contentBounds.width / 2);
+    const parentCenter = parentBounds.left + (parentBounds.width / 2);
+    const availableWidth = Math.max(0, Math.floor(contentBounds.width - 40));
+
+    widget.style.setProperty("--ghrc-available-width", `${availableWidth}px`);
+    widget.style.setProperty(
+      "--ghrc-center-offset",
+      `${Math.round(contentCenter - parentCenter)}px`,
+    );
+
+    if (observedLayoutContainer === content) return;
+    layoutObserver ??= new ResizeObserver(scheduleMount);
+    layoutObserver.disconnect();
+    layoutObserver.observe(content);
+    observedLayoutContainer = content;
   }
 
   async function loadDisplayPreferences() {
@@ -442,6 +468,8 @@
 
     if (!isNewChatPage()) {
       existingWidget?.remove();
+      layoutObserver?.disconnect();
+      observedLayoutContainer = null;
       clearPageAdjustments();
       return;
     }
@@ -454,10 +482,13 @@
       if (existingWidget.previousElementSibling !== composer) {
         composer.insertAdjacentElement("afterend", existingWidget);
       }
+      updateWidgetLayout(existingWidget, composer);
       return;
     }
 
-    composer.insertAdjacentElement("afterend", createWidget());
+    const widget = createWidget();
+    composer.insertAdjacentElement("afterend", widget);
+    updateWidgetLayout(widget, composer);
   }
 
   function scheduleMount() {
@@ -479,6 +510,8 @@
       }
     }
   });
+
+  window.addEventListener("resize", scheduleMount);
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;

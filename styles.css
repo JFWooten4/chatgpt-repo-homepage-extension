@@ -11,8 +11,9 @@
   box-sizing: border-box;
   color: var(--ghrc-fg);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  margin: 20px 50% 32px;
-  max-width: calc(100vw - 40px);
+  left: calc(50% + var(--ghrc-center-offset, 0px));
+  margin: 20px 0 32px;
+  max-width: var(--ghrc-available-width, calc(100vw - 40px));
   position: relative;
   transform: translateX(-50%);
   width: 1120px;
