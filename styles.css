@@ -234,14 +234,15 @@ html.dark #github-repositories-for-chatgpt {
 }
 
 #github-repositories-for-chatgpt .ghrc-repository-list {
-  min-height: 357px;
+  min-height: 294px;
 }
 
 #github-repositories-for-chatgpt .ghrc-repository {
+  align-items: center;
   border-bottom: 1px solid var(--ghrc-border);
   color: inherit;
-  display: block;
-  min-height: 51px;
+  display: flex;
+  min-height: 42px;
   padding: 8px 12px;
   text-decoration: none;
 }
@@ -257,6 +258,7 @@ html.dark #github-repositories-for-chatgpt {
 #github-repositories-for-chatgpt .ghrc-repository-title {
   gap: 6px;
   min-width: 0;
+  width: 100%;
 }
 
 #github-repositories-for-chatgpt .ghrc-repository-icon {
@@ -287,18 +289,8 @@ html.dark #github-repositories-for-chatgpt {
   padding: 0 5px;
 }
 
-#github-repositories-for-chatgpt .ghrc-repository-metadata {
-  color: var(--ghrc-fg-muted);
-  display: block;
-  font-size: 10px;
-  margin: 3px 0 0 22px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 #github-repositories-for-chatgpt .ghrc-search-results .ghrc-repository {
-  min-height: 48px;
+  min-height: 42px;
 }
 
 #github-repositories-for-chatgpt .ghrc-search-empty,

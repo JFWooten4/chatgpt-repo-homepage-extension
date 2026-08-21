@@ -167,19 +167,6 @@
     await chrome.storage.local.set({ [USAGE_STORAGE_KEY]: usage });
   }
 
-  function relativeActivity(timestamp) {
-    const days = Math.floor(daysSince(timestamp));
-    if (days === 0) return "Active today";
-    if (days === 1) return "Active yesterday";
-    if (days < 30) return `Active ${days}d ago`;
-
-    const months = Math.floor(days / 30);
-    if (months < 12) return `Active ${months}mo ago`;
-
-    const years = Math.floor(months / 12);
-    return `Active ${years}y ago`;
-  }
-
   function createRepositoryLink(repository, includeOwner = false) {
     const link = document.createElement("a");
     link.className = "ghrc-repository";
@@ -204,15 +191,7 @@
       titleRow.append(visibility);
     }
 
-    const metadata = document.createElement("span");
-    metadata.className = "ghrc-repository-metadata";
-    metadata.textContent = relativeActivity(repository.pushedAt);
-
-    if (repository.language) {
-      metadata.append(document.createTextNode(` · ${repository.language}`));
-    }
-
-    link.append(titleRow, metadata);
+    link.append(titleRow);
     return link;
   }
 
