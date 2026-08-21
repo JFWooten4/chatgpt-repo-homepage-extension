@@ -194,7 +194,7 @@ html.dark #github-repositories-for-chatgpt {
 #github-repositories-for-chatgpt .ghrc-columns {
   display: grid;
   gap: 0;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
 }
 
@@ -203,11 +203,11 @@ html.dark #github-repositories-for-chatgpt {
   min-width: 0;
 }
 
-#github-repositories-for-chatgpt .ghrc-owner-column:nth-child(4n) {
+#github-repositories-for-chatgpt .ghrc-owner-column:nth-child(3n) {
   border-right: 0;
 }
 
-#github-repositories-for-chatgpt .ghrc-owner-column:nth-child(n + 5) {
+#github-repositories-for-chatgpt .ghrc-owner-column:nth-child(n + 4) {
   border-top: 1px solid var(--ghrc-border);
 }
 
@@ -330,6 +330,10 @@ html.dark #github-repositories-for-chatgpt {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  #github-repositories-for-chatgpt .ghrc-owner-column:nth-child(n) {
+    border-right: 1px solid var(--ghrc-border);
+  }
+
   #github-repositories-for-chatgpt .ghrc-owner-column:nth-child(2n) {
     border-right: 0;
   }
@@ -359,7 +363,7 @@ html.dark #github-repositories-for-chatgpt {
     grid-template-columns: 1fr;
   }
 
-  #github-repositories-for-chatgpt .ghrc-owner-column {
+  #github-repositories-for-chatgpt .ghrc-owner-column:nth-child(n) {
     border-right: 0;
   }
 
