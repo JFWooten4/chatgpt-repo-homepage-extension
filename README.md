@@ -49,3 +49,7 @@ storage. The extension does not send that data anywhere except GitHub's API when
 loading repository metadata.
 
 Press **Alt+R** on the new-chat page to focus the repository search field.
+
+## License
+
+This project is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
