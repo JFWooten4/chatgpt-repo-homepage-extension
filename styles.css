@@ -239,13 +239,8 @@ html.dark #github-repositories-for-chatgpt {
 
 #github-repositories-for-chatgpt .ghrc-repository {
   align-items: center;
-  border-bottom: 1px solid var(--ghrc-border);
   display: flex;
   min-height: 42px;
-}
-
-#github-repositories-for-chatgpt .ghrc-repository:last-child {
-  border-bottom: 0;
 }
 
 #github-repositories-for-chatgpt .ghrc-repository:hover {
