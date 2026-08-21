@@ -16,7 +16,7 @@
       <form id="settings-form">
         <label>GitHub tokens</label>
         <p class="help">
-          Add one fine-grained token per private repository owner. Each token only needs read-only repository metadata access and stays in this extension's local browser storage.
+          Add any number of fine-grained tokens. Labels are only for identifying them here; each token determines which private repositories it can access.
         </p>
         <div id="github-tokens" class="token-list"></div>
         <button id="add-token" class="secondary add-token" type="button">Add owner token</button>
@@ -36,11 +36,11 @@
     <template id="token-row-template">
       <div class="token-row">
         <input
-          class="token-owner"
+          class="token-label"
           type="text"
           autocomplete="off"
-          aria-label="GitHub resource owner"
-          placeholder="Owner"
+          aria-label="GitHub token label"
+          placeholder="Label (optional)"
         />
         <input
           class="token-value"
@@ -49,7 +49,7 @@
           aria-label="Fine-grained GitHub token"
           placeholder="github_pat_…"
         />
-        <button class="secondary remove-token" type="button" aria-label="Remove owner token">Remove</button>
+        <button class="secondary remove-token" type="button" aria-label="Remove GitHub token">Remove</button>
       </div>
     </template>
     <script src="options.js"></script>

@@ -6,14 +6,6 @@ const DEFAULT_OWNER_ORDER = [
   "windsorUwU",
   "am-only",
 ];
-const DEFAULT_TOKEN_OWNERS = [
-  "JFWooten4",
-  "blocktransfer",
-  "WhyDRS",
-  "windsorUwU",
-  "am-only",
-];
-const REQUIRED_TRAILING_OWNERS = ["windsorUwU", "am-only"];
 const form = document.getElementById("settings-form");
 const tokenList = document.getElementById("github-tokens");
 const tokenRowTemplate = document.getElementById("token-row-template");
@@ -21,20 +13,6 @@ const addTokenButton = document.getElementById("add-token");
 const ownerOrderInput = document.getElementById("owner-order");
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
-
-function ownerOrderWithRequiredOwners(ownerOrder) {
-  const requiredKeys = new Set(
-    REQUIRED_TRAILING_OWNERS.map((owner) => owner.toLowerCase()),
-  );
-  const result = ownerOrder.filter((owner) => !requiredKeys.has(owner.toLowerCase()));
-  const stellarIndex = result.findIndex((owner) => owner.toLowerCase() === "stellar");
-  result.splice(
-    stellarIndex >= 0 ? stellarIndex + 1 : result.length,
-    0,
-    ...REQUIRED_TRAILING_OWNERS,
-  );
-  return result;
-}
 
 function ownerOrderFromInput() {
   const seen = new Set();
@@ -54,46 +32,31 @@ function showStatus(message, state = "") {
   status.dataset.state = state;
 }
 
-function createTokenRow({ owner = "", token = "" } = {}) {
+function createTokenRow({ label = "", owner = "", token = "" } = {}) {
   const row = tokenRowTemplate.content.firstElementChild.cloneNode(true);
-  row.querySelector(".token-owner").value = owner;
+  row.querySelector(".token-label").value = label || owner;
   row.querySelector(".token-value").value = token;
   row.querySelector(".remove-token").addEventListener("click", () => row.remove());
   return row;
 }
 
 function renderTokenRows(configuredTokens) {
-  const tokensByOwner = new Map(
-    configuredTokens.map(({ owner, token }) => [owner.toLowerCase(), { owner, token }]),
-  );
-  const tokenRows = DEFAULT_TOKEN_OWNERS.map((owner) => (
-    tokensByOwner.get(owner.toLowerCase()) || { owner, token: "" }
-  ));
-  const defaultOwnerKeys = new Set(
-    DEFAULT_TOKEN_OWNERS.map((owner) => owner.toLowerCase()),
-  );
-  tokenRows.push(
-    ...configuredTokens.filter(({ owner }) => !defaultOwnerKeys.has(owner.toLowerCase())),
-  );
-
+  const tokenRows = configuredTokens.length ? configuredTokens : [{}];
   tokenList.replaceChildren(...tokenRows.map((token) => createTokenRow(token)));
 }
 
 function tokensFromInput() {
   const tokens = [];
-  const seenOwners = new Set();
+  const seenTokens = new Set();
 
   for (const row of tokenList.querySelectorAll(".token-row")) {
-    const owner = row.querySelector(".token-owner").value.trim();
+    const label = row.querySelector(".token-label").value.trim();
     const token = row.querySelector(".token-value").value.trim();
 
     if (!token) continue;
-    if (!owner) return null;
-
-    const ownerKey = owner.toLowerCase();
-    if (seenOwners.has(ownerKey)) return null;
-    seenOwners.add(ownerKey);
-    tokens.push({ owner, token });
+    if (seenTokens.has(token)) return null;
+    seenTokens.add(token);
+    tokens.push({ label: label || `Token ${tokens.length + 1}`, token });
   }
 
   return tokens;
@@ -108,29 +71,29 @@ async function loadSettings() {
   const storedOwnerOrder = Array.isArray(settings.ownerOrder)
     ? settings.ownerOrder
     : DEFAULT_OWNER_ORDER;
-  const ownerOrder = ownerOrderWithRequiredOwners(storedOwnerOrder);
   const configuredTokens = Array.isArray(settings.githubTokens)
-    ? settings.githubTokens.filter((entry) => (
-      entry
-      && typeof entry.owner === "string"
-      && typeof entry.token === "string"
-      && entry.owner.trim()
-      && entry.token.trim()
-    ))
+    ? settings.githubTokens
+      .filter((entry) => entry && typeof entry.token === "string" && entry.token.trim())
+      .map((entry) => ({
+        label: typeof entry.label === "string"
+          ? entry.label
+          : typeof entry.owner === "string" ? entry.owner : "",
+        token: entry.token,
+      }))
     : [];
 
   if (!configuredTokens.length && settings.githubToken.trim()) {
-    configuredTokens.push({ owner: "JFWooten4", token: settings.githubToken.trim() });
+    configuredTokens.push({ label: "GitHub account", token: settings.githubToken.trim() });
   }
 
   renderTokenRows(configuredTokens);
-  ownerOrderInput.value = ownerOrder.join("\n");
+  ownerOrderInput.value = storedOwnerOrder.join("\n");
 }
 
 addTokenButton.addEventListener("click", () => {
   const row = createTokenRow();
   tokenList.append(row);
-  row.querySelector(".token-owner").focus();
+  row.querySelector(".token-label").focus();
 });
 
 form.addEventListener("submit", async (event) => {
@@ -144,14 +107,13 @@ form.addEventListener("submit", async (event) => {
   }
 
   if (!githubTokens) {
-    showStatus("Give every token a unique owner, or remove its incomplete row.", "error");
+    showStatus("Remove the duplicate token before saving.", "error");
     return;
   }
 
-  const ownerOrder = ownerOrderWithRequiredOwners(enteredOwnerOrder);
-  await chrome.storage.local.set({ githubTokens, ownerOrder });
+  await chrome.storage.local.set({ githubTokens, ownerOrder: enteredOwnerOrder });
   await chrome.storage.local.remove("githubToken");
-  ownerOrderInput.value = ownerOrder.join("\n");
+  ownerOrderInput.value = enteredOwnerOrder.join("\n");
   showStatus("Settings saved. The ChatGPT dashboard will refresh automatically.", "success");
 });
 

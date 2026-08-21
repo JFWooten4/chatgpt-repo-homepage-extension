@@ -198,7 +198,8 @@
   function createOwnerColumn(group) {
     const column = document.createElement("section");
     column.className = "ghrc-owner-column";
-    column.setAttribute("aria-label", `${group.owner.login} repositories`);
+    const displayName = group.owner.displayName || group.owner.login;
+    column.setAttribute("aria-label", `${displayName} repositories`);
 
     const header = document.createElement("header");
     header.className = "ghrc-owner-header";
@@ -210,7 +211,8 @@
 
     const heading = document.createElement("div");
     const name = document.createElement("h3");
-    name.textContent = group.owner.login;
+    name.textContent = displayName;
+    if (displayName !== group.owner.login) name.title = group.owner.login;
     const type = document.createElement("span");
     type.textContent = group.owner.type === "Organization" ? "Organization" : "Personal";
     heading.append(name, type);

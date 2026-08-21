@@ -6,8 +6,8 @@ const DEFAULT_OWNER_ORDER = [
   "windsorUwU",
   "am-only",
 ];
-const REQUIRED_TRAILING_OWNERS = ["windsorUwU", "am-only"];
 const REPOSITORIES_PER_PAGE = 100;
+const ownerProfileCache = new Map();
 
 function githubHeaders(token) {
   const headers = {
@@ -49,7 +49,9 @@ async function fetchGitHub(url, token) {
   return response.json();
 }
 
-function normalizeRepository(repository) {
+function normalizeRepository(repository, ownerProfiles) {
+  const ownerProfile = ownerProfiles.get(repository.owner.login.toLowerCase());
+
   return {
     id: repository.id,
     name: repository.name,
@@ -65,10 +67,42 @@ function normalizeRepository(repository) {
     stars: repository.stargazers_count || 0,
     owner: {
       login: repository.owner.login,
+      displayName: ownerProfile?.displayName || repository.owner.login,
       avatarUrl: repository.owner.avatar_url,
       type: repository.owner.type,
     },
   };
+}
+
+function loadOwnerProfile(login, token) {
+  const key = login.toLowerCase();
+  if (ownerProfileCache.has(key)) return ownerProfileCache.get(key);
+
+  const profileRequest = fetchGitHub(
+    `https://api.github.com/users/${encodeURIComponent(login)}`,
+    token,
+  )
+    .then((profile) => ({
+      displayName: profile.name?.trim() || profile.login || login,
+    }))
+    .catch(() => ({ displayName: login }));
+
+  ownerProfileCache.set(key, profileRequest);
+  return profileRequest;
+}
+
+async function loadOwnerProfiles(repositories, token = "") {
+  const owners = new Map();
+
+  for (const repository of repositories) {
+    const login = repository.owner.login;
+    owners.set(login.toLowerCase(), login);
+  }
+
+  const profiles = await Promise.all(
+    [...owners].map(async ([key, login]) => [key, await loadOwnerProfile(login, token)]),
+  );
+  return new Map(profiles);
 }
 
 async function loadAccessibleRepositories(token) {
@@ -121,38 +155,28 @@ async function loadPublicRepositories(ownerOrder, token = "") {
   return ownerRepositories.flat();
 }
 
-function ownerOrderWithRequiredOwners(ownerOrder) {
-  const requiredKeys = new Set(
-    REQUIRED_TRAILING_OWNERS.map((owner) => owner.toLowerCase()),
-  );
-  const result = ownerOrder.filter((owner) => !requiredKeys.has(owner.toLowerCase()));
-  const stellarIndex = result.findIndex((owner) => owner.toLowerCase() === "stellar");
-  result.splice(
-    stellarIndex >= 0 ? stellarIndex + 1 : result.length,
-    0,
-    ...REQUIRED_TRAILING_OWNERS,
-  );
-  return result;
-}
-
 function configuredTokens(settings) {
-  const ownerTokens = Array.isArray(settings.githubTokens)
+  const tokens = Array.isArray(settings.githubTokens)
     ? settings.githubTokens
       .filter((entry) => (
         entry
-        && typeof entry.owner === "string"
         && typeof entry.token === "string"
       ))
-      .map(({ owner, token }) => ({ owner: owner.trim(), token: token.trim() }))
-      .filter(({ owner, token }) => owner && token)
+      .map((entry) => ({
+        label: typeof entry.label === "string"
+          ? entry.label.trim()
+          : typeof entry.owner === "string" ? entry.owner.trim() : "",
+        token: entry.token.trim(),
+      }))
+      .filter(({ token }) => token)
     : [];
 
-  if (!ownerTokens.length && settings.githubToken.trim()) {
-    ownerTokens.push({ owner: "JFWooten4", token: settings.githubToken.trim() });
+  if (!tokens.length && settings.githubToken.trim()) {
+    tokens.push({ label: "GitHub account", token: settings.githubToken.trim() });
   }
 
   const seenTokens = new Set();
-  return ownerTokens.filter(({ token }) => {
+  return tokens.filter(({ token }) => {
     if (seenTokens.has(token)) return false;
     seenTokens.add(token);
     return true;
@@ -176,19 +200,19 @@ async function repositoryPayload() {
     ownerOrder: DEFAULT_OWNER_ORDER,
   });
   const storedOwnerOrder = Array.isArray(settings.ownerOrder) && settings.ownerOrder.length
-    ? settings.ownerOrder
+    ? settings.ownerOrder.filter((owner) => typeof owner === "string" && owner.trim())
     : DEFAULT_OWNER_ORDER;
-  const ownerOrder = ownerOrderWithRequiredOwners(storedOwnerOrder);
-  const ownerTokens = configuredTokens(settings);
+  const ownerOrder = storedOwnerOrder.length ? storedOwnerOrder : DEFAULT_OWNER_ORDER;
+  const tokens = configuredTokens(settings);
   let repositories;
 
-  if (ownerTokens.length) {
+  if (tokens.length) {
     const authenticatedRepositories = await Promise.all(
-      ownerTokens.map(async ({ owner, token }) => {
+      tokens.map(async ({ label, token }, index) => {
         try {
           return await loadAccessibleRepositories(token);
         } catch (error) {
-          throw new Error(`${owner}: ${error.message}`);
+          throw new Error(`${label || `Token ${index + 1}`}: ${error.message}`);
         }
       }),
     );
@@ -206,10 +230,14 @@ async function repositoryPayload() {
     repositories = await loadPublicRepositories(ownerOrder);
   }
 
+  const ownerProfiles = await loadOwnerProfiles(repositories, tokens[0]?.token);
+
   return {
-    mode: ownerTokens.length ? "authenticated" : "public",
+    mode: tokens.length ? "authenticated" : "public",
     ownerOrder,
-    repositories: repositories.map(normalizeRepository),
+    repositories: repositories.map((repository) => (
+      normalizeRepository(repository, ownerProfiles)
+    )),
   };
 }
 

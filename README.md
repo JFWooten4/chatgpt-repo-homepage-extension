@@ -8,6 +8,7 @@ The dashboard:
 - hides the new-chat welcome heading and dictation microphone while preserving
   the voice-mode button;
 - shows seven ranked repositories in each owner column;
+- labels owner columns with their GitHub profile display names;
 - starts with `JFWooten4`, `blocktransfer`, `WhyDRS`, `stellar`, `windsorUwU`,
   and `am-only`;
 - fills a priority owner from its public repositories when it is not part of the
@@ -24,15 +25,16 @@ The dashboard:
 3. Select **Load unpacked**.
 4. Choose this `brave/chatgpt-repositories` folder.
 5. Open the extension's **Details**, then select **Extension options**.
-6. Save one fine-grained GitHub token with read-only repository metadata access
-   for each private repository owner.
+6. Add any fine-grained GitHub tokens needed for private repositories. Each
+   token only needs read-only repository metadata access.
 7. Open or refresh [ChatGPT](https://chatgpt.com/).
 
 Without a token, the extension displays public repositories from the priority
-owners. Because GitHub limits each fine-grained token to one resource owner,
-add separate tokens for `JFWooten4`, `blocktransfer`, `WhyDRS`, `windsorUwU`,
-and `am-only` to include private repositories from all five owners. Existing
-single-token settings are migrated to the `JFWooten4` token field automatically.
+owners entered in Extension options. Add a separate fine-grained token for each
+resource owner whose private repositories should appear. Token labels are only
+local identifiers; repository access comes from each token's GitHub settings.
+Both token rows and priority owners can be added, removed, or reordered. Existing
+single-token settings are migrated automatically.
 
 ## Ranking
 
