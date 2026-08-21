@@ -1,16 +1,11 @@
-const DEFAULT_OWNER_ORDER = [
-  "JFWooten4",
-  "blocktransfer",
-  "WhyDRS",
-  "stellar",
-  "windsorUwU",
-  "am-only",
-];
+const DEFAULT_OWNER_ORDER = [];
 const form = document.getElementById("settings-form");
 const tokenList = document.getElementById("github-tokens");
 const tokenRowTemplate = document.getElementById("token-row-template");
 const addTokenButton = document.getElementById("add-token");
 const ownerOrderInput = document.getElementById("owner-order");
+const hideDictationButtonInput = document.getElementById("hide-dictation-button");
+const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
 
@@ -67,6 +62,8 @@ async function loadSettings() {
     githubToken: "",
     githubTokens: [],
     ownerOrder: DEFAULT_OWNER_ORDER,
+    hideDictationButton: false,
+    compactNewChatHeader: false,
   });
   const storedOwnerOrder = Array.isArray(settings.ownerOrder)
     ? settings.ownerOrder
@@ -88,6 +85,8 @@ async function loadSettings() {
 
   renderTokenRows(configuredTokens);
   ownerOrderInput.value = storedOwnerOrder.join("\n");
+  hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
+  compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
 }
 
 addTokenButton.addEventListener("click", () => {
@@ -101,17 +100,17 @@ form.addEventListener("submit", async (event) => {
   const enteredOwnerOrder = ownerOrderFromInput();
   const githubTokens = tokensFromInput();
 
-  if (!enteredOwnerOrder.length) {
-    showStatus("Add at least one priority owner.", "error");
-    return;
-  }
-
   if (!githubTokens) {
     showStatus("Remove the duplicate token before saving.", "error");
     return;
   }
 
-  await chrome.storage.local.set({ githubTokens, ownerOrder: enteredOwnerOrder });
+  await chrome.storage.local.set({
+    githubTokens,
+    ownerOrder: enteredOwnerOrder,
+    hideDictationButton: hideDictationButtonInput.checked,
+    compactNewChatHeader: compactNewChatHeaderInput.checked,
+  });
   await chrome.storage.local.remove("githubToken");
   ownerOrderInput.value = enteredOwnerOrder.join("\n");
   showStatus("Settings saved. The ChatGPT dashboard will refresh automatically.", "success");

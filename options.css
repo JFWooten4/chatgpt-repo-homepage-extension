@@ -78,6 +78,41 @@ textarea {
   resize: vertical;
 }
 
+fieldset {
+  border: 0;
+  margin: 22px 0 0;
+  padding: 0;
+}
+
+legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.preference {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 0;
+}
+
+.preference input {
+  margin: 3px 0 0;
+  width: auto;
+}
+
+.preference span {
+  display: grid;
+  gap: 3px;
+}
+
+.preference small {
+  color: light-dark(#656d76, #9198a1);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 .token-list {
   display: grid;
   gap: 8px;

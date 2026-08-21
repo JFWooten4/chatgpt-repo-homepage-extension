@@ -1,11 +1,4 @@
-const DEFAULT_OWNER_ORDER = [
-  "JFWooten4",
-  "blocktransfer",
-  "WhyDRS",
-  "stellar",
-  "windsorUwU",
-  "am-only",
-];
+const DEFAULT_OWNER_ORDER = [];
 const REPOSITORIES_PER_PAGE = 100;
 const ownerProfileCache = new Map();
 
@@ -199,10 +192,9 @@ async function repositoryPayload() {
     githubTokens: [],
     ownerOrder: DEFAULT_OWNER_ORDER,
   });
-  const storedOwnerOrder = Array.isArray(settings.ownerOrder) && settings.ownerOrder.length
+  const ownerOrder = Array.isArray(settings.ownerOrder)
     ? settings.ownerOrder.filter((owner) => typeof owner === "string" && owner.trim())
     : DEFAULT_OWNER_ORDER;
-  const ownerOrder = storedOwnerOrder.length ? storedOwnerOrder : DEFAULT_OWNER_ORDER;
   const tokens = configuredTokens(settings);
   let repositories;
 
@@ -254,4 +246,10 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   return false;
+});
+
+chrome.runtime.onInstalled.addListener(({ reason }) => {
+  if (reason === "install") {
+    chrome.runtime.openOptionsPage();
+  }
 });

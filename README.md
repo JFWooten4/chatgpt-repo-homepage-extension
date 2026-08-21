@@ -5,36 +5,34 @@ below the composer on ChatGPT's new-chat page.
 
 The dashboard:
 
-- hides the new-chat welcome heading and dictation microphone while preserving
-  the voice-mode button;
 - shows seven ranked repositories in each owner column;
 - labels owner columns with their GitHub profile display names;
-- starts with `JFWooten4`, `blocktransfer`, `WhyDRS`, `stellar`, `windsorUwU`,
-  and `am-only`;
-- fills a priority owner from its public repositories when it is not part of the
-  connected account's GitHub affiliations;
+- starts with no accounts configured, so every installation is personal to its
+  user;
+- loads public repositories for any configured GitHub users or organizations;
+- optionally hides the dictation microphone or compacts the new-chat heading;
 - adds columns for any other repository owners the connected account can access;
 - searches across every loaded repository; and
 - combines recent repository activity with locally tracked opening frequency to
   personalize the order.
 
-## Install in Brave
+## Install
 
-1. Open `brave://extensions`.
-2. Turn on **Developer mode**.
-3. Select **Load unpacked**.
-4. Choose this `brave/chatgpt-repositories` folder.
-5. Open the extension's **Details**, then select **Extension options**.
-6. Add any fine-grained GitHub tokens needed for private repositories. Each
-   token only needs read-only repository metadata access.
-7. Open or refresh [ChatGPT](https://chatgpt.com/).
+1. Download or clone this repository.
+2. Open `chrome://extensions` in Chrome or `brave://extensions` in Brave.
+3. Turn on **Developer mode**.
+4. Select **Load unpacked** and choose this repository's folder.
+5. In the settings page that opens, add a fine-grained GitHub token, public
+   repository owners, or both.
+6. Open or refresh [ChatGPT](https://chatgpt.com/).
 
-Without a token, the extension displays public repositories from the priority
-owners entered in Extension options. Add a separate fine-grained token for each
-resource owner whose private repositories should appear. Token labels are only
-local identifiers; repository access comes from each token's GitHub settings.
-Both token rows and priority owners can be added, removed, or reordered. Existing
-single-token settings are migrated automatically.
+Without a token, the extension displays public repositories from the owners
+entered in Extension options. With one or more tokens, it also displays every
+repository those tokens can access. Token labels are local identifiers;
+repository access comes from each token's GitHub settings. Tokens and repository
+owners can be added, removed, or reordered at any time. Existing single-token
+settings are migrated automatically. Use a fine-grained token with read-only
+access to only the repository metadata the extension should display.
 
 ## Ranking
 

@@ -19,12 +19,11 @@
   z-index: 2;
 }
 
-html[data-ghrc-new-chat="true"] .ghrc-hidden-welcome,
-html[data-ghrc-new-chat="true"] button[data-testid="composer-speech-button"],
-html[data-ghrc-new-chat="true"] button[aria-label*="dictat" i],
-html[data-ghrc-new-chat="true"] button[aria-label*="microphone" i],
-html[data-ghrc-new-chat="true"] button[title*="dictat" i],
-html[data-ghrc-new-chat="true"] button[title*="microphone" i] {
+html[data-ghrc-new-chat][data-ghrc-compact-header] .ghrc-hidden-welcome,
+html[data-ghrc-new-chat][data-ghrc-hide-dictation]
+  button[data-testid="composer-speech-button"],
+html[data-ghrc-new-chat][data-ghrc-hide-dictation]
+  button[aria-label*="dictat" i] {
   display: none !important;
 }
 

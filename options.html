@@ -10,20 +10,44 @@
     <main>
       <header>
         <h1>GitHub Repositories for ChatGPT</h1>
-        <p>Connect GitHub and choose which repository owners appear first.</p>
+        <p>Choose which GitHub repositories appear on your ChatGPT home page.</p>
       </header>
 
       <form id="settings-form">
         <label>GitHub tokens</label>
         <p class="help">
-          Add any number of fine-grained tokens. Labels are only for identifying them here; each token determines which private repositories it can access.
+          Optional. Add fine-grained tokens to show private repositories and every repository each token can access. Tokens stay in this browser.
         </p>
         <div id="github-tokens" class="token-list"></div>
-        <button id="add-token" class="secondary add-token" type="button">Add owner token</button>
+        <button id="add-token" class="secondary add-token" type="button">Add token</button>
 
-        <label for="owner-order">Priority owners</label>
-        <p class="help">Enter one user or organization per line. These columns appear first, in this order.</p>
-        <textarea id="owner-order" name="owner-order" rows="6" spellcheck="false"></textarea>
+        <label for="owner-order">Repository owners</label>
+        <p class="help">Optional. Enter one GitHub user or organization per line to load its public repositories and place its column first.</p>
+        <textarea
+          id="owner-order"
+          name="owner-order"
+          rows="6"
+          spellcheck="false"
+          placeholder="your-github-username&#10;your-organization"
+        ></textarea>
+
+        <fieldset>
+          <legend>ChatGPT display</legend>
+          <label class="preference">
+            <input id="hide-dictation-button" type="checkbox" />
+            <span>
+              <strong>Hide dictation microphone</strong>
+              <small>Hides the microphone used for dictation without hiding ChatGPT's voice-mode button.</small>
+            </span>
+          </label>
+          <label class="preference">
+            <input id="compact-new-chat-header" type="checkbox" />
+            <span>
+              <strong>Compact new-chat header</strong>
+              <small>Hides the welcome heading and reclaims its vertical space above the composer.</small>
+            </span>
+          </label>
+        </fieldset>
 
         <div class="actions">
           <button type="submit">Save settings</button>

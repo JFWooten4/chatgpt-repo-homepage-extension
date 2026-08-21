@@ -1,6 +1,8 @@
 (() => {
   const WIDGET_ID = "github-repositories-for-chatgpt";
   const NEW_CHAT_ATTR = "data-ghrc-new-chat";
+  const HIDE_DICTATION_ATTR = "data-ghrc-hide-dictation";
+  const COMPACT_HEADER_ATTR = "data-ghrc-compact-header";
   const HIDDEN_WELCOME_CLASS = "ghrc-hidden-welcome";
   const USAGE_STORAGE_KEY = "repositoryUsage";
   const REPOSITORIES_PER_COLUMN = 7;
@@ -60,10 +62,14 @@
     });
   }
 
-  function hideWelcomeHeading(composer) {
+  function updateWelcomeHeading(composer) {
+    document.querySelectorAll(`.${HIDDEN_WELCOME_CLASS}`).forEach((element) => {
+      element.classList.remove(HIDDEN_WELCOME_CLASS);
+    });
+    if (!document.documentElement.hasAttribute(COMPACT_HEADER_ATTR)) return;
+
     const main = composer.closest("main") || document.querySelector("main");
     if (!main) return;
-    if (main.querySelector(`.${HIDDEN_WELCOME_CLASS}`)) return;
 
     const composerBounds = composer.getBoundingClientRect();
     const candidates = [...main.querySelectorAll('h1, h2, [role="heading"]')]
@@ -88,7 +94,23 @@
 
   function applyPageAdjustments(composer) {
     document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
-    hideWelcomeHeading(composer);
+    updateWelcomeHeading(composer);
+  }
+
+  async function loadDisplayPreferences() {
+    const preferences = await chrome.storage.local.get({
+      hideDictationButton: false,
+      compactNewChatHeader: false,
+    });
+    document.documentElement.toggleAttribute(
+      HIDE_DICTATION_ATTR,
+      Boolean(preferences.hideDictationButton),
+    );
+    document.documentElement.toggleAttribute(
+      COMPACT_HEADER_ATTR,
+      Boolean(preferences.compactNewChatHeader),
+    );
+    scheduleMount();
   }
 
   function daysSince(timestamp) {
@@ -343,9 +365,17 @@
     }
 
     if (!groups.length) {
-      const empty = document.createElement("p");
+      const empty = document.createElement("div");
       empty.className = "ghrc-state";
-      empty.textContent = "No repositories are available for the configured GitHub account.";
+      const message = document.createElement("span");
+      message.textContent = "Add a GitHub token or repository owner to show repositories here.";
+      const settings = document.createElement("button");
+      settings.type = "button";
+      settings.textContent = "Open settings";
+      settings.addEventListener("click", () => {
+        chrome.runtime.sendMessage({ type: "open-options" });
+      });
+      empty.append(message, settings);
       columns.append(empty);
     }
 
@@ -451,15 +481,20 @@
   });
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (
-      areaName !== "local"
-      || (!changes.githubToken && !changes.githubTokens && !changes.ownerOrder)
-    ) return;
-    repositoryRequest = null;
-    document.getElementById(WIDGET_ID)?.remove();
-    scheduleMount();
+    if (areaName !== "local") return;
+
+    if (changes.hideDictationButton || changes.compactNewChatHeader) {
+      void loadDisplayPreferences();
+    }
+
+    if (changes.githubToken || changes.githubTokens || changes.ownerOrder) {
+      repositoryRequest = null;
+      document.getElementById(WIDGET_ID)?.remove();
+      scheduleMount();
+    }
   });
 
+  void loadDisplayPreferences();
   scheduleMount();
   const observer = new MutationObserver(scheduleMount);
   observer.observe(document.documentElement, { childList: true, subtree: true });
