@@ -12,6 +12,7 @@ The dashboard:
 - loads public repositories for any configured GitHub users or organizations;
 - optionally hides the dictation microphone or compacts the new-chat heading;
 - adds columns for any other repository owners the connected account can access;
+- pins important repositories at the top of their user or organization column;
 - searches across every loaded repository; and
 - combines recent repository activity with locally tracked opening frequency to
   personalize the order.
@@ -34,9 +35,17 @@ owners can be added, removed, or reordered at any time. Existing single-token
 settings are migrated automatically. Use a fine-grained token with read-only
 access to only the repository metadata the extension should display.
 
+## Pins
+
+Select **Pin** beside any repository on the dashboard or in search results to
+keep it visible at the top of its owner column. Pinned repositories remain
+visible even when an owner has more than seven repositories. Open Extension
+options to drag pins into a preferred order, move them with the arrow buttons,
+or remove them.
+
 ## Ranking
 
-Repository order uses a weighted score:
+Unpinned repository order uses a weighted score:
 
 - 60% recent GitHub activity, with older activity gradually fading;
 - 27% the number of times a repository was opened from this dashboard; and

@@ -115,7 +115,8 @@ html.dark #github-repositories-for-chatgpt {
 
 #github-repositories-for-chatgpt .ghrc-settings:focus-visible,
 #github-repositories-for-chatgpt .ghrc-state button:focus-visible,
-#github-repositories-for-chatgpt .ghrc-repository:focus-visible {
+#github-repositories-for-chatgpt .ghrc-repository-link:focus-visible,
+#github-repositories-for-chatgpt .ghrc-pin:focus-visible {
   outline: 2px solid var(--ghrc-accent);
   outline-offset: 2px;
 }
@@ -239,11 +240,8 @@ html.dark #github-repositories-for-chatgpt {
 #github-repositories-for-chatgpt .ghrc-repository {
   align-items: center;
   border-bottom: 1px solid var(--ghrc-border);
-  color: inherit;
   display: flex;
   min-height: 42px;
-  padding: 8px 12px;
-  text-decoration: none;
 }
 
 #github-repositories-for-chatgpt .ghrc-repository:last-child {
@@ -252,6 +250,40 @@ html.dark #github-repositories-for-chatgpt {
 
 #github-repositories-for-chatgpt .ghrc-repository:hover {
   background: var(--ghrc-canvas-subtle);
+}
+
+#github-repositories-for-chatgpt .ghrc-repository-link {
+  align-items: center;
+  color: inherit;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 4px 8px 12px;
+  text-decoration: none;
+}
+
+#github-repositories-for-chatgpt .ghrc-pin {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--ghrc-fg-muted);
+  cursor: pointer;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 600;
+  margin-right: 7px;
+  padding: 4px 5px;
+}
+
+#github-repositories-for-chatgpt .ghrc-pin:hover,
+#github-repositories-for-chatgpt .ghrc-repository[data-pinned="true"] .ghrc-pin {
+  background: color-mix(in srgb, var(--ghrc-canvas-subtle) 75%, var(--ghrc-accent) 25%);
+  color: var(--ghrc-accent);
+}
+
+#github-repositories-for-chatgpt .ghrc-pin:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 #github-repositories-for-chatgpt .ghrc-repository-title {

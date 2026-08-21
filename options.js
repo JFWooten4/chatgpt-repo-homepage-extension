@@ -4,6 +4,8 @@ const tokenList = document.getElementById("github-tokens");
 const tokenRowTemplate = document.getElementById("token-row-template");
 const addTokenButton = document.getElementById("add-token");
 const ownerOrderInput = document.getElementById("owner-order");
+const pinnedRepositoryList = document.getElementById("pinned-repositories");
+const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
 const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
 const clearTokensButton = document.getElementById("clear-tokens");
@@ -57,11 +59,106 @@ function tokensFromInput() {
   return tokens;
 }
 
+function normalizedPins(pinnedRepositories) {
+  const seen = new Set();
+  return (Array.isArray(pinnedRepositories) ? pinnedRepositories : [])
+    .filter((fullName) => typeof fullName === "string" && fullName.includes("/"))
+    .map((fullName) => fullName.trim())
+    .filter((fullName) => {
+      const key = fullName.toLowerCase();
+      if (!fullName || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function pinnedRepositoriesFromList() {
+  return [...pinnedRepositoryList.querySelectorAll(".pinned-repository")]
+    .map((row) => row.dataset.repository);
+}
+
+function updatePinControls() {
+  const rows = [...pinnedRepositoryList.querySelectorAll(".pinned-repository")];
+  rows.forEach((row, index) => {
+    row.querySelector(".move-pin-up").disabled = index === 0;
+    row.querySelector(".move-pin-down").disabled = index === rows.length - 1;
+  });
+}
+
+function movePin(row, direction) {
+  const sibling = direction < 0 ? row.previousElementSibling : row.nextElementSibling;
+  if (!sibling?.classList.contains("pinned-repository")) return;
+
+  if (direction < 0) {
+    pinnedRepositoryList.insertBefore(row, sibling);
+  } else {
+    pinnedRepositoryList.insertBefore(sibling, row);
+  }
+  updatePinControls();
+  row.querySelector(direction < 0 ? ".move-pin-up" : ".move-pin-down").focus();
+}
+
+function createPinnedRepositoryRow(fullName) {
+  const row = pinnedRepositoryTemplate.content.firstElementChild.cloneNode(true);
+  row.dataset.repository = fullName;
+  row.querySelector("code").textContent = fullName;
+  row.querySelector(".move-pin-up").addEventListener("click", () => movePin(row, -1));
+  row.querySelector(".move-pin-down").addEventListener("click", () => movePin(row, 1));
+  row.querySelector(".remove-pin").addEventListener("click", () => {
+    row.remove();
+    if (!pinnedRepositoriesFromList().length) renderPinnedRepositories([]);
+    updatePinControls();
+  });
+  return row;
+}
+
+function renderPinnedRepositories(pinnedRepositories) {
+  const pins = normalizedPins(pinnedRepositories);
+  if (!pins.length) {
+    const empty = document.createElement("p");
+    empty.className = "pinned-repositories-empty";
+    empty.textContent = "No repositories pinned yet.";
+    pinnedRepositoryList.replaceChildren(empty);
+    return;
+  }
+
+  pinnedRepositoryList.replaceChildren(...pins.map(createPinnedRepositoryRow));
+  updatePinControls();
+}
+
+let draggedPin = null;
+pinnedRepositoryList.addEventListener("dragstart", (event) => {
+  const row = event.target.closest(".pinned-repository");
+  if (!row) return;
+  draggedPin = row;
+  row.classList.add("dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", row.dataset.repository);
+});
+pinnedRepositoryList.addEventListener("dragover", (event) => {
+  const target = event.target.closest(".pinned-repository");
+  if (!draggedPin || !target || target === draggedPin) return;
+  event.preventDefault();
+  const bounds = target.getBoundingClientRect();
+  const insertAfter = event.clientY > bounds.top + (bounds.height / 2);
+  pinnedRepositoryList.insertBefore(draggedPin, insertAfter ? target.nextSibling : target);
+});
+pinnedRepositoryList.addEventListener("drop", (event) => {
+  event.preventDefault();
+  updatePinControls();
+});
+pinnedRepositoryList.addEventListener("dragend", () => {
+  draggedPin?.classList.remove("dragging");
+  draggedPin = null;
+  updatePinControls();
+});
+
 async function loadSettings() {
   const settings = await chrome.storage.local.get({
     githubToken: "",
     githubTokens: [],
     ownerOrder: DEFAULT_OWNER_ORDER,
+    pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
   });
@@ -84,6 +181,7 @@ async function loadSettings() {
   }
 
   renderTokenRows(configuredTokens);
+  renderPinnedRepositories(settings.pinnedRepositories);
   ownerOrderInput.value = storedOwnerOrder.join("\n");
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
@@ -108,6 +206,7 @@ form.addEventListener("submit", async (event) => {
   await chrome.storage.local.set({
     githubTokens,
     ownerOrder: enteredOwnerOrder,
+    pinnedRepositories: pinnedRepositoriesFromList(),
     hideDictationButton: hideDictationButtonInput.checked,
     compactNewChatHeader: compactNewChatHeaderInput.checked,
   });
