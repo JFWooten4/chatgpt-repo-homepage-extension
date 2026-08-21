@@ -263,22 +263,37 @@ html.dark #github-repositories-for-chatgpt {
 }
 
 #github-repositories-for-chatgpt .ghrc-pin {
+  align-items: center;
   background: transparent;
   border: 0;
   border-radius: 6px;
-  color: var(--ghrc-fg-muted);
+  color: #ac11ff;
   cursor: pointer;
+  display: inline-flex;
   flex: 0 0 auto;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 0;
+  height: 28px;
+  justify-content: center;
+  line-height: 0;
   margin-right: 7px;
-  padding: 4px 5px;
+  padding: 5px;
+  width: 28px;
 }
 
-#github-repositories-for-chatgpt .ghrc-pin:hover,
+#github-repositories-for-chatgpt .ghrc-pin::before {
+  background: currentColor;
+  content: "";
+  height: 16px;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.146 1.146a.5.5 0 0 1 .708 0L6 2.293l2.646-1.147a.5.5 0 0 1 .708.708L8.207 4.5l1.647 1.646a.5.5 0 0 1 0 .708l-1 1a.5.5 0 0 1-.708 0L6.5 6.207 4.354 8.354a.5.5 0 0 1-.708 0l-.793-.793-1.999 1.999a.5.5 0 1 1-.708-.708l2-2-.792-.792a.5.5 0 0 1 0-.708L3.5 3.207 1.854 1.56a.5.5 0 0 1 0-.708l1-1a.5.5 0 0 1 .708 0L4.146 1.146Z'/%3E%3C/svg%3E") center / contain no-repeat;
+  width: 16px;
+}
+
+#github-repositories-for-chatgpt .ghrc-pin:hover {
+  background: color-mix(in srgb, var(--ghrc-canvas-subtle) 75%, currentColor 25%);
+}
+
 #github-repositories-for-chatgpt .ghrc-repository[data-pinned="true"] .ghrc-pin {
-  background: color-mix(in srgb, var(--ghrc-canvas-subtle) 75%, var(--ghrc-accent) 25%);
-  color: var(--ghrc-accent);
+  color: #43af49;
 }
 
 #github-repositories-for-chatgpt .ghrc-pin:disabled {
