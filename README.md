@@ -20,6 +20,11 @@ The dashboard:
 - combines recent repository activity with locally tracked opening frequency to
   personalize the order.
 
+## Artwork
+
+Extension icon and settings artwork by [Squeaky_Belle](https://disqus.com/by/Squeaky_Belle),
+from the provided [source post](https://x.com/Squeaky_Belle/status/1855267207577731504).
+
 ## Install
 
 1. Download or clone this repository.
@@ -30,9 +35,9 @@ The dashboard:
    repository owners, or both.
 6. Open or refresh [ChatGPT](https://chatgpt.com/).
 
-After setup, click the extension icon in the browser toolbar to open the settings
-menu. The first-install setup page and toolbar popup use the same settings UI, so
-there is only one set of controls to maintain.
+After setup, click the extension icon in the browser toolbar to open the compact
+settings menu. Select **Full settings** there whenever you want the standalone
+settings page with the complete layout and artwork.
 
 Without a token, the extension displays public repositories from the owners
 entered in settings. With one or more tokens, it also displays every repository
@@ -110,12 +115,3 @@ in the extension's IndexedDB vault. Tokens are decrypted only when the extension
 needs to load settings or authenticate to GitHub's API.
 
 Press **Alt+R** on the new-chat page to focus the repository search field.
-
-## Artwork
-
-Extension icon artwork by [Squeaky_Belle](https://disqus.com/by/Squeaky_Belle),
-from the provided [source post](https://x.com/Squeaky_Belle/status/1855267207577731504).
-
-## License
-
-This project is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
