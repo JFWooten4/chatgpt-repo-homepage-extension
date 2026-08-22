@@ -11,8 +11,9 @@ The dashboard:
 - starts with no accounts configured, so every installation is personal to its
   user;
 - loads public repositories for any configured GitHub users or organizations;
-- optionally hides the dictation microphone, compacts the new-chat heading, or
-  dismisses ChatGPT's history-rate-limit and external-site confirmation dialogs;
+- can hide the dictation microphone or compact the new-chat heading;
+- can independently skip ChatGPT's external-site confirmation dialog and dismiss
+  its conversation-history rate-limit modal;
 - adds columns for any other repository owners the connected account can access;
 - pins important repositories at the top of their user or organization column;
 - searches across every loaded repository; and
@@ -74,11 +75,15 @@ encryption key needed to decrypt saved tokens. Reloading the existing unpacked
 extension preserves its installed identity and persistent storage during normal
 updates.
 
-The interruption bypass is opt-in. When enabled, the extension hides ChatGPT's
-conversation-history rate-limit modal, restores native scrolling after that
-modal is suppressed, and clicks ChatGPT's own **Open link** confirmation for
-external-site dialogs automatically. The extension does not perform a
-cross-origin request to the destination itself.
+The two interruption controls are independent and enabled by default. **Skip
+external-site warning** clicks ChatGPT's own **Open link** confirmation when the
+exact external-site dialog appears. **Dismiss history rate-limit modal** hides
+the conversation-history rate-limit modal and restores native scrolling when
+that modal leaves page locks behind. The extension does not perform a
+cross-origin request to external destinations itself.
+
+The **Hide dictation microphone** and **Compact new-chat header** display tweaks
+remain disabled by default.
 
 ## Pins
 
