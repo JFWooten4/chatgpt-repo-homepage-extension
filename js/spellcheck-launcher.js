@@ -5,6 +5,7 @@
   const ICON_KEY = "spellcheckGptCanonicalIcon";
   const GPT_NAME = "Spellcheck Only";
   const GPT_PATH = "/g/g-dyK63miav-spellcheck-only";
+  const MAX_ICON_BYTES = 1024 * 1024;
 
   let enabled = false;
   let canonicalIcon = "";
@@ -59,10 +60,47 @@
     return absoluteImageUrl(namedImage?.currentSrc || namedImage?.src);
   }
 
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+      reader.onerror = () => reject(reader.error || new Error("Could not read GPT icon"));
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function localIconDataUrl(url) {
+    if (!url || url.startsWith("data:image/")) return url;
+
+    try {
+      const source = new URL(url);
+      const response = await fetch(source.href, {
+        cache: "force-cache",
+        credentials: source.origin === location.origin ? "same-origin" : "omit",
+      });
+      if (!response.ok) return "";
+
+      const contentType = response.headers.get("content-type") || "";
+      if (!contentType.startsWith("image/")) return "";
+
+      const blob = await response.blob();
+      if (!blob.size || blob.size > MAX_ICON_BYTES) return "";
+      return await blobToDataUrl(blob);
+    } catch {
+      return "";
+    }
+  }
+
   async function rememberCanonicalIcon(url) {
-    if (!url || url === canonicalIcon) return;
-    canonicalIcon = url;
-    await chrome.storage.local.set({ [ICON_KEY]: url });
+    if (!url) return "";
+
+    const localCopy = await localIconDataUrl(url);
+    const storedIcon = localCopy || url;
+    if (storedIcon === canonicalIcon) return storedIcon;
+
+    canonicalIcon = storedIcon;
+    await chrome.storage.local.set({ [ICON_KEY]: storedIcon });
+    return storedIcon;
   }
 
   function captureIconFromSpellcheckPage() {
@@ -84,10 +122,7 @@
         const doc = new DOMParser().parseFromString(html, "text/html");
         return canonicalImageFromDocument(doc);
       })
-      .then(async (url) => {
-        if (url) await rememberCanonicalIcon(url);
-        return url;
-      })
+      .then((url) => rememberCanonicalIcon(url))
       .catch(() => "")
       .finally(() => {
         iconRequest = null;
