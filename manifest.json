@@ -45,9 +45,11 @@
         "css/styles.css",
         "css/owner-grid.css",
         "css/private-repository-lock.css",
-        "css/compact-header.css"
+        "css/compact-header.css",
+        "css/repository-fast-ui.css"
       ],
       "js": [
+        "js/repository-fast-ui.js",
         "js/content.js",
         "js/owner-grid.js",
         "js/compact-header.js"

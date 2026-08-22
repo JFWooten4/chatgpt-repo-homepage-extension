@@ -2,7 +2,10 @@ importScripts("token-vault.js");
 
 const DEFAULT_OWNER_ORDER = [];
 const REPOSITORIES_PER_PAGE = 100;
+const REPOSITORY_CACHE_KEY = "repositoryPayloadCacheV1";
+const REPOSITORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const ownerProfileCache = new Map();
+let repositoryRefreshRequest = null;
 
 function githubHeaders(token) {
   const headers = {
@@ -218,12 +221,61 @@ async function persistResolvedOwnerOrder(configuredOrder, resolvedOrder) {
   return resolvedOrder;
 }
 
-async function repositoryPayload() {
+async function tokenSignature(tokens) {
+  const serialized = JSON.stringify(
+    tokens.map(({ label, token }) => [label || "", token]),
+  );
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(serialized),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function loadRepositoryState() {
   const [settings, tokens] = await Promise.all([
     chrome.storage.local.get({ ownerOrder: DEFAULT_OWNER_ORDER }),
     TokenVault.loadTokens(),
   ]);
-  const ownerOrder = normalizedOwnerOrder(settings.ownerOrder);
+
+  return {
+    ownerOrder: normalizedOwnerOrder(settings.ownerOrder),
+    tokens,
+    tokenSignature: await tokenSignature(tokens),
+  };
+}
+
+function cacheMatchesState(cache, state) {
+  if (!cache?.payload || !Number.isFinite(cache.fetchedAt)) return false;
+  if (cache.tokenSignature !== state.tokenSignature) return false;
+  return sameOwnerOrder(normalizedOwnerOrder(cache.ownerOrder), state.ownerOrder);
+}
+
+async function loadRepositoryCache(state) {
+  const stored = await chrome.storage.local.get({ [REPOSITORY_CACHE_KEY]: null });
+  const cache = stored[REPOSITORY_CACHE_KEY];
+  return cacheMatchesState(cache, state) ? cache : null;
+}
+
+async function saveRepositoryCache(payload, state) {
+  // repositoryPayload may discover owners and persist a more complete order.
+  const latestSettings = await chrome.storage.local.get({ ownerOrder: DEFAULT_OWNER_ORDER });
+  const ownerOrder = normalizedOwnerOrder(latestSettings.ownerOrder);
+  await chrome.storage.local.set({
+    [REPOSITORY_CACHE_KEY]: {
+      fetchedAt: Date.now(),
+      tokenSignature: state.tokenSignature,
+      ownerOrder,
+      payload,
+    },
+  });
+}
+
+async function repositoryPayload(state = null) {
+  const resolvedState = state || await loadRepositoryState();
+  const { ownerOrder, tokens } = resolvedState;
   let repositories;
 
   if (tokens.length) {
@@ -263,10 +315,56 @@ async function repositoryPayload() {
   };
 }
 
+async function refreshRepositoryCache(state) {
+  if (repositoryRefreshRequest) return repositoryRefreshRequest;
+
+  repositoryRefreshRequest = repositoryPayload(state)
+    .then(async (payload) => {
+      await saveRepositoryCache(payload, state);
+      return payload;
+    })
+    .finally(() => {
+      repositoryRefreshRequest = null;
+    });
+
+  return repositoryRefreshRequest;
+}
+
+async function loadRepositoriesWithCache() {
+  const state = await loadRepositoryState();
+  const cache = await loadRepositoryCache(state);
+
+  if (cache) {
+    const age = Math.max(0, Date.now() - cache.fetchedAt);
+    if (age > REPOSITORY_CACHE_TTL_MS) {
+      void refreshRepositoryCache(state).catch((error) => {
+        console.warn("Repository cache refresh failed:", error);
+      });
+    }
+
+    return {
+      ok: true,
+      ...cache.payload,
+      cached: true,
+      cacheAgeMs: age,
+      refreshing: age > REPOSITORY_CACHE_TTL_MS,
+    };
+  }
+
+  const payload = await refreshRepositoryCache(state);
+  return {
+    ok: true,
+    ...payload,
+    cached: false,
+    cacheAgeMs: 0,
+    refreshing: false,
+  };
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "load-repositories") {
-    repositoryPayload()
-      .then((payload) => sendResponse({ ok: true, ...payload }))
+    loadRepositoriesWithCache()
+      .then((payload) => sendResponse(payload))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
