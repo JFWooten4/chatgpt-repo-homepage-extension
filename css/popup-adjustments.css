@@ -50,8 +50,8 @@ body {
 }
 
 .popup-tab[aria-selected="true"] {
-  background: light-dark(#ddf4ff, #0c2d48);
-  color: light-dark(#0969da, #58a6ff);
+  background: color-mix(in srgb, #a97dee 18%, transparent);
+  color: #a97dee;
 }
 
 .popup-panel[hidden] {
