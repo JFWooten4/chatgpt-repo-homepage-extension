@@ -164,8 +164,6 @@ pinnedRepositoryList.addEventListener("dragend", () => {
 
 async function loadSettings() {
   const settings = await chrome.storage.local.get({
-    githubToken: "",
-    githubTokens: [],
     ownerOrder: DEFAULT_OWNER_ORDER,
     ownerGroupsPerPage: DEFAULT_OWNER_GROUPS_PER_PAGE,
     pinnedRepositories: [],
@@ -176,19 +174,12 @@ async function loadSettings() {
   const storedOwnerOrder = Array.isArray(settings.ownerOrder)
     ? settings.ownerOrder
     : DEFAULT_OWNER_ORDER;
-  const configuredTokens = Array.isArray(settings.githubTokens)
-    ? settings.githubTokens
-      .filter((entry) => entry && typeof entry.token === "string" && entry.token.trim())
-      .map((entry) => ({
-        label: typeof entry.label === "string"
-          ? entry.label
-          : typeof entry.owner === "string" ? entry.owner : "",
-        token: entry.token,
-      }))
-    : [];
+  let configuredTokens = [];
 
-  if (!configuredTokens.length && settings.githubToken.trim()) {
-    configuredTokens.push({ label: "GitHub account", token: settings.githubToken.trim() });
+  try {
+    configuredTokens = await TokenVault.loadTokens();
+  } catch (error) {
+    showStatus(error.message, "error");
   }
 
   renderTokenRows(configuredTokens);
@@ -217,25 +208,32 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
-  await chrome.storage.local.set({
-    githubTokens,
-    ownerOrder: enteredOwnerOrder,
-    ownerGroupsPerPage,
-    pinnedRepositories: pinnedRepositoriesFromList(),
-    hideDictationButton: hideDictationButtonInput.checked,
-    compactNewChatHeader: compactNewChatHeaderInput.checked,
-    skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
-  });
-  await chrome.storage.local.remove("githubToken");
-  ownerOrderInput.value = enteredOwnerOrder.join("\n");
-  ownerGroupsPerPageInput.value = ownerGroupsPerPage;
-  showStatus("Settings saved. The ChatGPT dashboard will refresh automatically.", "success");
+  try {
+    await TokenVault.saveTokens(githubTokens);
+    await chrome.storage.local.set({
+      ownerOrder: enteredOwnerOrder,
+      ownerGroupsPerPage,
+      pinnedRepositories: pinnedRepositoriesFromList(),
+      hideDictationButton: hideDictationButtonInput.checked,
+      compactNewChatHeader: compactNewChatHeaderInput.checked,
+      skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
+    });
+    ownerOrderInput.value = enteredOwnerOrder.join("\n");
+    ownerGroupsPerPageInput.value = ownerGroupsPerPage;
+    showStatus("Settings saved. GitHub tokens are encrypted in the browser vault.", "success");
+  } catch (error) {
+    showStatus(`Settings could not be saved: ${error.message}`, "error");
+  }
 });
 
 clearTokensButton.addEventListener("click", async () => {
-  renderTokenRows([]);
-  await chrome.storage.local.remove(["githubToken", "githubTokens"]);
-  showStatus("Tokens cleared. Only public repositories will be loaded.", "success");
+  try {
+    renderTokenRows([]);
+    await TokenVault.clearTokens();
+    showStatus("Tokens cleared. Only public repositories will be loaded.", "success");
+  } catch (error) {
+    showStatus(`Tokens could not be cleared: ${error.message}`, "error");
+  }
 });
 
 void loadSettings();

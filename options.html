@@ -16,7 +16,7 @@
       <form id="settings-form">
         <label>GitHub tokens</label>
         <p class="help">
-          Optional. Add fine-grained tokens to show private repositories and every repository each token can access. Tokens stay in this browser.
+          Optional. Add fine-grained tokens to show private repositories and every repository each token can access. Tokens are encrypted before being stored and remain available across normal extension updates.
         </p>
         <div id="github-tokens" class="token-list"></div>
         <button id="add-token" class="secondary add-token" type="button">Add token</button>
@@ -127,6 +127,7 @@
         </div>
       </div>
     </template>
+    <script src="token-vault.js"></script>
     <script src="options.js"></script>
     <script src="owner-grid-options.js"></script>
   </body>
