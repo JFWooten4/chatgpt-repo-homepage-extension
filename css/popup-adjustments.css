@@ -15,12 +15,12 @@ body {
 }
 
 .brand img {
-  border-radius: 12px;
+  border-radius: 10px;
   flex: 0 0 auto;
-  height: auto;
-  object-fit: contain;
-  object-position: left center;
-  width: 72px;
+  height: 64px;
+  object-fit: cover;
+  object-position: center;
+  width: 64px;
 }
 
 .popup-tabs {
