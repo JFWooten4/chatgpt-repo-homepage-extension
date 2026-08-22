@@ -1,0 +1,8 @@
+@media (min-width: 921px) {
+  #github-repositories-for-chatgpt .ghrc-columns {
+    grid-template-columns: repeat(
+      var(--ghrc-owner-groups-per-row, 3),
+      minmax(0, 1fr)
+    );
+  }
+}
