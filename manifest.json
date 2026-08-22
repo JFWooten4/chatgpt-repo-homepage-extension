@@ -33,6 +33,7 @@
         "https://chatgpt.com/*"
       ],
       "js": [
+        "js/collapse-sidebar.js",
         "js/autofocus-composer.js",
         "js/external-links.js"
       ],
