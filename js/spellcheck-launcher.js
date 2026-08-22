@@ -2,133 +2,22 @@
   const LAUNCHER_ID = "ghrc-spellcheck-gpt-launcher";
   const HOST_ATTR = "data-ghrc-spellcheck-launcher-host";
   const ENABLED_KEY = "showSpellcheckGptLauncher";
-  const ICON_KEY = "spellcheckGptCanonicalIcon";
+  const LEGACY_ICON_KEY = "spellcheckGptCanonicalIcon";
   const GPT_NAME = "Spellcheck Only";
   const GPT_PATH = "/g/g-dyK63miav-spellcheck-only";
-  const MAX_ICON_BYTES = 1024 * 1024;
+  const ICON_PATH = "artwork/spellcheck-only.png";
 
   let enabled = false;
-  let canonicalIcon = "";
   let mountScheduled = false;
-  let iconRequest = null;
 
   function isHomePage() {
     return location.pathname === "/";
-  }
-
-  function isSpellcheckPage() {
-    return location.pathname === GPT_PATH;
   }
 
   function findComposer() {
     const prompt = document.querySelector("#prompt-textarea");
     if (!prompt) return null;
     return prompt.closest("form") || prompt.closest('[data-type="unified-composer"]');
-  }
-
-  function absoluteImageUrl(value) {
-    if (!value) return "";
-    try {
-      const url = new URL(value, location.origin);
-      return /^https?:$/.test(url.protocol) ? url.href : "";
-    } catch {
-      return "";
-    }
-  }
-
-  function canonicalImageFromDocument(doc) {
-    const metadataCandidates = [
-      doc.querySelector('meta[property="og:image"]')?.content,
-      doc.querySelector('meta[property="og:image:url"]')?.content,
-      doc.querySelector('meta[name="twitter:image"]')?.content,
-      doc.querySelector('link[rel="image_src"]')?.href,
-    ];
-
-    for (const candidate of metadataCandidates) {
-      const url = absoluteImageUrl(candidate);
-      if (url) return url;
-    }
-
-    const namedImage = [...doc.querySelectorAll("img")].find((image) => {
-      const label = [image.alt, image.title, image.getAttribute("aria-label")]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return label.includes(GPT_NAME.toLowerCase());
-    });
-
-    return absoluteImageUrl(namedImage?.currentSrc || namedImage?.src);
-  }
-
-  function blobToDataUrl(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-      reader.onerror = () => reject(reader.error || new Error("Could not read GPT icon"));
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  async function localIconDataUrl(url) {
-    if (!url || url.startsWith("data:image/")) return url;
-
-    try {
-      const source = new URL(url);
-      const response = await fetch(source.href, {
-        cache: "force-cache",
-        credentials: source.origin === location.origin ? "same-origin" : "omit",
-      });
-      if (!response.ok) return "";
-
-      const contentType = response.headers.get("content-type") || "";
-      if (!contentType.startsWith("image/")) return "";
-
-      const blob = await response.blob();
-      if (!blob.size || blob.size > MAX_ICON_BYTES) return "";
-      return await blobToDataUrl(blob);
-    } catch {
-      return "";
-    }
-  }
-
-  async function rememberCanonicalIcon(url) {
-    if (!url) return "";
-
-    const localCopy = await localIconDataUrl(url);
-    const storedIcon = localCopy || url;
-    if (storedIcon === canonicalIcon) return storedIcon;
-
-    canonicalIcon = storedIcon;
-    await chrome.storage.local.set({ [ICON_KEY]: storedIcon });
-    return storedIcon;
-  }
-
-  function captureIconFromSpellcheckPage() {
-    if (!isSpellcheckPage()) return;
-    const url = canonicalImageFromDocument(document);
-    if (url) void rememberCanonicalIcon(url);
-  }
-
-  async function fetchCanonicalIcon() {
-    if (canonicalIcon) return canonicalIcon;
-    if (iconRequest) return iconRequest;
-
-    iconRequest = fetch(GPT_PATH, { credentials: "same-origin" })
-      .then((response) => {
-        if (!response.ok) throw new Error(`GPT page returned ${response.status}`);
-        return response.text();
-      })
-      .then((html) => {
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        return canonicalImageFromDocument(doc);
-      })
-      .then((url) => rememberCanonicalIcon(url))
-      .catch(() => "")
-      .finally(() => {
-        iconRequest = null;
-      });
-
-    return iconRequest;
   }
 
   function removeLauncher() {
@@ -142,11 +31,11 @@
     const button = document.createElement("button");
     button.id = LAUNCHER_ID;
     button.type = "button";
-    button.hidden = true;
     button.title = `Open ${GPT_NAME}`;
     button.setAttribute("aria-label", `Open ${GPT_NAME} GPT`);
 
     const image = document.createElement("img");
+    image.src = chrome.runtime.getURL(ICON_PATH);
     image.alt = "";
     image.setAttribute("aria-hidden", "true");
     button.append(image);
@@ -158,9 +47,7 @@
     return button;
   }
 
-  async function mountLauncher() {
-    captureIconFromSpellcheckPage();
-
+  function mountLauncher() {
     if (!enabled || !isHomePage()) {
       removeLauncher();
       return;
@@ -176,17 +63,6 @@
       composer.append(launcher);
     }
     composer.setAttribute(HOST_ATTR, "true");
-
-    const icon = canonicalIcon || await fetchCanonicalIcon();
-    if (!launcher.isConnected || !enabled || !isHomePage()) return;
-    if (!icon) {
-      launcher.remove();
-      composer.removeAttribute(HOST_ATTR);
-      return;
-    }
-
-    launcher.querySelector("img").src = icon;
-    launcher.hidden = false;
   }
 
   function scheduleMount() {
@@ -194,37 +70,24 @@
     mountScheduled = true;
     requestAnimationFrame(() => {
       mountScheduled = false;
-      void mountLauncher();
+      mountLauncher();
     });
   }
 
   async function loadSettings() {
-    const settings = await chrome.storage.local.get({
-      [ENABLED_KEY]: false,
-      [ICON_KEY]: "",
-    });
+    const settings = await chrome.storage.local.get({ [ENABLED_KEY]: false });
     enabled = Boolean(settings[ENABLED_KEY]);
-    canonicalIcon = typeof settings[ICON_KEY] === "string" ? settings[ICON_KEY] : "";
+    await chrome.storage.local.remove(LEGACY_ICON_KEY);
     scheduleMount();
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local") return;
-
-    if (changes[ENABLED_KEY]) {
-      enabled = Boolean(changes[ENABLED_KEY].newValue);
-      scheduleMount();
-    }
-    if (changes[ICON_KEY]) {
-      canonicalIcon = typeof changes[ICON_KEY].newValue === "string"
-        ? changes[ICON_KEY].newValue
-        : "";
-      scheduleMount();
-    }
+    if (areaName !== "local" || !changes[ENABLED_KEY]) return;
+    enabled = Boolean(changes[ENABLED_KEY].newValue);
+    scheduleMount();
   });
 
   void loadSettings();
-  captureIconFromSpellcheckPage();
   const observer = new MutationObserver(scheduleMount);
   observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
