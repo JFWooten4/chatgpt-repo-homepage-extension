@@ -1,9 +1,11 @@
 const DEFAULT_OWNER_ORDER = [];
+const DEFAULT_OWNER_GROUPS_PER_PAGE = 6;
 const form = document.getElementById("settings-form");
 const tokenList = document.getElementById("github-tokens");
 const tokenRowTemplate = document.getElementById("token-row-template");
 const addTokenButton = document.getElementById("add-token");
 const ownerOrderInput = document.getElementById("owner-order");
+const ownerGroupsPerPageInput = document.getElementById("owner-groups-per-page");
 const pinnedRepositoryList = document.getElementById("pinned-repositories");
 const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
@@ -23,6 +25,12 @@ function ownerOrderFromInput() {
       seen.add(key);
       return true;
     });
+}
+
+function normalizedOwnerGroupsPerPage(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return DEFAULT_OWNER_GROUPS_PER_PAGE;
+  return Math.min(24, Math.max(1, parsed));
 }
 
 function showStatus(message, state = "") {
@@ -157,6 +165,7 @@ pinnedRepositoryList.addEventListener("dragend", () => {
 async function loadSettings() {
   const settings = await chrome.storage.local.get({
     ownerOrder: DEFAULT_OWNER_ORDER,
+    ownerGroupsPerPage: DEFAULT_OWNER_GROUPS_PER_PAGE,
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
@@ -176,6 +185,7 @@ async function loadSettings() {
   renderTokenRows(configuredTokens);
   renderPinnedRepositories(settings.pinnedRepositories);
   ownerOrderInput.value = storedOwnerOrder.join("\n");
+  ownerGroupsPerPageInput.value = normalizedOwnerGroupsPerPage(settings.ownerGroupsPerPage);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
@@ -191,6 +201,7 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const enteredOwnerOrder = ownerOrderFromInput();
   const githubTokens = tokensFromInput();
+  const ownerGroupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPageInput.value);
 
   if (!githubTokens) {
     showStatus("Remove the duplicate token before saving.", "error");
@@ -201,12 +212,14 @@ form.addEventListener("submit", async (event) => {
     await TokenVault.saveTokens(githubTokens);
     await chrome.storage.local.set({
       ownerOrder: enteredOwnerOrder,
+      ownerGroupsPerPage,
       pinnedRepositories: pinnedRepositoriesFromList(),
       hideDictationButton: hideDictationButtonInput.checked,
       compactNewChatHeader: compactNewChatHeaderInput.checked,
       skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
     });
     ownerOrderInput.value = enteredOwnerOrder.join("\n");
+    ownerGroupsPerPageInput.value = ownerGroupsPerPage;
     showStatus("Settings saved. GitHub tokens are encrypted in the browser vault.", "success");
   } catch (error) {
     showStatus(`Settings could not be saved: ${error.message}`, "error");

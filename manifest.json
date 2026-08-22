@@ -19,11 +19,13 @@
         "https://chatgpt.com/*"
       ],
       "css": [
-        "styles.css"
+        "styles.css",
+        "owner-grid.css"
       ],
       "js": [
         "content.js",
-        "external-links.js"
+        "external-links.js",
+        "owner-grid.js"
       ],
       "run_at": "document_idle"
     }
