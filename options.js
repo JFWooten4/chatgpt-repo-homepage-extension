@@ -14,17 +14,20 @@ const skipExternalSiteWarningInput = document.getElementById("skip-external-site
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
 
-function ownerOrderFromInput() {
+function normalizedOwnerOrder(owners) {
   const seen = new Set();
-  return ownerOrderInput.value
-    .split("\n")
-    .map((owner) => owner.trim())
+  return (Array.isArray(owners) ? owners : [])
+    .map((owner) => typeof owner === "string" ? owner.trim() : "")
     .filter((owner) => {
       const key = owner.toLowerCase();
       if (!owner || seen.has(key)) return false;
       seen.add(key);
       return true;
     });
+}
+
+function ownerOrderFromInput() {
+  return normalizedOwnerOrder(ownerOrderInput.value.split("\n"));
 }
 
 function normalizedOwnerGroupsPerPage(value) {
@@ -171,9 +174,8 @@ async function loadSettings() {
     compactNewChatHeader: false,
     skipExternalSiteWarning: false,
   });
-  const storedOwnerOrder = Array.isArray(settings.ownerOrder)
-    ? settings.ownerOrder
-    : DEFAULT_OWNER_ORDER;
+  const storedOwnerOrder = normalizedOwnerOrder(settings.ownerOrder);
+  let displayedOwnerOrder = storedOwnerOrder;
   let configuredTokens = [];
 
   try {
@@ -182,9 +184,18 @@ async function loadSettings() {
     showStatus(error.message, "error");
   }
 
+  try {
+    const payload = await chrome.runtime.sendMessage({ type: "load-repositories" });
+    if (payload?.ok && Array.isArray(payload.ownerOrder)) {
+      displayedOwnerOrder = normalizedOwnerOrder(payload.ownerOrder);
+    }
+  } catch {
+    // Keep the stored order if repository discovery is temporarily unavailable.
+  }
+
   renderTokenRows(configuredTokens);
   renderPinnedRepositories(settings.pinnedRepositories);
-  ownerOrderInput.value = storedOwnerOrder.join("\n");
+  ownerOrderInput.value = displayedOwnerOrder.join("\n");
   ownerGroupsPerPageInput.value = normalizedOwnerGroupsPerPage(settings.ownerGroupsPerPage);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
