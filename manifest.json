@@ -45,12 +45,14 @@
         "css/styles.css",
         "css/owner-grid.css",
         "css/private-repository-lock.css",
-        "css/compact-header.css"
+        "css/compact-header.css",
+        "css/spellcheck-launcher.css"
       ],
       "js": [
         "js/content.js",
         "js/owner-grid.js",
-        "js/compact-header.js"
+        "js/compact-header.js",
+        "js/spellcheck-launcher.js"
       ],
       "run_at": "document_idle"
     }
