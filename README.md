@@ -20,7 +20,7 @@ The dashboard:
 - combines recent repository activity with locally tracked opening frequency to
   personalize the order.
 
-## Artwork
+## Artwork ✨
 
 Extension icon and settings artwork by [Squeaky_Belle](https://disqus.com/by/Squeaky_Belle),
 from the provided [source post](https://x.com/Squeaky_Belle/status/1855267207577731504).
