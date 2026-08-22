@@ -2,6 +2,9 @@
   const tabs = [...document.querySelectorAll('[role="tab"]')];
   const panels = [...document.querySelectorAll('[role="tabpanel"]')];
   const openFullSettingsButton = document.getElementById("open-full-settings");
+  const artwork = document.querySelector(".brand img");
+
+  if (artwork) artwork.title = "Artwork by Squeaky_Belle";
 
   function activateTab(tab, focus = false) {
     for (const candidate of tabs) {
