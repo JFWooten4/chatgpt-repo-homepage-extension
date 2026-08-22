@@ -57,6 +57,23 @@ running with access to the extension's privileged browser context can still ask
 the non-extractable key to decrypt the values. Use fine-grained, read-only tokens
 with the minimum repository access needed.
 
+### Updating an unpacked installation
+
+To update an unpacked copy without losing the encrypted token vault:
+
+1. Keep the existing extension installed in Chrome or Brave.
+2. Update or replace the extension files in the same local folder, for example
+   with `git pull`.
+3. Open `chrome://extensions` or `brave://extensions` and select **Reload** for
+   the existing extension.
+4. Refresh ChatGPT so the updated content scripts are loaded.
+
+Do not remove the extension and then load it again just to update it. Removing an
+extension can clear its browser-owned local storage and IndexedDB, including the
+encryption key needed to decrypt saved tokens. Reloading the existing unpacked
+extension preserves its installed identity and persistent storage during normal
+updates.
+
 The external-site warning bypass is opt-in. When enabled, the extension clicks
 ChatGPT's **Open link** confirmation automatically, so external destinations open
 without the extra confirmation step.
