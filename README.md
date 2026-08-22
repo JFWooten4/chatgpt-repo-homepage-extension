@@ -25,17 +25,21 @@ The dashboard:
 2. Open `chrome://extensions` in Chrome or `brave://extensions` in Brave.
 3. Turn on **Developer mode**.
 4. Select **Load unpacked** and choose this repository's folder.
-5. In the settings page that opens, add a fine-grained GitHub token, public
+5. In the setup page that opens, add a fine-grained GitHub token, public
    repository owners, or both.
 6. Open or refresh [ChatGPT](https://chatgpt.com/).
 
+After setup, click the extension icon in the browser toolbar to open the settings
+menu. The first-install setup page and toolbar popup use the same settings UI, so
+there is only one set of controls to maintain.
+
 Without a token, the extension displays public repositories from the owners
-entered in Extension options. With one or more tokens, it also displays every
-repository those tokens can access. Token labels are local identifiers;
-repository access comes from each token's GitHub settings. Tokens and repository
-owners can be added, removed, or reordered at any time. Existing single-token
-settings are migrated automatically. Use a fine-grained token with read-only
-access to only the repository metadata the extension should display.
+entered in settings. With one or more tokens, it also displays every repository
+those tokens can access. Token labels are local identifiers; repository access
+comes from each token's GitHub settings. Tokens and repository owners can be
+added, removed, or reordered at any time. Existing single-token settings are
+migrated automatically. Use a fine-grained token with read-only access to only
+the repository metadata the extension should display.
 
 ### Token storage
 
@@ -82,9 +86,9 @@ without the extra confirmation step.
 
 Select **Pin** beside any repository on the dashboard or in search results to
 keep it visible at the top of its owner column. Pinned repositories remain
-visible even when an owner has more than seven repositories. Open Extension
-options to drag pins into a preferred order, move them with the arrow buttons,
-or remove them.
+visible even when an owner has more than seven repositories. Open the extension
+settings menu to drag pins into a preferred order, move them with the arrow
+buttons, or remove them.
 
 ## Ranking
 
@@ -100,6 +104,11 @@ in the extension's IndexedDB vault. Tokens are decrypted only when the extension
 needs to load settings or authenticate to GitHub's API.
 
 Press **Alt+R** on the new-chat page to focus the repository search field.
+
+## Artwork
+
+Extension icon artwork by [Squeaky_Belle](https://disqus.com/by/Squeaky_Belle),
+from the provided [source post](https://x.com/Squeaky_Belle/status/1855267207577731504).
 
 ## License
 
