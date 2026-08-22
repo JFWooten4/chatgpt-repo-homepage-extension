@@ -16,7 +16,7 @@
     "https://api.github.com/*"
   ],
   "background": {
-    "service_worker": "service-worker.js"
+    "service_worker": "js/service-worker.js"
   },
   "action": {
     "default_title": "GitHub Repositories for ChatGPT",
@@ -33,13 +33,13 @@
         "https://chatgpt.com/*"
       ],
       "css": [
-        "styles.css",
-        "owner-grid.css"
+        "css/styles.css",
+        "css/owner-grid.css"
       ],
       "js": [
-        "content.js",
-        "external-links.js",
-        "owner-grid.js"
+        "js/content.js",
+        "js/external-links.js",
+        "js/owner-grid.js"
       ],
       "run_at": "document_idle"
     }
