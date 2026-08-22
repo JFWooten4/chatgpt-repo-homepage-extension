@@ -96,7 +96,8 @@ html.dark #github-repositories-for-chatgpt {
 }
 
 #github-repositories-for-chatgpt .ghrc-settings,
-#github-repositories-for-chatgpt .ghrc-state button {
+#github-repositories-for-chatgpt .ghrc-state button,
+#github-repositories-for-chatgpt .ghrc-pagination button {
   background: var(--ghrc-canvas-subtle);
   border: 1px solid var(--ghrc-border);
   border-radius: 6px;
@@ -108,13 +109,15 @@ html.dark #github-repositories-for-chatgpt {
 }
 
 #github-repositories-for-chatgpt .ghrc-settings:hover,
-#github-repositories-for-chatgpt .ghrc-state button:hover {
+#github-repositories-for-chatgpt .ghrc-state button:hover,
+#github-repositories-for-chatgpt .ghrc-pagination button:hover:not(:disabled) {
   border-color: var(--ghrc-fg-muted);
   background: color-mix(in srgb, var(--ghrc-canvas-subtle) 85%, var(--ghrc-fg) 15%);
 }
 
 #github-repositories-for-chatgpt .ghrc-settings:focus-visible,
 #github-repositories-for-chatgpt .ghrc-state button:focus-visible,
+#github-repositories-for-chatgpt .ghrc-pagination button:focus-visible,
 #github-repositories-for-chatgpt .ghrc-repository-link:focus-visible,
 #github-repositories-for-chatgpt .ghrc-pin:focus-visible {
   outline: 2px solid var(--ghrc-accent);
@@ -353,6 +356,23 @@ html.dark #github-repositories-for-chatgpt {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+#github-repositories-for-chatgpt .ghrc-pagination {
+  align-items: center;
+  border-top: 1px solid var(--ghrc-border);
+  color: var(--ghrc-fg-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 10px;
+  justify-content: center;
+  min-height: 50px;
+  padding: 8px 12px;
+}
+
+#github-repositories-for-chatgpt .ghrc-pagination button:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 #github-repositories-for-chatgpt .ghrc-error {

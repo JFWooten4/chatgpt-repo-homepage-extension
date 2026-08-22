@@ -6,6 +6,8 @@
   const HIDDEN_WELCOME_CLASS = "ghrc-hidden-welcome";
   const USAGE_STORAGE_KEY = "repositoryUsage";
   const PINNED_STORAGE_KEY = "pinnedRepositories";
+  const OWNER_GROUPS_PER_PAGE_KEY = "ownerGroupsPerPage";
+  const DEFAULT_OWNER_GROUPS_PER_PAGE = 6;
   const REPOSITORIES_PER_COLUMN = 7;
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
   let mountScheduled = false;
@@ -141,6 +143,12 @@
         seen.add(key);
         return true;
       });
+  }
+
+  function normalizedOwnerGroupsPerPage(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return DEFAULT_OWNER_GROUPS_PER_PAGE;
+    return Math.min(24, Math.max(1, parsed));
   }
 
   function rankRepositories(repositories, usage, pinnedRepositories = []) {
@@ -427,7 +435,54 @@
     widget.append(toolbar, searchArea);
   }
 
-  function renderRepositories(widget, payload, usage, pinnedRepositories) {
+  function createPagination(pageCount, onPageChange) {
+    const pagination = document.createElement("nav");
+    pagination.className = "ghrc-pagination";
+    pagination.setAttribute("aria-label", "Repository owner pages");
+
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.textContent = "Previous";
+
+    const status = document.createElement("span");
+    status.setAttribute("aria-live", "polite");
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.textContent = "Next";
+
+    let pageIndex = 0;
+    const update = () => {
+      previous.disabled = pageIndex === 0;
+      next.disabled = pageIndex === pageCount - 1;
+      status.textContent = `Page ${pageIndex + 1} of ${pageCount}`;
+      onPageChange(pageIndex);
+    };
+
+    previous.addEventListener("click", () => {
+      if (pageIndex === 0) return;
+      pageIndex -= 1;
+      update();
+    });
+
+    next.addEventListener("click", () => {
+      if (pageIndex === pageCount - 1) return;
+      pageIndex += 1;
+      update();
+    });
+
+    pagination.append(previous, status, next);
+    update();
+    return pagination;
+  }
+
+  function renderRepositories(
+    widget,
+    payload,
+    usage,
+    pinnedRepositories,
+    ownerGroupsPerPage,
+  ) {
     widget.replaceChildren();
     const rankedRepositories = rankRepositories(
       payload.repositories,
@@ -445,10 +500,6 @@
     const columns = document.createElement("div");
     columns.className = "ghrc-columns";
 
-    for (const group of groups) {
-      columns.append(createOwnerColumn(group, pinnedRepositories));
-    }
-
     if (!groups.length) {
       const empty = document.createElement("div");
       empty.className = "ghrc-state";
@@ -462,9 +513,27 @@
       });
       empty.append(message, settings);
       columns.append(empty);
+      widget.append(columns);
+      return;
     }
 
+    const groupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPage);
+    const pageCount = Math.ceil(groups.length / groupsPerPage);
+    const renderPage = (pageIndex) => {
+      const firstGroup = pageIndex * groupsPerPage;
+      const pageGroups = groups.slice(firstGroup, firstGroup + groupsPerPage);
+      columns.replaceChildren(
+        ...pageGroups.map((group) => createOwnerColumn(group, pinnedRepositories)),
+      );
+    };
+
     widget.append(columns);
+
+    if (pageCount > 1) {
+      widget.append(createPagination(pageCount, renderPage));
+    } else {
+      renderPage(0);
+    }
   }
 
   function renderError(widget, message) {
@@ -494,6 +563,7 @@
         chrome.storage.local.get({
           [USAGE_STORAGE_KEY]: {},
           [PINNED_STORAGE_KEY]: [],
+          [OWNER_GROUPS_PER_PAGE_KEY]: DEFAULT_OWNER_GROUPS_PER_PAGE,
         }),
       ]);
 
@@ -507,6 +577,7 @@
           payload,
           stored[USAGE_STORAGE_KEY],
           stored[PINNED_STORAGE_KEY],
+          stored[OWNER_GROUPS_PER_PAGE_KEY],
         );
       }
     } catch (error) {
@@ -580,7 +651,12 @@
       void loadDisplayPreferences();
     }
 
-    if (changes.githubToken || changes.githubTokens || changes.ownerOrder) {
+    if (
+      changes.githubToken
+      || changes.githubTokens
+      || changes.ownerOrder
+      || changes.ownerGroupsPerPage
+    ) {
       repositoryRequest = null;
       document.getElementById(WIDGET_ID)?.remove();
       scheduleMount();
