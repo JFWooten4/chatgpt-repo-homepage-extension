@@ -13,6 +13,7 @@ const pinnedRepositoryTemplate = document.getElementById("pinned-repository-temp
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
 const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
 const skipExternalSiteWarningInput = document.getElementById("skip-external-site-warning");
+const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
 
@@ -74,17 +75,14 @@ function renderTokenRows(configuredTokens) {
 function tokensFromInput() {
   const tokens = [];
   const seenTokens = new Set();
-
   for (const row of tokenList.querySelectorAll(".token-row")) {
     const label = row.querySelector(".token-label").value.trim();
     const token = row.querySelector(".token-value").value.trim();
-
     if (!token) continue;
     if (seenTokens.has(token)) return null;
     seenTokens.add(token);
     tokens.push({ label: label || `Token ${tokens.length + 1}`, token });
   }
-
   return tokens;
 }
 
@@ -117,12 +115,8 @@ function updatePinControls() {
 function movePin(row, direction) {
   const sibling = direction < 0 ? row.previousElementSibling : row.nextElementSibling;
   if (!sibling?.classList.contains("pinned-repository")) return;
-
-  if (direction < 0) {
-    pinnedRepositoryList.insertBefore(row, sibling);
-  } else {
-    pinnedRepositoryList.insertBefore(sibling, row);
-  }
+  if (direction < 0) pinnedRepositoryList.insertBefore(row, sibling);
+  else pinnedRepositoryList.insertBefore(sibling, row);
   updatePinControls();
   row.querySelector(direction < 0 ? ".move-pin-up" : ".move-pin-down").focus();
 }
@@ -150,7 +144,6 @@ function renderPinnedRepositories(pinnedRepositories) {
     pinnedRepositoryList.replaceChildren(empty);
     return;
   }
-
   pinnedRepositoryList.replaceChildren(...pins.map(createPinnedRepositoryRow));
   updatePinControls();
 }
@@ -189,7 +182,8 @@ async function loadSettings() {
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
-    skipExternalSiteWarning: false,
+    skipExternalSiteWarning: true,
+    dismissHistoryRateLimitModal: true,
   });
   const storedOwnerOrder = normalizedOwnerOrder(settings.ownerOrder);
   let displayedOwnerOrder = storedOwnerOrder;
@@ -218,6 +212,7 @@ async function loadSettings() {
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
+  dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
 }
 
 addTokenButton.addEventListener("click", () => {
@@ -235,7 +230,6 @@ form.addEventListener("submit", async (event) => {
   const enteredOwnerOrder = ownerOrderFromInput();
   const githubTokens = tokensFromInput();
   const ownerGroupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPageInput.value);
-
   if (!githubTokens) {
     tokenSettings.open = true;
     showStatus("Remove the duplicate token before saving.", "error");
@@ -251,6 +245,7 @@ form.addEventListener("submit", async (event) => {
       hideDictationButton: hideDictationButtonInput.checked,
       compactNewChatHeader: compactNewChatHeaderInput.checked,
       skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
+      dismissHistoryRateLimitModal: dismissHistoryRateLimitModalInput.checked,
     });
     ownerOrderInput.value = enteredOwnerOrder.join("\n");
     ownerGroupsPerPageInput.value = ownerGroupsPerPage;

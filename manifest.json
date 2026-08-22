@@ -32,6 +32,15 @@
       "matches": [
         "https://chatgpt.com/*"
       ],
+      "js": [
+        "js/external-links.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
       "css": [
         "css/styles.css",
         "css/owner-grid.css",
@@ -39,7 +48,6 @@
       ],
       "js": [
         "js/content.js",
-        "js/external-links.js",
         "js/owner-grid.js"
       ],
       "run_at": "document_idle"
