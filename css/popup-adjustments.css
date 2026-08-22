@@ -40,7 +40,8 @@ body {
 .popup-tab {
   background: transparent;
   border: 0;
-  color: light-dark(#656d76, #9198a1);
+  color: light-dark(#24292f, #f0f6fc);
+  font-weight: 600;
   padding: 8px 10px;
 }
 
@@ -50,8 +51,8 @@ body {
 }
 
 .popup-tab[aria-selected="true"] {
-  background: color-mix(in srgb, #a97dee 18%, transparent);
-  color: #a97dee;
+  background: #a97dee;
+  color: #ffffff;
 }
 
 .popup-panel[hidden] {
@@ -68,7 +69,8 @@ body {
   margin-top: 16px;
 }
 
-#clear-tokens {
+#clear-tokens,
+#open-full-settings {
   margin-left: auto;
 }
 
