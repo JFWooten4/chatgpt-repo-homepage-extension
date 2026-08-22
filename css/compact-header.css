@@ -1,0 +1,24 @@
+html[data-ghrc-new-chat][data-ghrc-compact-header] .ghrc-compact-welcome-region {
+  display: none !important;
+  flex: 0 0 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+html[data-ghrc-new-chat][data-ghrc-compact-header] .ghrc-compact-composer-stack {
+  align-content: flex-start !important;
+  height: auto !important;
+  justify-content: flex-start !important;
+  min-height: 0 !important;
+  padding-top: 24px !important;
+}
+
+html[data-ghrc-new-chat][data-ghrc-compact-header]
+  .ghrc-compact-composer-stack > form,
+html[data-ghrc-new-chat][data-ghrc-compact-header]
+  .ghrc-compact-composer-stack > [data-type="unified-composer"] {
+  margin-top: 0 !important;
+}
