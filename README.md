@@ -1,7 +1,8 @@
 # GitHub Repositories for ChatGPT
 
 A Brave/Chrome extension that adds a GitHub-style repository dashboard directly
-below the composer on ChatGPT's new-chat page.
+below the composer on ChatGPT's new-chat page, with optional ChatGPT interface
+tweaks.
 
 The dashboard:
 
@@ -10,7 +11,8 @@ The dashboard:
 - starts with no accounts configured, so every installation is personal to its
   user;
 - loads public repositories for any configured GitHub users or organizations;
-- optionally hides the dictation microphone or compacts the new-chat heading;
+- optionally hides the dictation microphone, compacts the new-chat heading, or
+  skips ChatGPT's external-site confirmation dialog;
 - adds columns for any other repository owners the connected account can access;
 - pins important repositories at the top of their user or organization column;
 - searches across every loaded repository; and
@@ -34,6 +36,10 @@ repository access comes from each token's GitHub settings. Tokens and repository
 owners can be added, removed, or reordered at any time. Existing single-token
 settings are migrated automatically. Use a fine-grained token with read-only
 access to only the repository metadata the extension should display.
+
+The external-site warning bypass is opt-in. When enabled, the extension clicks
+ChatGPT's **Open link** confirmation automatically, so external destinations open
+without the extra confirmation step.
 
 ## Pins
 

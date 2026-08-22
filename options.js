@@ -8,6 +8,7 @@ const pinnedRepositoryList = document.getElementById("pinned-repositories");
 const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
 const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
+const skipExternalSiteWarningInput = document.getElementById("skip-external-site-warning");
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
 
@@ -161,6 +162,7 @@ async function loadSettings() {
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
+    skipExternalSiteWarning: false,
   });
   const storedOwnerOrder = Array.isArray(settings.ownerOrder)
     ? settings.ownerOrder
@@ -185,6 +187,7 @@ async function loadSettings() {
   ownerOrderInput.value = storedOwnerOrder.join("\n");
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
+  skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
 }
 
 addTokenButton.addEventListener("click", () => {
@@ -209,6 +212,7 @@ form.addEventListener("submit", async (event) => {
     pinnedRepositories: pinnedRepositoriesFromList(),
     hideDictationButton: hideDictationButtonInput.checked,
     compactNewChatHeader: compactNewChatHeaderInput.checked,
+    skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
   });
   await chrome.storage.local.remove("githubToken");
   ownerOrderInput.value = enteredOwnerOrder.join("\n");
