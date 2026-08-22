@@ -32,6 +32,20 @@
         ></textarea>
 
         <fieldset>
+          <legend>Dashboard layout</legend>
+          <label for="owner-groups-per-page">Owner/org groups per page</label>
+          <p class="help">Choose how many GitHub user or organization groups appear on each dashboard page.</p>
+          <input
+            id="owner-groups-per-page"
+            name="owner-groups-per-page"
+            type="number"
+            min="1"
+            max="24"
+            step="1"
+          />
+        </fieldset>
+
+        <fieldset>
           <legend>Pinned repositories</legend>
           <p class="help">
             Pin repositories from the ChatGPT dashboard. Drag pins here to reorder them, or use the arrow buttons.
