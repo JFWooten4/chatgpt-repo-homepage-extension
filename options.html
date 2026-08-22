@@ -5,22 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GitHub Repositories for ChatGPT</title>
     <link rel="stylesheet" href="css/options.css" />
-    <link rel="stylesheet" href="css/popup-adjustments.css" />
   </head>
   <body>
     <main>
-      <header>
-        <div class="brand">
-          <img
-            src="artwork/squeaky-belle-full.webp"
-            alt="Wizard character artwork by Squeaky_Belle"
-            width="64"
-            height="64"
-          />
-          <div>
-            <h1>GitHub Repositories for ChatGPT</h1>
-            <p>Manage repository access, dashboard layout, and ChatGPT display settings.</p>
-          </div>
+      <header class="standalone-header">
+        <img
+          id="standalone-artwork"
+          class="standalone-artwork"
+          src="artwork/squeaky-belle-full.webp"
+          data-animated-src="artwork/squeaky-belle-full.gif"
+          alt="Wizard character artwork by Squeaky_Belle"
+        />
+        <div>
+          <h1>GitHub Repositories for ChatGPT</h1>
+          <p>Manage repository access, dashboard layout, and ChatGPT display settings.</p>
         </div>
       </header>
 
@@ -158,5 +156,6 @@
     <script src="js/token-vault.js"></script>
     <script src="js/options.js"></script>
     <script src="js/owner-grid-options.js"></script>
+    <script src="js/options-page.js"></script>
   </body>
 </html>

@@ -19,12 +19,18 @@ header {
   margin-bottom: 16px;
 }
 
-.popup-artwork {
-  border-radius: 10px;
+.standalone-header {
+  display: grid;
+  gap: 18px;
+}
+
+.standalone-artwork {
+  border-radius: 14px;
   display: block;
   height: auto;
-  margin: 0 0 14px;
-  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  object-position: center;
   width: 100%;
 }
 
