@@ -160,11 +160,11 @@ function uniqueRepositories(repositories) {
   });
 }
 
-function resolvedOwnerOrder(repositories, configuredOrder) {
+function normalizedOwnerOrder(owners) {
   const resolved = [];
   const seenOwners = new Set();
 
-  for (const owner of configuredOrder) {
+  for (const owner of Array.isArray(owners) ? owners : []) {
     if (typeof owner !== "string" || !owner.trim()) continue;
     const login = owner.trim();
     const key = login.toLowerCase();
@@ -173,6 +173,12 @@ function resolvedOwnerOrder(repositories, configuredOrder) {
     resolved.push(login);
   }
 
+  return resolved;
+}
+
+function resolvedOwnerOrder(repositories, configuredOrder) {
+  const resolved = normalizedOwnerOrder(configuredOrder);
+  const seenOwners = new Set(resolved.map((owner) => owner.toLowerCase()));
   const activeRepositories = [...repositories].sort((first, second) => {
     const firstUpdated = new Date(first.pushed_at || first.updated_at || 0).getTime();
     const secondUpdated = new Date(second.pushed_at || second.updated_at || 0).getTime();
@@ -190,14 +196,34 @@ function resolvedOwnerOrder(repositories, configuredOrder) {
   return resolved;
 }
 
+function sameOwnerOrder(first, second) {
+  if (first.length !== second.length) return false;
+  return first.every((owner, index) => (
+    owner.toLowerCase() === second[index].toLowerCase()
+  ));
+}
+
+async function persistResolvedOwnerOrder(configuredOrder, resolvedOrder) {
+  if (sameOwnerOrder(configuredOrder, resolvedOrder)) return resolvedOrder;
+
+  const currentSettings = await chrome.storage.local.get({
+    ownerOrder: DEFAULT_OWNER_ORDER,
+  });
+  const currentOrder = normalizedOwnerOrder(currentSettings.ownerOrder);
+
+  // Do not overwrite an owner-order edit made while repository discovery was running.
+  if (!sameOwnerOrder(currentOrder, configuredOrder)) return currentOrder;
+
+  await chrome.storage.local.set({ ownerOrder: resolvedOrder });
+  return resolvedOrder;
+}
+
 async function repositoryPayload() {
   const [settings, tokens] = await Promise.all([
     chrome.storage.local.get({ ownerOrder: DEFAULT_OWNER_ORDER }),
     TokenVault.loadTokens(),
   ]);
-  const ownerOrder = Array.isArray(settings.ownerOrder)
-    ? settings.ownerOrder.filter((owner) => typeof owner === "string" && owner.trim())
-    : DEFAULT_OWNER_ORDER;
+  const ownerOrder = normalizedOwnerOrder(settings.ownerOrder);
   let repositories;
 
   if (tokens.length) {
@@ -225,7 +251,8 @@ async function repositoryPayload() {
   }
 
   const ownerProfiles = await loadOwnerProfiles(repositories, tokens[0]?.token);
-  const displayOwnerOrder = resolvedOwnerOrder(repositories, ownerOrder);
+  const resolvedOrder = resolvedOwnerOrder(repositories, ownerOrder);
+  const displayOwnerOrder = await persistResolvedOwnerOrder(ownerOrder, resolvedOrder);
 
   return {
     mode: tokens.length ? "authenticated" : "public",
