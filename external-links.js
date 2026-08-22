@@ -1,11 +1,13 @@
 (() => {
-  const SETTING_KEY = "skipExternalSiteWarning";
+  const EXTERNAL_WARNING_SETTING_KEY = "skipExternalSiteWarning";
+  const HISTORY_MODAL_SETTING_KEY = "dismissHistoryRateLimitModal";
   const MODAL_ID = "modal-conversation-history-rate-limit";
   const DIALOG_SELECTOR = '[role="dialog"], [role="alertdialog"]';
   const EXTERNAL_DIALOG_TITLE = "External site";
   const OPEN_LINK_LABEL = "Open link";
   const handledExternalDialogs = new WeakSet();
-  let enabled = false;
+  let externalWarningEnabled = false;
+  let historyModalEnabled = false;
   let modalWasSuppressed = false;
 
   function normalizedText(element) {
@@ -18,7 +20,7 @@
   }
 
   function approveExternalSiteDialog(dialog) {
-    if (!enabled || handledExternalDialogs.has(dialog)) return;
+    if (!externalWarningEnabled || handledExternalDialogs.has(dialog)) return;
 
     const title = [...dialog.querySelectorAll('h1, h2, h3, h4, [role="heading"]')]
       .find((heading) => normalizedText(heading) === EXTERNAL_DIALOG_TITLE);
@@ -31,7 +33,7 @@
   }
 
   function inspectDialogs(node) {
-    if (!enabled || !(node instanceof Element)) return;
+    if (!externalWarningEnabled || !(node instanceof Element)) return;
 
     const dialogs = new Set();
 
@@ -48,7 +50,7 @@
   }
 
   function suppressHistoryRateLimitModal() {
-    if (!enabled) return;
+    if (!historyModalEnabled) return;
 
     const modal = document.getElementById(MODAL_ID);
     if (!modal) return;
@@ -78,7 +80,7 @@
   }
 
   function preserveNativeScroll(event) {
-    if (!enabled || !modalWasSuppressed) return;
+    if (!historyModalEnabled || !modalWasSuppressed) return;
 
     const modal = document.getElementById(MODAL_ID);
     if (!modal || getComputedStyle(modal).display !== "none") return;
@@ -122,27 +124,38 @@
     });
   }
 
-  async function loadSetting() {
-    const settings = await chrome.storage.local.get({ [SETTING_KEY]: false });
-    enabled = Boolean(settings[SETTING_KEY]);
+  async function loadSettings() {
+    const settings = await chrome.storage.local.get({
+      [EXTERNAL_WARNING_SETTING_KEY]: true,
+      [HISTORY_MODAL_SETTING_KEY]: true,
+    });
 
-    if (enabled && document.documentElement) {
+    externalWarningEnabled = Boolean(settings[EXTERNAL_WARNING_SETTING_KEY]);
+    historyModalEnabled = Boolean(settings[HISTORY_MODAL_SETTING_KEY]);
+
+    if (document.documentElement) {
       inspectDialogs(document.documentElement);
       suppressHistoryRateLimitModal();
     }
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local" || !changes[SETTING_KEY]) return;
+    if (areaName !== "local") return;
 
-    enabled = Boolean(changes[SETTING_KEY].newValue);
-    if (enabled && document.documentElement) {
-      inspectDialogs(document.documentElement);
-      suppressHistoryRateLimitModal();
+    if (changes[EXTERNAL_WARNING_SETTING_KEY]) {
+      externalWarningEnabled = Boolean(changes[EXTERNAL_WARNING_SETTING_KEY].newValue);
+      if (externalWarningEnabled && document.documentElement) {
+        inspectDialogs(document.documentElement);
+      }
+    }
+
+    if (changes[HISTORY_MODAL_SETTING_KEY]) {
+      historyModalEnabled = Boolean(changes[HISTORY_MODAL_SETTING_KEY].newValue);
+      if (historyModalEnabled) suppressHistoryRateLimitModal();
     }
   });
 
   watchChatGPTInterruptions();
   setInterval(suppressHistoryRateLimitModal, 100);
-  void loadSetting();
+  void loadSettings();
 })();
