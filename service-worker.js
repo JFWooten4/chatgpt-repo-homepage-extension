@@ -1,3 +1,5 @@
+importScripts("token-vault.js");
+
 const DEFAULT_OWNER_ORDER = [];
 const REPOSITORIES_PER_PAGE = 100;
 const ownerProfileCache = new Map();
@@ -148,34 +150,6 @@ async function loadPublicRepositories(ownerOrder, token = "") {
   return ownerRepositories.flat();
 }
 
-function configuredTokens(settings) {
-  const tokens = Array.isArray(settings.githubTokens)
-    ? settings.githubTokens
-      .filter((entry) => (
-        entry
-        && typeof entry.token === "string"
-      ))
-      .map((entry) => ({
-        label: typeof entry.label === "string"
-          ? entry.label.trim()
-          : typeof entry.owner === "string" ? entry.owner.trim() : "",
-        token: entry.token.trim(),
-      }))
-      .filter(({ token }) => token)
-    : [];
-
-  if (!tokens.length && settings.githubToken.trim()) {
-    tokens.push({ label: "GitHub account", token: settings.githubToken.trim() });
-  }
-
-  const seenTokens = new Set();
-  return tokens.filter(({ token }) => {
-    if (seenTokens.has(token)) return false;
-    seenTokens.add(token);
-    return true;
-  });
-}
-
 function uniqueRepositories(repositories) {
   const seenRepositories = new Set();
   return repositories.filter((repository) => {
@@ -187,15 +161,13 @@ function uniqueRepositories(repositories) {
 }
 
 async function repositoryPayload() {
-  const settings = await chrome.storage.local.get({
-    githubToken: "",
-    githubTokens: [],
-    ownerOrder: DEFAULT_OWNER_ORDER,
-  });
+  const [settings, tokens] = await Promise.all([
+    chrome.storage.local.get({ ownerOrder: DEFAULT_OWNER_ORDER }),
+    TokenVault.loadTokens(),
+  ]);
   const ownerOrder = Array.isArray(settings.ownerOrder)
     ? settings.ownerOrder.filter((owner) => typeof owner === "string" && owner.trim())
     : DEFAULT_OWNER_ORDER;
-  const tokens = configuredTokens(settings);
   let repositories;
 
   if (tokens.length) {
@@ -252,4 +224,16 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
   if (reason === "install") {
     chrome.runtime.openOptionsPage();
   }
+
+  // Updating from a plaintext-storage version migrates saved tokens immediately.
+  if (reason === "update") {
+    void TokenVault.loadTokens().catch((error) => {
+      console.warn("GitHub token migration failed:", error);
+    });
+  }
+});
+
+// Also migrate on worker startup so an interrupted update migration is retried.
+void TokenVault.loadTokens().catch((error) => {
+  console.warn("GitHub token vault initialization failed:", error);
 });
