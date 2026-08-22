@@ -1,6 +1,8 @@
 const DEFAULT_OWNER_ORDER = [];
 const DEFAULT_OWNER_GROUPS_PER_PAGE = 6;
 const form = document.getElementById("settings-form");
+const tokenSettings = document.getElementById("token-settings");
+const tokenSummary = document.getElementById("token-summary");
 const tokenList = document.getElementById("github-tokens");
 const tokenRowTemplate = document.getElementById("token-row-template");
 const addTokenButton = document.getElementById("add-token");
@@ -11,7 +13,6 @@ const pinnedRepositoryTemplate = document.getElementById("pinned-repository-temp
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
 const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
 const skipExternalSiteWarningInput = document.getElementById("skip-external-site-warning");
-const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
 
@@ -42,17 +43,32 @@ function showStatus(message, state = "") {
   status.dataset.state = state;
 }
 
+function updateTokenSummary() {
+  const count = [...tokenList.querySelectorAll(".token-value")]
+    .filter((input) => input.value.trim()).length;
+  tokenSummary.textContent = count === 0
+    ? "Not configured"
+    : count === 1 ? "1 configured" : `${count} configured`;
+}
+
 function createTokenRow({ label = "", owner = "", token = "" } = {}) {
   const row = tokenRowTemplate.content.firstElementChild.cloneNode(true);
   row.querySelector(".token-label").value = label || owner;
   row.querySelector(".token-value").value = token;
-  row.querySelector(".remove-token").addEventListener("click", () => row.remove());
+  row.querySelector(".remove-token").addEventListener("click", () => {
+    row.remove();
+    if (!tokenList.querySelector(".token-row")) {
+      tokenList.append(createTokenRow());
+    }
+    updateTokenSummary();
+  });
   return row;
 }
 
 function renderTokenRows(configuredTokens) {
   const tokenRows = configuredTokens.length ? configuredTokens : [{}];
   tokenList.replaceChildren(...tokenRows.map((token) => createTokenRow(token)));
+  updateTokenSummary();
 }
 
 function tokensFromInput() {
@@ -173,8 +189,7 @@ async function loadSettings() {
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
-    skipExternalSiteWarning: true,
-    dismissHistoryRateLimitModal: true,
+    skipExternalSiteWarning: false,
   });
   const storedOwnerOrder = normalizedOwnerOrder(settings.ownerOrder);
   let displayedOwnerOrder = storedOwnerOrder;
@@ -196,20 +211,24 @@ async function loadSettings() {
   }
 
   renderTokenRows(configuredTokens);
+  tokenSettings.open = configuredTokens.length === 0;
   renderPinnedRepositories(settings.pinnedRepositories);
   ownerOrderInput.value = displayedOwnerOrder.join("\n");
   ownerGroupsPerPageInput.value = normalizedOwnerGroupsPerPage(settings.ownerGroupsPerPage);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
-  dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
 }
 
 addTokenButton.addEventListener("click", () => {
+  tokenSettings.open = true;
   const row = createTokenRow();
   tokenList.append(row);
+  updateTokenSummary();
   row.querySelector(".token-label").focus();
 });
+
+tokenList.addEventListener("input", updateTokenSummary);
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -218,6 +237,7 @@ form.addEventListener("submit", async (event) => {
   const ownerGroupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPageInput.value);
 
   if (!githubTokens) {
+    tokenSettings.open = true;
     showStatus("Remove the duplicate token before saving.", "error");
     return;
   }
@@ -231,10 +251,10 @@ form.addEventListener("submit", async (event) => {
       hideDictationButton: hideDictationButtonInput.checked,
       compactNewChatHeader: compactNewChatHeaderInput.checked,
       skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
-      dismissHistoryRateLimitModal: dismissHistoryRateLimitModalInput.checked,
     });
     ownerOrderInput.value = enteredOwnerOrder.join("\n");
     ownerGroupsPerPageInput.value = ownerGroupsPerPage;
+    updateTokenSummary();
     showStatus("Settings saved. GitHub tokens are encrypted in the browser vault.", "success");
   } catch (error) {
     showStatus(`Settings could not be saved: ${error.message}`, "error");
@@ -244,6 +264,7 @@ form.addEventListener("submit", async (event) => {
 clearTokensButton.addEventListener("click", async () => {
   try {
     renderTokenRows([]);
+    tokenSettings.open = true;
     await TokenVault.clearTokens();
     showStatus("Tokens cleared. Only public repositories will be loaded.", "success");
   } catch (error) {

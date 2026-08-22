@@ -1,0 +1,17 @@
+body {
+  width: 480px;
+}
+
+.brand img {
+  border-radius: 10px;
+  flex: 0 0 auto;
+  height: 64px;
+  object-fit: cover;
+  width: 64px;
+}
+
+@media (min-width: 600px) {
+  body {
+    width: auto;
+  }
+}

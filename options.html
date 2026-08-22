@@ -4,22 +4,43 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GitHub Repositories for ChatGPT</title>
-    <link rel="stylesheet" href="options.css" />
+    <link rel="stylesheet" href="css/options.css" />
+    <link rel="stylesheet" href="css/popup-adjustments.css" />
   </head>
   <body>
     <main>
       <header>
-        <h1>GitHub Repositories for ChatGPT</h1>
-        <p>Choose which GitHub repositories appear on your ChatGPT home page.</p>
+        <div class="brand">
+          <img
+            src="artwork/squeaky-belle-full.webp"
+            alt="Wizard character artwork by Squeaky_Belle"
+            width="64"
+            height="64"
+          />
+          <div>
+            <h1>GitHub Repositories for ChatGPT</h1>
+            <p>Manage repository access, dashboard layout, and ChatGPT display settings.</p>
+          </div>
+        </div>
+        <p class="setup-note">
+          Add your GitHub access and preferences below. After setup, click the extension icon in the browser toolbar any time to reopen this menu.
+        </p>
       </header>
 
       <form id="settings-form">
-        <label>GitHub tokens</label>
-        <p class="help">
-          Optional. Add <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">fine-grained tokens</a> to show private repositories and every repository each token can access. Tokens are encrypted before being stored and remain available across normal extension updates.
-        </p>
-        <div id="github-tokens" class="token-list"></div>
-        <button id="add-token" class="secondary add-token" type="button">Add token</button>
+        <details id="token-settings" class="settings-foldout" open>
+          <summary>
+            <span>GitHub tokens</span>
+            <span id="token-summary" class="summary-meta">Not configured</span>
+          </summary>
+          <div class="foldout-body">
+            <p class="help">
+              Optional. Add <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">fine-grained tokens</a> to show private repositories and every repository each token can access. Tokens are encrypted before being stored and remain available across normal extension updates.
+            </p>
+            <div id="github-tokens" class="token-list"></div>
+            <button id="add-token" class="secondary add-token" type="button">Add token</button>
+          </div>
+        </details>
 
         <label for="owner-order">Repository owners</label>
         <p class="help">Enter one GitHub user or organization per line. The line order is the dashboard order. Owners discovered through your GitHub tokens are appended automatically so every visible group can be placed exactly where you want it.</p>
@@ -87,13 +108,6 @@
               <small>Automatically continues when ChatGPT asks you to confirm an external destination.</small>
             </span>
           </label>
-          <label class="preference">
-            <input id="dismiss-history-rate-limit-modal" type="checkbox" />
-            <span>
-              <strong>Dismiss history rate-limit modal</strong>
-              <small>Hides ChatGPT's conversation-history rate-limit modal and restores scrolling if it leaves the page locked.</small>
-            </span>
-          </label>
         </fieldset>
 
         <div class="actions">
@@ -134,8 +148,8 @@
         </div>
       </div>
     </template>
-    <script src="token-vault.js"></script>
-    <script src="options.js"></script>
-    <script src="owner-grid-options.js"></script>
+    <script src="js/token-vault.js"></script>
+    <script src="js/options.js"></script>
+    <script src="js/owner-grid-options.js"></script>
   </body>
 </html>
