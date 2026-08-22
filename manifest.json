@@ -18,13 +18,21 @@
       "matches": [
         "https://chatgpt.com/*"
       ],
+      "js": [
+        "external-links.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
       "css": [
         "styles.css",
         "owner-grid.css"
       ],
       "js": [
         "content.js",
-        "external-links.js",
         "owner-grid.js"
       ],
       "run_at": "document_idle"
