@@ -33,9 +33,9 @@ header {
   height: auto;
   justify-self: start;
   margin: 0;
-  max-width: 100%;
+  max-width: min(100%, 320px);
   overflow: hidden;
-  width: 420px;
+  width: min(100%, 320px);
 }
 
 .brand {
