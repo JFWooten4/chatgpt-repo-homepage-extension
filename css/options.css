@@ -20,22 +20,23 @@ header {
 }
 
 .standalone-header {
-  align-items: start;
-  display: grid;
-  gap: 18px;
-  justify-items: start;
+  align-items: center;
+  display: flex;
+  gap: 12px;
 }
 
 .standalone-artwork {
-  align-self: start;
-  border-radius: 16px;
+  border-radius: 10px;
   display: block;
-  height: auto;
-  justify-self: start;
-  margin: 0;
-  max-width: min(100%, 320px);
-  overflow: hidden;
-  width: min(100%, 320px);
+  flex: 0 0 auto;
+  height: 64px;
+  object-fit: cover;
+  object-position: center;
+  width: 64px;
+}
+
+.standalone-header h1 {
+  font-size: 20px;
 }
 
 .brand {
