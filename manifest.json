@@ -45,8 +45,7 @@
         "css/styles.css",
         "css/owner-grid.css",
         "css/private-repository-lock.css",
-        "css/compact-header.css",
-        "css/accent.css"
+        "css/compact-header.css"
       ],
       "js": [
         "js/content.js",
