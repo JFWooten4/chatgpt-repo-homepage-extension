@@ -44,11 +44,12 @@
   }
 
   function isNewChatPage() {
-    const conversationPath = /^\/(?:c|share)\//.test(location.pathname);
+    if (location.pathname !== "/") return false;
+
     const hasConversation = document.querySelector(
       '[data-message-author-role="user"], [data-message-author-role="assistant"]',
     );
-    return !conversationPath && !hasConversation;
+    return !hasConversation;
   }
 
   function findComposer() {
