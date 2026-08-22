@@ -5,6 +5,7 @@
   const COMPACT_HEADER_ATTR = "data-ghrc-compact-header";
   const HIDDEN_WELCOME_CLASS = "ghrc-hidden-welcome";
   const USAGE_STORAGE_KEY = "repositoryUsage";
+  const PINNED_STORAGE_KEY = "pinnedRepositories";
   const REPOSITORIES_PER_COLUMN = 7;
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
   let mountScheduled = false;
@@ -129,8 +130,32 @@
     return (freshness * 0.6) + (frequency * 0.27) + (recentlyOpened * 0.13);
   }
 
-  function rankRepositories(repositories, usage) {
+  function normalizedPins(pinnedRepositories) {
+    const seen = new Set();
+    return (Array.isArray(pinnedRepositories) ? pinnedRepositories : [])
+      .filter((fullName) => typeof fullName === "string" && fullName.includes("/"))
+      .map((fullName) => fullName.trim())
+      .filter((fullName) => {
+        const key = fullName.toLowerCase();
+        if (!fullName || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  function rankRepositories(repositories, usage, pinnedRepositories = []) {
+    const pinOrder = new Map(
+      normalizedPins(pinnedRepositories).map((fullName, index) => [fullName.toLowerCase(), index]),
+    );
+
     return [...repositories].sort((first, second) => {
+      const firstPin = pinOrder.get(first.fullName.toLowerCase());
+      const secondPin = pinOrder.get(second.fullName.toLowerCase());
+
+      if (firstPin !== undefined || secondPin !== undefined) {
+        return (firstPin ?? Number.MAX_SAFE_INTEGER) - (secondPin ?? Number.MAX_SAFE_INTEGER);
+      }
+
       const scoreDifference = repositoryScore(second, usage) - repositoryScore(first, usage);
       if (Math.abs(scoreDifference) > 0.0001) return scoreDifference;
 
@@ -138,7 +163,7 @@
     });
   }
 
-  function groupRepositories(repositories, ownerOrder, usage) {
+  function groupRepositories(repositories, ownerOrder, usage, pinnedRepositories) {
     const groups = new Map();
     const seenRepositories = new Set();
 
@@ -161,7 +186,7 @@
     return [...groups.values()]
       .map((group) => ({
         ...group,
-        repositories: rankRepositories(group.repositories, usage),
+        repositories: rankRepositories(group.repositories, usage, pinnedRepositories),
       }))
       .sort((first, second) => {
         const firstPriority = priority.get(first.owner.login.toLowerCase());
@@ -189,9 +214,40 @@
     await chrome.storage.local.set({ [USAGE_STORAGE_KEY]: usage });
   }
 
-  function createRepositoryLink(repository, includeOwner = false) {
+  async function toggleRepositoryPin(fullName) {
+    const stored = await chrome.storage.local.get({ [PINNED_STORAGE_KEY]: [] });
+    const pinnedRepositories = normalizedPins(stored[PINNED_STORAGE_KEY]);
+    const key = fullName.toLowerCase();
+    const existingIndex = pinnedRepositories.findIndex((pin) => pin.toLowerCase() === key);
+
+    if (existingIndex === -1) {
+      pinnedRepositories.push(fullName);
+    } else {
+      pinnedRepositories.splice(existingIndex, 1);
+    }
+
+    await chrome.storage.local.set({ [PINNED_STORAGE_KEY]: pinnedRepositories });
+  }
+
+  function repositoriesForColumn(repositories, pinnedRepositories) {
+    const pinnedKeys = new Set(
+      normalizedPins(pinnedRepositories).map((fullName) => fullName.toLowerCase()),
+    );
+    const pinnedCount = repositories.filter(
+      (repository) => pinnedKeys.has(repository.fullName.toLowerCase()),
+    ).length;
+    return repositories.slice(0, Math.max(REPOSITORIES_PER_COLUMN, pinnedCount));
+  }
+
+  function createRepositoryItem(repository, includeOwner, pinnedRepositories) {
+    const item = document.createElement("div");
+    item.className = "ghrc-repository";
+    const isPinned = normalizedPins(pinnedRepositories)
+      .some((fullName) => fullName.toLowerCase() === repository.fullName.toLowerCase());
+    item.dataset.pinned = String(isPinned);
+
     const link = document.createElement("a");
-    link.className = "ghrc-repository";
+    link.className = "ghrc-repository-link";
     link.href = repository.url;
     link.addEventListener("click", () => {
       void recordRepositoryUse(repository.fullName);
@@ -214,10 +270,30 @@
     }
 
     link.append(titleRow);
-    return link;
+
+    const pin = document.createElement("button");
+    pin.type = "button";
+    pin.className = "ghrc-pin";
+    pin.textContent = isPinned ? "Pinned" : "Pin";
+    pin.setAttribute(
+      "aria-label",
+      `${isPinned ? "Unpin" : "Pin"} ${repository.fullName}`,
+    );
+    pin.title = isPinned ? "Unpin repository" : "Pin repository";
+    pin.addEventListener("click", async () => {
+      pin.disabled = true;
+      try {
+        await toggleRepositoryPin(repository.fullName);
+      } finally {
+        pin.disabled = false;
+      }
+    });
+
+    item.append(link, pin);
+    return item;
   }
 
-  function createOwnerColumn(group) {
+  function createOwnerColumn(group, pinnedRepositories) {
     const column = document.createElement("section");
     column.className = "ghrc-owner-column";
     const displayName = group.owner.displayName || group.owner.login;
@@ -242,15 +318,15 @@
 
     const list = document.createElement("div");
     list.className = "ghrc-repository-list";
-    for (const repository of group.repositories.slice(0, REPOSITORIES_PER_COLUMN)) {
-      list.append(createRepositoryLink(repository));
+    for (const repository of repositoriesForColumn(group.repositories, pinnedRepositories)) {
+      list.append(createRepositoryItem(repository, false, pinnedRepositories));
     }
 
     column.append(header, list);
     return column;
   }
 
-  function renderSearchResults(container, repositories, query) {
+  function renderSearchResults(container, repositories, query, pinnedRepositories) {
     container.replaceChildren();
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -272,14 +348,14 @@
       container.append(empty);
     } else {
       for (const repository of matches) {
-        container.append(createRepositoryLink(repository, true));
+        container.append(createRepositoryItem(repository, true, pinnedRepositories));
       }
     }
 
     container.hidden = false;
   }
 
-  function createToolbar(widget, repositories, mode) {
+  function createToolbar(widget, repositories, mode, pinnedRepositories) {
     const toolbar = document.createElement("header");
     toolbar.className = "ghrc-toolbar";
 
@@ -338,12 +414,12 @@
     results.className = "ghrc-search-results";
     results.hidden = true;
     search.addEventListener("input", () => {
-      renderSearchResults(results, repositories, search.value);
+      renderSearchResults(results, repositories, search.value, pinnedRepositories);
     });
     search.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         search.value = "";
-        renderSearchResults(results, repositories, "");
+        renderSearchResults(results, repositories, "", pinnedRepositories);
         search.blur();
       }
     });
@@ -351,17 +427,26 @@
     widget.append(toolbar, searchArea);
   }
 
-  function renderRepositories(widget, payload, usage) {
+  function renderRepositories(widget, payload, usage, pinnedRepositories) {
     widget.replaceChildren();
-    const rankedRepositories = rankRepositories(payload.repositories, usage);
-    createToolbar(widget, rankedRepositories, payload.mode);
+    const rankedRepositories = rankRepositories(
+      payload.repositories,
+      usage,
+      pinnedRepositories,
+    );
+    createToolbar(widget, rankedRepositories, payload.mode, pinnedRepositories);
 
-    const groups = groupRepositories(payload.repositories, payload.ownerOrder, usage);
+    const groups = groupRepositories(
+      payload.repositories,
+      payload.ownerOrder,
+      usage,
+      pinnedRepositories,
+    );
     const columns = document.createElement("div");
     columns.className = "ghrc-columns";
 
     for (const group of groups) {
-      columns.append(createOwnerColumn(group));
+      columns.append(createOwnerColumn(group, pinnedRepositories));
     }
 
     if (!groups.length) {
@@ -406,7 +491,10 @@
       repositoryRequest ||= chrome.runtime.sendMessage({ type: "load-repositories" });
       const [payload, stored] = await Promise.all([
         repositoryRequest,
-        chrome.storage.local.get({ [USAGE_STORAGE_KEY]: {} }),
+        chrome.storage.local.get({
+          [USAGE_STORAGE_KEY]: {},
+          [PINNED_STORAGE_KEY]: [],
+        }),
       ]);
 
       if (!payload.ok) {
@@ -414,7 +502,12 @@
       }
 
       if (widget.isConnected) {
-        renderRepositories(widget, payload, stored[USAGE_STORAGE_KEY]);
+        renderRepositories(
+          widget,
+          payload,
+          stored[USAGE_STORAGE_KEY],
+          stored[PINNED_STORAGE_KEY],
+        );
       }
     } catch (error) {
       repositoryRequest = null;
@@ -489,6 +582,11 @@
 
     if (changes.githubToken || changes.githubTokens || changes.ownerOrder) {
       repositoryRequest = null;
+      document.getElementById(WIDGET_ID)?.remove();
+      scheduleMount();
+    }
+
+    if (changes.pinnedRepositories) {
       document.getElementById(WIDGET_ID)?.remove();
       scheduleMount();
     }

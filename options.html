@@ -32,6 +32,14 @@
         ></textarea>
 
         <fieldset>
+          <legend>Pinned repositories</legend>
+          <p class="help">
+            Pin repositories from the ChatGPT dashboard. Drag pins here to reorder them, or use the arrow buttons.
+          </p>
+          <div id="pinned-repositories" class="pinned-repositories"></div>
+        </fieldset>
+
+        <fieldset>
           <legend>ChatGPT display</legend>
           <label class="preference">
             <input id="hide-dictation-button" type="checkbox" />
@@ -81,6 +89,17 @@
           placeholder="github_pat_…"
         />
         <button class="secondary remove-token" type="button" aria-label="Remove GitHub token">Remove</button>
+      </div>
+    </template>
+    <template id="pinned-repository-template">
+      <div class="pinned-repository" draggable="true">
+        <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+        <code></code>
+        <div class="pin-controls">
+          <button class="secondary move-pin-up" type="button" aria-label="Move pin up">↑</button>
+          <button class="secondary move-pin-down" type="button" aria-label="Move pin down">↓</button>
+          <button class="secondary remove-pin" type="button">Remove</button>
+        </div>
       </div>
     </template>
     <script src="options.js"></script>
