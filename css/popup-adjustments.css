@@ -53,12 +53,38 @@ body {
   color: light-dark(#0969da, #58a6ff);
 }
 
-.popup-panel[hidden] {
+.popup-panel[hidden],
+.pin-pagination[hidden],
+.pinned-repository[hidden] {
   display: none;
 }
 
 .popup-first-fieldset {
   margin-top: 0;
+}
+
+.panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.pin-pagination {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.pin-pagination button {
+  padding: 5px 9px;
+}
+
+#pin-page-status {
+  color: light-dark(#656d76, #9198a1);
+  font-size: 12px;
+  text-align: center;
 }
 
 .popup-actions {
