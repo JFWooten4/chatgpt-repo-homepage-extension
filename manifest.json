@@ -44,11 +44,13 @@
       "css": [
         "css/styles.css",
         "css/owner-grid.css",
-        "css/private-repository-lock.css"
+        "css/private-repository-lock.css",
+        "css/compact-header.css"
       ],
       "js": [
         "js/content.js",
-        "js/owner-grid.js"
+        "js/owner-grid.js",
+        "js/compact-header.js"
       ],
       "run_at": "document_idle"
     }
