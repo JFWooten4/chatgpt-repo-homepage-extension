@@ -29,17 +29,24 @@
         background: #9668df;
       }
 
-      .setup-note,
-      .popup-tab[aria-selected="true"] {
-        background: color-mix(in srgb, #a97dee 18%, transparent);
-      }
-
       .setup-note {
+        background: color-mix(in srgb, #a97dee 18%, transparent);
         border-color: color-mix(in srgb, #a97dee 70%, transparent);
       }
 
+      .popup-tab {
+        color: light-dark(#24292f, #f0f6fc);
+        font-weight: 600;
+      }
+
       .popup-tab[aria-selected="true"] {
-        color: #a97dee;
+        background: #a97dee;
+        color: #21172e;
+      }
+
+      #clear-tokens,
+      #open-full-settings {
+        margin-left: auto;
       }
     </style>
   </head>
