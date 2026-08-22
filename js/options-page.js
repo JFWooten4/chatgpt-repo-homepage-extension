@@ -3,6 +3,8 @@
   const animatedPath = artwork?.dataset.animatedSrc;
   if (!artwork || !animatedPath) return;
 
+  artwork.title = "Artwork by Squeaky_Belle";
+
   const animatedUrl = chrome.runtime.getURL(animatedPath);
   fetch(animatedUrl)
     .then((response) => {
