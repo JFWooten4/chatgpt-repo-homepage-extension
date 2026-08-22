@@ -13,10 +13,11 @@
     "storage"
   ],
   "host_permissions": [
-    "https://api.github.com/*"
+    "https://api.github.com/*",
+    "https://avatars.githubusercontent.com/*"
   ],
   "background": {
-    "service_worker": "js/service-worker.js"
+    "service_worker": "js/background.js"
   },
   "action": {
     "default_title": "GitHub Repositories for ChatGPT",
@@ -49,6 +50,7 @@
         "css/repository-fast-ui.css"
       ],
       "js": [
+        "js/avatar-cache-ui.js",
         "js/repository-fast-ui.js",
         "js/content.js",
         "js/owner-grid.js",
