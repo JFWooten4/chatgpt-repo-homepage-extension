@@ -34,7 +34,8 @@
       ],
       "css": [
         "css/styles.css",
-        "css/owner-grid.css"
+        "css/owner-grid.css",
+        "css/private-repository-lock.css"
       ],
       "js": [
         "js/content.js",
