@@ -19,15 +19,19 @@ header {
   margin-bottom: 16px;
 }
 
+.popup-artwork {
+  border-radius: 10px;
+  display: block;
+  height: auto;
+  margin: 0 0 14px;
+  max-width: 100%;
+  width: 100%;
+}
+
 .brand {
   align-items: center;
   display: flex;
   gap: 12px;
-}
-
-.brand img {
-  border-radius: 10px;
-  flex: 0 0 auto;
 }
 
 h1 {
@@ -61,6 +65,48 @@ form {
   border: 1px solid light-dark(#d0d7de, #3d444d);
   border-radius: 10px;
   padding: 16px;
+}
+
+.settings-foldout {
+  border: 1px solid light-dark(#d0d7de, #3d444d);
+  border-radius: 8px;
+  margin: 0;
+}
+
+.settings-foldout > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 12px;
+  justify-content: space-between;
+  list-style-position: inside;
+  padding: 11px 12px;
+}
+
+.settings-foldout > summary:hover {
+  background: light-dark(#f6f8fa, #161b22);
+}
+
+.summary-meta {
+  color: light-dark(#656d76, #9198a1);
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: auto;
+}
+
+.foldout-body {
+  border-top: 1px solid light-dark(#d0d7de, #3d444d);
+  padding: 0 12px 12px;
+}
+
+.foldout-body .help {
+  margin-top: 10px;
+}
+
+.help a {
+  color: light-dark(#0969da, #58a6ff);
 }
 
 label {
