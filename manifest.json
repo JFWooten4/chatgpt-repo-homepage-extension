@@ -20,7 +20,8 @@
       ],
       "css": [
         "styles.css",
-        "owner-grid.css"
+        "owner-grid.css",
+        "private-repository-lock.css"
       ],
       "js": [
         "content.js",
