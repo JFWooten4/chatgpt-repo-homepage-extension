@@ -1,0 +1,41 @@
+:root {
+  --extension-accent: #a97dee;
+  accent-color: var(--extension-accent);
+}
+
+#github-repositories-for-chatgpt,
+html.dark #github-repositories-for-chatgpt {
+  --ghrc-accent: var(--extension-accent) !important;
+}
+
+.help a,
+.popup-tab[aria-selected="true"] {
+  color: var(--extension-accent) !important;
+}
+
+input:focus,
+textarea:focus {
+  border-color: var(--extension-accent) !important;
+  box-shadow: 0 0 0 1px var(--extension-accent) !important;
+}
+
+input[type="checkbox"] {
+  accent-color: var(--extension-accent);
+}
+
+button:not(.secondary) {
+  background: var(--extension-accent) !important;
+}
+
+button:not(.secondary):hover {
+  background: color-mix(in srgb, var(--extension-accent) 88%, black) !important;
+}
+
+.setup-note,
+.popup-tab[aria-selected="true"] {
+  background: color-mix(in srgb, var(--extension-accent) 18%, transparent) !important;
+}
+
+.setup-note {
+  border-color: color-mix(in srgb, var(--extension-accent) 70%, transparent) !important;
+}
