@@ -116,6 +116,8 @@ Press **Alt+R** on the new-chat page to focus the repository search field.
 Extension icon artwork by [Squeaky_Belle](https://disqus.com/by/Squeaky_Belle),
 from the provided [source post](https://x.com/Squeaky_Belle/status/1855267207577731504).
 
+Spellcheck Only launcher artwork by Kiriya ([src](https://derpibooru.org/images/3394656)).
+
 ## License
 
 This project is licensed under the GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
