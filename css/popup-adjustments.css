@@ -15,11 +15,12 @@ body {
 }
 
 .brand img {
-  border-radius: 10px;
+  border-radius: 12px;
   flex: 0 0 auto;
-  height: 64px;
-  object-fit: cover;
-  width: 64px;
+  height: auto;
+  object-fit: contain;
+  object-position: left center;
+  width: 72px;
 }
 
 .popup-tabs {
@@ -53,9 +54,7 @@ body {
   color: light-dark(#0969da, #58a6ff);
 }
 
-.popup-panel[hidden],
-.pin-pagination[hidden],
-.pinned-repository[hidden] {
+.popup-panel[hidden] {
   display: none;
 }
 
@@ -63,28 +62,36 @@ body {
   margin-top: 0;
 }
 
-.panel-actions {
+.popup-panel-actions {
   display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.popup-panel-actions button {
+  flex: 1 1 auto;
 }
 
 .pin-pagination {
   align-items: center;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   justify-content: space-between;
   margin-top: 10px;
 }
 
-.pin-pagination button {
-  padding: 5px 9px;
+.pin-pagination[hidden] {
+  display: none;
 }
 
-#pin-page-status {
+.pin-pagination-status {
   color: light-dark(#656d76, #9198a1);
   font-size: 12px;
-  text-align: center;
+  margin: 0;
+}
+
+.pin-pagination button {
+  padding: 5px 9px;
 }
 
 .popup-actions {
