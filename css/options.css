@@ -20,18 +20,22 @@ header {
 }
 
 .standalone-header {
+  align-items: start;
   display: grid;
   gap: 18px;
+  justify-items: start;
 }
 
 .standalone-artwork {
-  border-radius: 14px;
+  align-self: start;
+  border-radius: 16px;
   display: block;
   height: auto;
-  max-height: 420px;
-  object-fit: contain;
-  object-position: center;
-  width: 100%;
+  justify-self: start;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  width: 420px;
 }
 
 .brand {
