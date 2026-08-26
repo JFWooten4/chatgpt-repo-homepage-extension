@@ -12,6 +12,7 @@ const pinnedRepositoryList = document.getElementById("pinned-repositories");
 const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
 const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
+const showSpellcheckGptLauncherInput = document.getElementById("show-spellcheck-gpt-launcher");
 const skipExternalSiteWarningInput = document.getElementById("skip-external-site-warning");
 const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
 const clearTokensButton = document.getElementById("clear-tokens");
@@ -182,11 +183,11 @@ async function loadSettings() {
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
+    showSpellcheckGptLauncher: false,
     skipExternalSiteWarning: true,
     dismissHistoryRateLimitModal: true,
   });
   const storedOwnerOrder = normalizedOwnerOrder(settings.ownerOrder);
-  let displayedOwnerOrder = storedOwnerOrder;
   let configuredTokens = [];
 
   try {
@@ -195,24 +196,30 @@ async function loadSettings() {
     showStatus(error.message, "error");
   }
 
-  try {
-    const payload = await chrome.runtime.sendMessage({ type: "load-repositories" });
-    if (payload?.ok && Array.isArray(payload.ownerOrder)) {
-      displayedOwnerOrder = normalizedOwnerOrder(payload.ownerOrder);
-    }
-  } catch {
-    // Keep the stored order if repository discovery is temporarily unavailable.
-  }
-
   renderTokenRows(configuredTokens);
   tokenSettings.open = configuredTokens.length === 0;
   renderPinnedRepositories(settings.pinnedRepositories);
-  ownerOrderInput.value = displayedOwnerOrder.join("\n");
+  ownerOrderInput.value = storedOwnerOrder.join("\n");
   ownerGroupsPerPageInput.value = normalizedOwnerGroupsPerPage(settings.ownerGroupsPerPage);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
+  showSpellcheckGptLauncherInput.checked = Boolean(settings.showSpellcheckGptLauncher);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
   dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
+
+  const initialOwnerOrderValue = ownerOrderInput.value;
+  try {
+    const payload = await chrome.runtime.sendMessage({ type: "load-repositories" });
+    if (
+      payload?.ok
+      && Array.isArray(payload.ownerOrder)
+      && ownerOrderInput.value === initialOwnerOrderValue
+    ) {
+      ownerOrderInput.value = normalizedOwnerOrder(payload.ownerOrder).join("\n");
+    }
+  } catch {
+    // Keep the already-rendered settings if repository discovery is unavailable.
+  }
 }
 
 addTokenButton.addEventListener("click", () => {
@@ -244,6 +251,7 @@ form.addEventListener("submit", async (event) => {
       pinnedRepositories: pinnedRepositoriesFromList(),
       hideDictationButton: hideDictationButtonInput.checked,
       compactNewChatHeader: compactNewChatHeaderInput.checked,
+      showSpellcheckGptLauncher: showSpellcheckGptLauncherInput.checked,
       skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
       dismissHistoryRateLimitModal: dismissHistoryRateLimitModalInput.checked,
     });

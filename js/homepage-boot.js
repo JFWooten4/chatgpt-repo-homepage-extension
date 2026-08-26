@@ -49,6 +49,10 @@
   });
 
   failOpenTimer = window.setTimeout(reveal, FAIL_OPEN_MILLISECONDS);
+  window.navigation?.addEventListener("navigate", (event) => {
+    if (new URL(event.destination.url).pathname !== "/") reveal();
+  });
+  window.addEventListener("popstate", revealWhenReady);
   window.addEventListener("pageshow", revealWhenReady, { once: true });
   revealWhenReady();
 })();

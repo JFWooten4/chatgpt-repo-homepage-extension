@@ -19,13 +19,24 @@ header {
   margin-bottom: 16px;
 }
 
-.popup-artwork {
+.standalone-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.standalone-artwork {
   border-radius: 10px;
   display: block;
-  height: auto;
-  margin: 0 0 14px;
-  max-width: 100%;
-  width: 100%;
+  flex: 0 0 auto;
+  height: 64px;
+  object-fit: cover;
+  object-position: center;
+  width: 64px;
+}
+
+.standalone-header h1 {
+  font-size: 20px;
 }
 
 .brand {
@@ -53,8 +64,8 @@ header p {
 }
 
 .setup-note {
-  background: light-dark(#ddf4ff, #0c2d48);
-  border: 1px solid light-dark(#54aeff, #1f6feb);
+  background: color-mix(in srgb, #a97dee 18%, transparent);
+  border: 1px solid color-mix(in srgb, #a97dee 70%, transparent);
   border-radius: 8px;
   margin-top: 12px;
   padding: 10px 12px;
@@ -106,7 +117,7 @@ form {
 }
 
 .help a {
-  color: light-dark(#0969da, #58a6ff);
+  color: #a97dee;
 }
 
 label {
@@ -140,8 +151,8 @@ textarea {
 
 input:focus,
 textarea:focus {
-  border-color: #0969da;
-  box-shadow: 0 0 0 1px #0969da;
+  border-color: #a97dee;
+  box-shadow: 0 0 0 1px #a97dee;
   outline: 0;
 }
 
@@ -170,6 +181,7 @@ legend {
 }
 
 .preference input {
+  accent-color: #a97dee;
   margin: 3px 0 0;
   width: auto;
 }
@@ -266,7 +278,7 @@ legend {
 }
 
 button {
-  background: #1f883d;
+  background: #a97dee;
   border: 1px solid rgba(31, 35, 40, 0.15);
   border-radius: 6px;
   color: #ffffff;
@@ -276,7 +288,7 @@ button {
 }
 
 button:hover {
-  background: #1a7f37;
+  background: color-mix(in srgb, #a97dee 88%, black);
 }
 
 button.secondary {
