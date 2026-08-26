@@ -32,7 +32,11 @@
       "matches": [
         "https://chatgpt.com/*"
       ],
+      "css": [
+        "css/homepage-boot.css"
+      ],
       "js": [
+        "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/external-links.js"
       ],
