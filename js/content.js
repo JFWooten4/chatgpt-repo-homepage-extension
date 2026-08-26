@@ -12,6 +12,8 @@
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
   let mountScheduled = false;
   let repositoryRequest = null;
+  let layoutObserver = null;
+  let observedLayoutContainer = null;
 
   function githubIcon(className = "ghrc-github-icon") {
     const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -99,6 +101,30 @@
   function applyPageAdjustments(composer) {
     document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
     updateWelcomeHeading(composer);
+  }
+
+  function updateWidgetLayout(widget, composer) {
+    const content = composer.closest("main");
+    const parent = widget.parentElement;
+    if (!content || !parent) return;
+
+    const contentBounds = content.getBoundingClientRect();
+    const parentBounds = parent.getBoundingClientRect();
+    const contentCenter = contentBounds.left + (contentBounds.width / 2);
+    const parentCenter = parentBounds.left + (parentBounds.width / 2);
+    const availableWidth = Math.max(0, Math.floor(contentBounds.width - 40));
+
+    widget.style.setProperty("--ghrc-available-width", `${availableWidth}px`);
+    widget.style.setProperty(
+      "--ghrc-center-offset",
+      `${Math.round(contentCenter - parentCenter)}px`,
+    );
+
+    if (observedLayoutContainer === content) return;
+    layoutObserver ??= new ResizeObserver(scheduleMount);
+    layoutObserver.disconnect();
+    layoutObserver.observe(content);
+    observedLayoutContainer = content;
   }
 
   async function loadDisplayPreferences() {
@@ -364,6 +390,17 @@
     container.hidden = false;
   }
 
+  function requestOptionsPage() {
+    try {
+      chrome.runtime.sendMessage({ type: "open-options" }, () => {
+        // Consume lastError so a stale/missing worker does not surface as an unchecked error.
+        void chrome.runtime.lastError;
+      });
+    } catch {
+      // A content script from before an extension reload cannot reach the new worker.
+    }
+  }
+
   function createToolbar(widget, repositories, mode, pinnedRepositories) {
     const toolbar = document.createElement("header");
     toolbar.className = "ghrc-toolbar";
@@ -395,7 +432,7 @@
     settings.className = "ghrc-settings";
     settings.textContent = mode === "authenticated" ? "Settings" : "Connect GitHub";
     settings.addEventListener("click", () => {
-      chrome.runtime.sendMessage({ type: "open-options" });
+      requestOptionsPage();
     });
     actions.append(settings);
     toolbar.append(identity, actions);
@@ -503,14 +540,14 @@
 
     if (!groups.length) {
       const empty = document.createElement("div");
-      empty.className = "ghrc-state";
+      empty.className = "ghrc-state ghrc-empty";
       const message = document.createElement("span");
       message.textContent = "Add a GitHub token or repository owner to show repositories here.";
       const settings = document.createElement("button");
       settings.type = "button";
       settings.textContent = "Open settings";
       settings.addEventListener("click", () => {
-        chrome.runtime.sendMessage({ type: "open-options" });
+        requestOptionsPage();
       });
       empty.append(message, settings);
       columns.append(empty);
@@ -550,7 +587,7 @@
     settings.type = "button";
     settings.textContent = "Open settings";
     settings.addEventListener("click", () => {
-      chrome.runtime.sendMessage({ type: "open-options" });
+      requestOptionsPage();
     });
     state.append(title, detail, settings);
     widget.append(state);
@@ -607,6 +644,8 @@
 
     if (!isNewChatPage()) {
       existingWidget?.remove();
+      layoutObserver?.disconnect();
+      observedLayoutContainer = null;
       clearPageAdjustments();
       return;
     }
@@ -619,10 +658,13 @@
       if (existingWidget.previousElementSibling !== composer) {
         composer.insertAdjacentElement("afterend", existingWidget);
       }
+      updateWidgetLayout(existingWidget, composer);
       return;
     }
 
-    composer.insertAdjacentElement("afterend", createWidget());
+    const widget = createWidget();
+    composer.insertAdjacentElement("afterend", widget);
+    updateWidgetLayout(widget, composer);
   }
 
   function scheduleMount() {
@@ -644,6 +686,8 @@
       }
     }
   });
+
+  window.addEventListener("resize", scheduleMount);
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;

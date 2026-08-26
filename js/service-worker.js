@@ -2,7 +2,10 @@ importScripts("token-vault.js");
 
 const DEFAULT_OWNER_ORDER = [];
 const REPOSITORIES_PER_PAGE = 100;
+const REPOSITORY_CACHE_KEY = "repositoryPayloadCacheV1";
+const REPOSITORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const ownerProfileCache = new Map();
+const repositoryRefreshRequests = new Map();
 
 function githubHeaders(token) {
   const headers = {
@@ -204,7 +207,9 @@ function sameOwnerOrder(first, second) {
 }
 
 async function persistResolvedOwnerOrder(configuredOrder, resolvedOrder) {
-  if (sameOwnerOrder(configuredOrder, resolvedOrder)) return resolvedOrder;
+  if (sameOwnerOrder(configuredOrder, resolvedOrder)) {
+    return { ownerOrder: resolvedOrder, stateChanged: false };
+  }
 
   const currentSettings = await chrome.storage.local.get({
     ownerOrder: DEFAULT_OWNER_ORDER,
@@ -212,18 +217,73 @@ async function persistResolvedOwnerOrder(configuredOrder, resolvedOrder) {
   const currentOrder = normalizedOwnerOrder(currentSettings.ownerOrder);
 
   // Do not overwrite an owner-order edit made while repository discovery was running.
-  if (!sameOwnerOrder(currentOrder, configuredOrder)) return currentOrder;
+  if (!sameOwnerOrder(currentOrder, configuredOrder)) {
+    return { ownerOrder: currentOrder, stateChanged: true };
+  }
 
   await chrome.storage.local.set({ ownerOrder: resolvedOrder });
-  return resolvedOrder;
+  return { ownerOrder: resolvedOrder, stateChanged: false };
 }
 
-async function repositoryPayload() {
+async function tokenSignature(tokens) {
+  const serialized = JSON.stringify(
+    tokens.map(({ label, token }) => [label || "", token]),
+  );
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(serialized),
+  );
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function loadRepositoryState() {
   const [settings, tokens] = await Promise.all([
     chrome.storage.local.get({ ownerOrder: DEFAULT_OWNER_ORDER }),
     TokenVault.loadTokens(),
   ]);
-  const ownerOrder = normalizedOwnerOrder(settings.ownerOrder);
+
+  return {
+    ownerOrder: normalizedOwnerOrder(settings.ownerOrder),
+    tokens,
+    tokenSignature: await tokenSignature(tokens),
+  };
+}
+
+function cacheMatchesState(cache, state) {
+  if (!cache?.payload || !Number.isFinite(cache.fetchedAt)) return false;
+  if (cache.tokenSignature !== state.tokenSignature) return false;
+  return sameOwnerOrder(normalizedOwnerOrder(cache.ownerOrder), state.ownerOrder);
+}
+
+function repositoryStateKey(state) {
+  return JSON.stringify([
+    state.tokenSignature,
+    state.ownerOrder.map((owner) => owner.toLowerCase()),
+  ]);
+}
+
+async function loadRepositoryCache(state) {
+  const stored = await chrome.storage.local.get({ [REPOSITORY_CACHE_KEY]: null });
+  const cache = stored[REPOSITORY_CACHE_KEY];
+  return cacheMatchesState(cache, state) ? cache : null;
+}
+
+async function saveRepositoryCache(payload, state) {
+  await chrome.storage.local.set({
+    [REPOSITORY_CACHE_KEY]: {
+      fetchedAt: Date.now(),
+      tokenSignature: state.tokenSignature,
+      ownerOrder: normalizedOwnerOrder(payload.ownerOrder),
+      payload,
+    },
+  });
+}
+
+async function repositoryPayload(state = null) {
+  const resolvedState = state || await loadRepositoryState();
+  const { ownerOrder, tokens } = resolvedState;
   let repositories;
 
   if (tokens.length) {
@@ -252,27 +312,84 @@ async function repositoryPayload() {
 
   const ownerProfiles = await loadOwnerProfiles(repositories, tokens[0]?.token);
   const resolvedOrder = resolvedOwnerOrder(repositories, ownerOrder);
-  const displayOwnerOrder = await persistResolvedOwnerOrder(ownerOrder, resolvedOrder);
+  const resolvedOwnerState = await persistResolvedOwnerOrder(ownerOrder, resolvedOrder);
 
   return {
-    mode: tokens.length ? "authenticated" : "public",
-    ownerOrder: displayOwnerOrder,
-    repositories: repositories.map((repository) => (
-      normalizeRepository(repository, ownerProfiles)
-    )),
+    payload: {
+      mode: tokens.length ? "authenticated" : "public",
+      ownerOrder: resolvedOwnerState.ownerOrder,
+      repositories: repositories.map((repository) => (
+        normalizeRepository(repository, ownerProfiles)
+      )),
+    },
+    stateChanged: resolvedOwnerState.stateChanged,
+  };
+}
+
+async function refreshRepositoryCache(state) {
+  const key = repositoryStateKey(state);
+  if (repositoryRefreshRequests.has(key)) return repositoryRefreshRequests.get(key);
+
+  const request = repositoryPayload(state)
+    .then(async ({ payload, stateChanged }) => {
+      const currentState = await loadRepositoryState();
+      const stillCurrent = !stateChanged
+        && currentState.tokenSignature === state.tokenSignature
+        && sameOwnerOrder(currentState.ownerOrder, payload.ownerOrder);
+      if (stillCurrent) await saveRepositoryCache(payload, state);
+      return payload;
+    })
+    .finally(() => {
+      repositoryRefreshRequests.delete(key);
+    });
+
+  repositoryRefreshRequests.set(key, request);
+  return request;
+}
+
+async function loadRepositoriesWithCache() {
+  const state = await loadRepositoryState();
+  const cache = await loadRepositoryCache(state);
+
+  if (cache) {
+    const age = Math.max(0, Date.now() - cache.fetchedAt);
+    if (age > REPOSITORY_CACHE_TTL_MS) {
+      void refreshRepositoryCache(state).catch((error) => {
+        console.warn("Repository cache refresh failed:", error);
+      });
+    }
+
+    return {
+      ok: true,
+      ...cache.payload,
+      cached: true,
+      cacheAgeMs: age,
+      refreshing: age > REPOSITORY_CACHE_TTL_MS,
+    };
+  }
+
+  const payload = await refreshRepositoryCache(state);
+  return {
+    ok: true,
+    ...payload,
+    cached: false,
+    cacheAgeMs: 0,
+    refreshing: false,
   };
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "load-repositories") {
-    repositoryPayload()
-      .then((payload) => sendResponse({ ok: true, ...payload }))
+    loadRepositoriesWithCache()
+      .then((payload) => sendResponse(payload))
       .catch((error) => sendResponse({ ok: false, error: error.message }));
     return true;
   }
 
   if (message?.type === "open-options") {
     chrome.runtime.openOptionsPage();
+    sendResponse({ ok: true });
+    return false;
   }
 
   return false;

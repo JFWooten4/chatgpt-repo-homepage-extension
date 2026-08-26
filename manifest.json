@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GitHub Repositories for ChatGPT",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Adds a personalized GitHub repository dashboard and optional ChatGPT interface tweaks.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -13,14 +13,15 @@
     "storage"
   ],
   "host_permissions": [
-    "https://api.github.com/*"
+    "https://api.github.com/*",
+    "https://avatars.githubusercontent.com/*"
   ],
   "background": {
-    "service_worker": "js/service-worker.js"
+    "service_worker": "js/background.js"
   },
   "action": {
     "default_title": "GitHub Repositories for ChatGPT",
-    "default_popup": "options.html",
+    "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
@@ -32,8 +33,12 @@
       "matches": [
         "https://chatgpt.com/*"
       ],
+      "css": [
+        "css/homepage-boot.css"
+      ],
       "js": [
         "js/collapse-sidebar.js",
+        "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/external-links.js"
       ],
@@ -48,14 +53,29 @@
         "css/owner-grid.css",
         "css/private-repository-lock.css",
         "css/compact-header.css",
-        "css/inline-toolbar-search.css"
+        "css/inline-toolbar-search.css",
+        "css/spellcheck-launcher.css",
+        "css/repository-fast-ui.css"
       ],
       "js": [
+        "js/avatar-cache-ui.js",
+        "js/repository-fast-ui.js",
         "js/content.js",
         "js/owner-grid.js",
-        "js/compact-header.js"
+        "js/compact-header.js",
+        "js/spellcheck-launcher.js"
       ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "artwork/spellcheck-only.png"
+      ],
+      "matches": [
+        "https://chatgpt.com/*"
+      ]
     }
   ]
 }
