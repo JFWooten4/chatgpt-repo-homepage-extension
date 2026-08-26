@@ -10,9 +10,11 @@
   border-radius: 12px;
   box-sizing: border-box;
   color: var(--ghrc-fg);
+  container-type: inline-size;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  margin: 20px 50% 32px;
-  max-width: calc(100vw - 40px);
+  left: calc(50% + var(--ghrc-center-offset, 0px));
+  margin: 20px 0 32px;
+  max-width: var(--ghrc-available-width, calc(100vw - 40px));
   position: relative;
   transform: translateX(-50%);
   width: 1120px;
@@ -351,7 +353,8 @@ html.dark #github-repositories-for-chatgpt {
   text-align: center;
 }
 
-#github-repositories-for-chatgpt .ghrc-columns > .ghrc-state {
+#github-repositories-for-chatgpt .ghrc-columns > .ghrc-state,
+#github-repositories-for-chatgpt .ghrc-error {
   align-items: center;
   display: flex;
   flex-direction: column;
@@ -375,11 +378,8 @@ html.dark #github-repositories-for-chatgpt {
   opacity: 0.45;
 }
 
-#github-repositories-for-chatgpt .ghrc-error {
-  align-items: center;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+#github-repositories-for-chatgpt .ghrc-empty {
+  grid-column: 1 / -1;
 }
 
 #github-repositories-for-chatgpt .ghrc-error strong {
@@ -411,7 +411,10 @@ html.dark #github-repositories-for-chatgpt {
 @media (max-width: 560px) {
   #github-repositories-for-chatgpt {
     margin-top: 14px;
-    max-width: calc(100vw - 20px);
+    max-width: min(
+      var(--ghrc-available-width, calc(100vw - 20px)),
+      calc(100vw - 20px)
+    );
     width: 100%;
   }
 
