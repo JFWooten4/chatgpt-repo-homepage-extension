@@ -1,0 +1,3 @@
+html[data-ghrc-homepage-booting] main {
+  visibility: hidden !important;
+}

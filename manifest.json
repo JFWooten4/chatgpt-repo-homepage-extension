@@ -1,16 +1,31 @@
 {
   "manifest_version": 3,
   "name": "GitHub Repositories for ChatGPT",
-  "version": "1.2.1",
-  "description": "Adds a personalized GitHub repository dashboard below the ChatGPT new-chat composer.",
+  "version": "1.6.0",
+  "description": "Adds a personalized GitHub repository dashboard and optional ChatGPT interface tweaks.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "permissions": [
     "storage"
   ],
   "host_permissions": [
-    "https://api.github.com/*"
+    "https://api.github.com/*",
+    "https://avatars.githubusercontent.com/*"
   ],
   "background": {
-    "service_worker": "service-worker.js"
+    "service_worker": "js/background.js"
+  },
+  "action": {
+    "default_title": "GitHub Repositories for ChatGPT",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
   },
   "options_page": "options.html",
   "content_scripts": [
@@ -19,12 +34,47 @@
         "https://chatgpt.com/*"
       ],
       "css": [
-        "styles.css"
+        "css/homepage-boot.css"
       ],
       "js": [
-        "content.js"
+        "js/homepage-boot.js",
+        "js/autofocus-composer.js",
+        "js/external-links.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
+      "css": [
+        "css/styles.css",
+        "css/owner-grid.css",
+        "css/private-repository-lock.css",
+        "css/compact-header.css",
+        "css/inline-toolbar-search.css",
+        "css/spellcheck-launcher.css",
+        "css/repository-fast-ui.css"
+      ],
+      "js": [
+        "js/avatar-cache-ui.js",
+        "js/repository-fast-ui.js",
+        "js/content.js",
+        "js/owner-grid.js",
+        "js/compact-header.js",
+        "js/spellcheck-launcher.js"
       ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "artwork/spellcheck-only.png"
+      ],
+      "matches": [
+        "https://chatgpt.com/*"
+      ]
     }
   ]
 }

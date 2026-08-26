@@ -5,6 +5,9 @@
   const COMPACT_HEADER_ATTR = "data-ghrc-compact-header";
   const HIDDEN_WELCOME_CLASS = "ghrc-hidden-welcome";
   const USAGE_STORAGE_KEY = "repositoryUsage";
+  const PINNED_STORAGE_KEY = "pinnedRepositories";
+  const OWNER_GROUPS_PER_PAGE_KEY = "ownerGroupsPerPage";
+  const DEFAULT_OWNER_GROUPS_PER_PAGE = 6;
   const REPOSITORIES_PER_COLUMN = 7;
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
   let mountScheduled = false;
@@ -43,11 +46,12 @@
   }
 
   function isNewChatPage() {
-    const conversationPath = /^\/(?:c|share)\//.test(location.pathname);
+    if (location.pathname !== "/") return false;
+
     const hasConversation = document.querySelector(
       '[data-message-author-role="user"], [data-message-author-role="assistant"]',
     );
-    return !conversationPath && !hasConversation;
+    return !hasConversation;
   }
 
   function findComposer() {
@@ -155,8 +159,38 @@
     return (freshness * 0.6) + (frequency * 0.27) + (recentlyOpened * 0.13);
   }
 
-  function rankRepositories(repositories, usage) {
+  function normalizedPins(pinnedRepositories) {
+    const seen = new Set();
+    return (Array.isArray(pinnedRepositories) ? pinnedRepositories : [])
+      .filter((fullName) => typeof fullName === "string" && fullName.includes("/"))
+      .map((fullName) => fullName.trim())
+      .filter((fullName) => {
+        const key = fullName.toLowerCase();
+        if (!fullName || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
+  function normalizedOwnerGroupsPerPage(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return DEFAULT_OWNER_GROUPS_PER_PAGE;
+    return Math.min(24, Math.max(1, parsed));
+  }
+
+  function rankRepositories(repositories, usage, pinnedRepositories = []) {
+    const pinOrder = new Map(
+      normalizedPins(pinnedRepositories).map((fullName, index) => [fullName.toLowerCase(), index]),
+    );
+
     return [...repositories].sort((first, second) => {
+      const firstPin = pinOrder.get(first.fullName.toLowerCase());
+      const secondPin = pinOrder.get(second.fullName.toLowerCase());
+
+      if (firstPin !== undefined || secondPin !== undefined) {
+        return (firstPin ?? Number.MAX_SAFE_INTEGER) - (secondPin ?? Number.MAX_SAFE_INTEGER);
+      }
+
       const scoreDifference = repositoryScore(second, usage) - repositoryScore(first, usage);
       if (Math.abs(scoreDifference) > 0.0001) return scoreDifference;
 
@@ -164,7 +198,7 @@
     });
   }
 
-  function groupRepositories(repositories, ownerOrder, usage) {
+  function groupRepositories(repositories, ownerOrder, usage, pinnedRepositories) {
     const groups = new Map();
     const seenRepositories = new Set();
 
@@ -187,7 +221,7 @@
     return [...groups.values()]
       .map((group) => ({
         ...group,
-        repositories: rankRepositories(group.repositories, usage),
+        repositories: rankRepositories(group.repositories, usage, pinnedRepositories),
       }))
       .sort((first, second) => {
         const firstPriority = priority.get(first.owner.login.toLowerCase());
@@ -215,9 +249,40 @@
     await chrome.storage.local.set({ [USAGE_STORAGE_KEY]: usage });
   }
 
-  function createRepositoryLink(repository, includeOwner = false) {
+  async function toggleRepositoryPin(fullName) {
+    const stored = await chrome.storage.local.get({ [PINNED_STORAGE_KEY]: [] });
+    const pinnedRepositories = normalizedPins(stored[PINNED_STORAGE_KEY]);
+    const key = fullName.toLowerCase();
+    const existingIndex = pinnedRepositories.findIndex((pin) => pin.toLowerCase() === key);
+
+    if (existingIndex === -1) {
+      pinnedRepositories.push(fullName);
+    } else {
+      pinnedRepositories.splice(existingIndex, 1);
+    }
+
+    await chrome.storage.local.set({ [PINNED_STORAGE_KEY]: pinnedRepositories });
+  }
+
+  function repositoriesForColumn(repositories, pinnedRepositories) {
+    const pinnedKeys = new Set(
+      normalizedPins(pinnedRepositories).map((fullName) => fullName.toLowerCase()),
+    );
+    const pinnedCount = repositories.filter(
+      (repository) => pinnedKeys.has(repository.fullName.toLowerCase()),
+    ).length;
+    return repositories.slice(0, Math.max(REPOSITORIES_PER_COLUMN, pinnedCount));
+  }
+
+  function createRepositoryItem(repository, includeOwner, pinnedRepositories) {
+    const item = document.createElement("div");
+    item.className = "ghrc-repository";
+    const isPinned = normalizedPins(pinnedRepositories)
+      .some((fullName) => fullName.toLowerCase() === repository.fullName.toLowerCase());
+    item.dataset.pinned = String(isPinned);
+
     const link = document.createElement("a");
-    link.className = "ghrc-repository";
+    link.className = "ghrc-repository-link";
     link.href = repository.url;
     link.addEventListener("click", () => {
       void recordRepositoryUse(repository.fullName);
@@ -240,10 +305,30 @@
     }
 
     link.append(titleRow);
-    return link;
+
+    const pin = document.createElement("button");
+    pin.type = "button";
+    pin.className = "ghrc-pin";
+    pin.textContent = isPinned ? "Pinned" : "Pin";
+    pin.setAttribute(
+      "aria-label",
+      `${isPinned ? "Unpin" : "Pin"} ${repository.fullName}`,
+    );
+    pin.title = isPinned ? "Unpin repository" : "Pin repository";
+    pin.addEventListener("click", async () => {
+      pin.disabled = true;
+      try {
+        await toggleRepositoryPin(repository.fullName);
+      } finally {
+        pin.disabled = false;
+      }
+    });
+
+    item.append(link, pin);
+    return item;
   }
 
-  function createOwnerColumn(group) {
+  function createOwnerColumn(group, pinnedRepositories) {
     const column = document.createElement("section");
     column.className = "ghrc-owner-column";
     const displayName = group.owner.displayName || group.owner.login;
@@ -268,15 +353,15 @@
 
     const list = document.createElement("div");
     list.className = "ghrc-repository-list";
-    for (const repository of group.repositories.slice(0, REPOSITORIES_PER_COLUMN)) {
-      list.append(createRepositoryLink(repository));
+    for (const repository of repositoriesForColumn(group.repositories, pinnedRepositories)) {
+      list.append(createRepositoryItem(repository, false, pinnedRepositories));
     }
 
     column.append(header, list);
     return column;
   }
 
-  function renderSearchResults(container, repositories, query) {
+  function renderSearchResults(container, repositories, query, pinnedRepositories) {
     container.replaceChildren();
     const normalizedQuery = query.trim().toLowerCase();
 
@@ -298,14 +383,25 @@
       container.append(empty);
     } else {
       for (const repository of matches) {
-        container.append(createRepositoryLink(repository, true));
+        container.append(createRepositoryItem(repository, true, pinnedRepositories));
       }
     }
 
     container.hidden = false;
   }
 
-  function createToolbar(widget, repositories, mode) {
+  function requestOptionsPage() {
+    try {
+      chrome.runtime.sendMessage({ type: "open-options" }, () => {
+        // Consume lastError so a stale/missing worker does not surface as an unchecked error.
+        void chrome.runtime.lastError;
+      });
+    } catch {
+      // A content script from before an extension reload cannot reach the new worker.
+    }
+  }
+
+  function createToolbar(widget, repositories, mode, pinnedRepositories) {
     const toolbar = document.createElement("header");
     toolbar.className = "ghrc-toolbar";
 
@@ -336,7 +432,7 @@
     settings.className = "ghrc-settings";
     settings.textContent = mode === "authenticated" ? "Settings" : "Connect GitHub";
     settings.addEventListener("click", () => {
-      chrome.runtime.sendMessage({ type: "open-options" });
+      requestOptionsPage();
     });
     actions.append(settings);
     toolbar.append(identity, actions);
@@ -364,12 +460,12 @@
     results.className = "ghrc-search-results";
     results.hidden = true;
     search.addEventListener("input", () => {
-      renderSearchResults(results, repositories, search.value);
+      renderSearchResults(results, repositories, search.value, pinnedRepositories);
     });
     search.addEventListener("keydown", (event) => {
       if (event.key === "Escape") {
         search.value = "";
-        renderSearchResults(results, repositories, "");
+        renderSearchResults(results, repositories, "", pinnedRepositories);
         search.blur();
       }
     });
@@ -377,18 +473,70 @@
     widget.append(toolbar, searchArea);
   }
 
-  function renderRepositories(widget, payload, usage) {
-    widget.replaceChildren();
-    const rankedRepositories = rankRepositories(payload.repositories, usage);
-    createToolbar(widget, rankedRepositories, payload.mode);
+  function createPagination(pageCount, onPageChange) {
+    const pagination = document.createElement("nav");
+    pagination.className = "ghrc-pagination";
+    pagination.setAttribute("aria-label", "Repository owner pages");
 
-    const groups = groupRepositories(payload.repositories, payload.ownerOrder, usage);
+    const previous = document.createElement("button");
+    previous.type = "button";
+    previous.textContent = "Previous";
+
+    const status = document.createElement("span");
+    status.setAttribute("aria-live", "polite");
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.textContent = "Next";
+
+    let pageIndex = 0;
+    const update = () => {
+      previous.disabled = pageIndex === 0;
+      next.disabled = pageIndex === pageCount - 1;
+      status.textContent = `Page ${pageIndex + 1} of ${pageCount}`;
+      onPageChange(pageIndex);
+    };
+
+    previous.addEventListener("click", () => {
+      if (pageIndex === 0) return;
+      pageIndex -= 1;
+      update();
+    });
+
+    next.addEventListener("click", () => {
+      if (pageIndex === pageCount - 1) return;
+      pageIndex += 1;
+      update();
+    });
+
+    pagination.append(previous, status, next);
+    update();
+    return pagination;
+  }
+
+  function renderRepositories(
+    widget,
+    payload,
+    usage,
+    pinnedRepositories,
+    ownerGroupsPerPage,
+  ) {
+    widget.replaceChildren();
+    const rankedRepositories = rankRepositories(
+      payload.repositories,
+      usage,
+      pinnedRepositories,
+    );
+    createToolbar(widget, rankedRepositories, payload.mode, pinnedRepositories);
+
+    const groups = groupRepositories(
+      payload.repositories,
+      payload.ownerOrder,
+      usage,
+      pinnedRepositories,
+    );
     const columns = document.createElement("div");
     columns.className = "ghrc-columns";
-
-    for (const group of groups) {
-      columns.append(createOwnerColumn(group));
-    }
 
     if (!groups.length) {
       const empty = document.createElement("div");
@@ -399,13 +547,31 @@
       settings.type = "button";
       settings.textContent = "Open settings";
       settings.addEventListener("click", () => {
-        chrome.runtime.sendMessage({ type: "open-options" });
+        requestOptionsPage();
       });
       empty.append(message, settings);
       columns.append(empty);
+      widget.append(columns);
+      return;
     }
 
+    const groupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPage);
+    const pageCount = Math.ceil(groups.length / groupsPerPage);
+    const renderPage = (pageIndex) => {
+      const firstGroup = pageIndex * groupsPerPage;
+      const pageGroups = groups.slice(firstGroup, firstGroup + groupsPerPage);
+      columns.replaceChildren(
+        ...pageGroups.map((group) => createOwnerColumn(group, pinnedRepositories)),
+      );
+    };
+
     widget.append(columns);
+
+    if (pageCount > 1) {
+      widget.append(createPagination(pageCount, renderPage));
+    } else {
+      renderPage(0);
+    }
   }
 
   function renderError(widget, message) {
@@ -421,7 +587,7 @@
     settings.type = "button";
     settings.textContent = "Open settings";
     settings.addEventListener("click", () => {
-      chrome.runtime.sendMessage({ type: "open-options" });
+      requestOptionsPage();
     });
     state.append(title, detail, settings);
     widget.append(state);
@@ -432,7 +598,11 @@
       repositoryRequest ||= chrome.runtime.sendMessage({ type: "load-repositories" });
       const [payload, stored] = await Promise.all([
         repositoryRequest,
-        chrome.storage.local.get({ [USAGE_STORAGE_KEY]: {} }),
+        chrome.storage.local.get({
+          [USAGE_STORAGE_KEY]: {},
+          [PINNED_STORAGE_KEY]: [],
+          [OWNER_GROUPS_PER_PAGE_KEY]: DEFAULT_OWNER_GROUPS_PER_PAGE,
+        }),
       ]);
 
       if (!payload.ok) {
@@ -440,7 +610,13 @@
       }
 
       if (widget.isConnected) {
-        renderRepositories(widget, payload, stored[USAGE_STORAGE_KEY]);
+        renderRepositories(
+          widget,
+          payload,
+          stored[USAGE_STORAGE_KEY],
+          stored[PINNED_STORAGE_KEY],
+          stored[OWNER_GROUPS_PER_PAGE_KEY],
+        );
       }
     } catch (error) {
       repositoryRequest = null;
@@ -520,8 +696,18 @@
       void loadDisplayPreferences();
     }
 
-    if (changes.githubToken || changes.githubTokens || changes.ownerOrder) {
+    if (
+      changes.githubToken
+      || changes.githubTokens
+      || changes.ownerOrder
+      || changes.ownerGroupsPerPage
+    ) {
       repositoryRequest = null;
+      document.getElementById(WIDGET_ID)?.remove();
+      scheduleMount();
+    }
+
+    if (changes.pinnedRepositories) {
       document.getElementById(WIDGET_ID)?.remove();
       scheduleMount();
     }

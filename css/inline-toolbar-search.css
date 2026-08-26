@@ -1,0 +1,53 @@
+#github-repositories-for-chatgpt .ghrc-search-area {
+  border-bottom: 0;
+  left: 190px;
+  padding: 0;
+  position: absolute;
+  right: 290px;
+  top: 15px;
+  z-index: 4;
+}
+
+#github-repositories-for-chatgpt .ghrc-search-results {
+  top: calc(100% + 6px);
+}
+
+@media (max-width: 920px) {
+  #github-repositories-for-chatgpt .ghrc-search-area {
+    left: 165px;
+    right: 105px;
+  }
+}
+
+@media (max-width: 560px) {
+  #github-repositories-for-chatgpt .ghrc-identity span,
+  #github-repositories-for-chatgpt .ghrc-search-github-icon {
+    display: none;
+  }
+
+  #github-repositories-for-chatgpt .ghrc-search-area {
+    left: 125px;
+    right: 92px;
+  }
+
+  #github-repositories-for-chatgpt .ghrc-search {
+    padding-left: 4px;
+  }
+
+  #github-repositories-for-chatgpt .ghrc-search input {
+    min-width: 0;
+  }
+}
+
+@container (max-width: 820px) {
+  #github-repositories-for-chatgpt .ghrc-toolbar {
+    min-height: 116px;
+    padding-bottom: 62px;
+  }
+
+  #github-repositories-for-chatgpt .ghrc-search-area {
+    left: 16px;
+    right: 16px;
+    top: 64px;
+  }
+}

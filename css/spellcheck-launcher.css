@@ -1,0 +1,52 @@
+[data-ghrc-spellcheck-launcher-host="true"] {
+  position: relative;
+}
+
+#ghrc-spellcheck-gpt-launcher {
+  align-items: center;
+  background: var(--main-surface-primary, #fff);
+  border: 1px solid var(--border-light, rgba(0, 0, 0, 0.12));
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  display: flex;
+  height: 36px;
+  justify-content: center;
+  margin: 0;
+  overflow: hidden;
+  padding: 3px;
+  position: absolute;
+  right: -46px;
+  bottom: 10px;
+  width: 36px;
+  z-index: 4;
+}
+
+#ghrc-spellcheck-gpt-launcher[hidden] {
+  display: none;
+}
+
+#ghrc-spellcheck-gpt-launcher:hover {
+  box-shadow: 0 2px 7px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+}
+
+#ghrc-spellcheck-gpt-launcher:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+#ghrc-spellcheck-gpt-launcher img {
+  border-radius: 50%;
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  #ghrc-spellcheck-gpt-launcher {
+    bottom: calc(100% + 8px);
+    right: 4px;
+  }
+}

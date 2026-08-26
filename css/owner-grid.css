@@ -1,0 +1,29 @@
+@media (min-width: 921px) {
+  #github-repositories-for-chatgpt {
+    max-width: min(
+      var(--ghrc-available-width, calc(100vw - 72px)),
+      calc(100vw - 72px)
+    );
+    width: 1040px;
+  }
+
+  #github-repositories-for-chatgpt .ghrc-columns {
+    grid-template-columns: repeat(
+      var(--ghrc-owner-groups-per-row, 3),
+      minmax(0, 1fr)
+    );
+  }
+
+  #github-repositories-for-chatgpt .ghrc-owner-header {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #github-repositories-for-chatgpt .ghrc-repository-link {
+    padding-left: 10px;
+  }
+
+  #github-repositories-for-chatgpt .ghrc-pin {
+    margin-right: 5px;
+  }
+}

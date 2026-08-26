@@ -1,0 +1,352 @@
+:root {
+  color-scheme: light dark;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  background: light-dark(#f6f8fa, #010409);
+  color: light-dark(#1f2328, #f0f6fc);
+  margin: 0;
+  width: 420px;
+}
+
+main {
+  margin: 0;
+  padding: 16px;
+}
+
+header {
+  margin-bottom: 16px;
+}
+
+.standalone-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.standalone-artwork {
+  border-radius: 10px;
+  display: block;
+  flex: 0 0 auto;
+  height: 64px;
+  object-fit: cover;
+  object-position: center;
+  width: 64px;
+}
+
+.standalone-header h1 {
+  font-size: 20px;
+}
+
+.brand {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+h1 {
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 0 0 4px;
+}
+
+header p,
+.help,
+#status {
+  color: light-dark(#656d76, #9198a1);
+}
+
+header p {
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.setup-note {
+  background: color-mix(in srgb, #a97dee 18%, transparent);
+  border: 1px solid color-mix(in srgb, #a97dee 70%, transparent);
+  border-radius: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+}
+
+form {
+  background: light-dark(#ffffff, #0d1117);
+  border: 1px solid light-dark(#d0d7de, #3d444d);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.settings-foldout {
+  border: 1px solid light-dark(#d0d7de, #3d444d);
+  border-radius: 8px;
+  margin: 0;
+}
+
+.settings-foldout > summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-size: 14px;
+  font-weight: 600;
+  gap: 12px;
+  justify-content: space-between;
+  list-style-position: inside;
+  padding: 11px 12px;
+}
+
+.settings-foldout > summary:hover {
+  background: light-dark(#f6f8fa, #161b22);
+}
+
+.summary-meta {
+  color: light-dark(#656d76, #9198a1);
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: auto;
+}
+
+.foldout-body {
+  border-top: 1px solid light-dark(#d0d7de, #3d444d);
+  padding: 0 12px 12px;
+}
+
+.foldout-body .help {
+  margin-top: 10px;
+}
+
+.help a {
+  color: #a97dee;
+}
+
+label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 20px;
+}
+
+label:first-child {
+  margin-top: 0;
+}
+
+.help {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 5px 0 8px;
+}
+
+input,
+textarea {
+  background: light-dark(#ffffff, #010409);
+  border: 1px solid light-dark(#d0d7de, #3d444d);
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: inherit;
+  font: 14px ui-monospace, SFMono-Regular, Consolas, monospace;
+  padding: 9px 11px;
+  width: 100%;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #a97dee;
+  box-shadow: 0 0 0 1px #a97dee;
+  outline: 0;
+}
+
+textarea {
+  line-height: 1.5;
+  resize: vertical;
+}
+
+fieldset {
+  border: 0;
+  margin: 20px 0 0;
+  padding: 0;
+}
+
+legend {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.preference {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  margin: 10px 0 0;
+}
+
+.preference input {
+  accent-color: #a97dee;
+  margin: 3px 0 0;
+  width: auto;
+}
+
+.preference span {
+  display: grid;
+  gap: 3px;
+}
+
+.preference small {
+  color: light-dark(#656d76, #9198a1);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+.pinned-repositories,
+.token-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pinned-repositories-empty {
+  border: 1px dashed light-dark(#d0d7de, #3d444d);
+  border-radius: 6px;
+  color: light-dark(#656d76, #9198a1);
+  font-size: 13px;
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+}
+
+.pinned-repository {
+  align-items: center;
+  background: light-dark(#f6f8fa, #161b22);
+  border: 1px solid light-dark(#d0d7de, #3d444d);
+  border-radius: 6px;
+  cursor: grab;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 7px 8px;
+}
+
+.pinned-repository.dragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}
+
+.drag-handle {
+  color: light-dark(#656d76, #9198a1);
+  letter-spacing: -4px;
+  padding-right: 4px;
+}
+
+.pinned-repository code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pin-controls {
+  display: flex;
+  gap: 4px;
+  grid-column: 2;
+}
+
+.pin-controls button {
+  padding: 4px 7px;
+}
+
+.pin-controls button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.token-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr;
+}
+
+.remove-token {
+  justify-self: start;
+}
+
+.add-token {
+  margin-top: 10px;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+button {
+  background: #a97dee;
+  border: 1px solid rgba(31, 35, 40, 0.15);
+  border-radius: 6px;
+  color: #ffffff;
+  cursor: pointer;
+  font: 600 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 8px 14px;
+}
+
+button:hover {
+  background: color-mix(in srgb, #a97dee 88%, black);
+}
+
+button.secondary {
+  background: light-dark(#f6f8fa, #21262d);
+  border-color: light-dark(#d0d7de, #3d444d);
+  color: inherit;
+}
+
+#status {
+  font-size: 13px;
+  margin: 14px 0 0;
+  min-height: 20px;
+}
+
+#status[data-state="success"] {
+  color: light-dark(#1a7f37, #3fb950);
+}
+
+#status[data-state="error"] {
+  color: light-dark(#cf222e, #f85149);
+}
+
+@media (min-width: 600px) {
+  body {
+    width: auto;
+  }
+
+  main {
+    margin: 48px auto;
+    max-width: 680px;
+    padding: 0 24px;
+  }
+
+  header {
+    margin-bottom: 24px;
+  }
+
+  h1 {
+    font-size: 26px;
+  }
+
+  form {
+    padding: 24px;
+  }
+
+  .token-row {
+    grid-template-columns: minmax(120px, 0.7fr) minmax(220px, 1.6fr) auto;
+  }
+
+  .remove-token {
+    justify-self: stretch;
+  }
+
+  .pinned-repository {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .pin-controls {
+    grid-column: auto;
+  }
+}
