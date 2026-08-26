@@ -54,7 +54,7 @@ async function responseToDataUrl(response) {
 }
 
 async function saveAvatarEntry(sourceUrl, entry) {
-  ownerAvatarWriteQueue = ownerAvatarWriteQueue.then(async () => {
+  ownerAvatarWriteQueue = ownerAvatarWriteQueue.catch(() => {}).then(async () => {
     const cache = await loadAvatarCache();
     const cutoff = Date.now() - OWNER_AVATAR_CACHE_RETENTION_MS;
 

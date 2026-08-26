@@ -2,7 +2,6 @@
   const WIDGET_ID = "github-repositories-for-chatgpt";
   const PINNED_STORAGE_KEY = "pinnedRepositories";
   const LOADING_TEXT = "Loading repositories…";
-  let warmPinsRequest = null;
   let searchPaginationScheduled = false;
 
   function normalizedPins(pinnedRepositories) {
@@ -82,13 +81,13 @@
   }
 
   async function showWarmPins(widget) {
-    if (!widget?.isConnected || widget.dataset.ghrcWarmPins === "true") return;
+    if (!widget?.isConnected || widget.dataset.ghrcWarmPins) return;
     const loading = [...widget.querySelectorAll(".ghrc-state")]
       .find((element) => element.textContent.trim() === LOADING_TEXT);
     if (!loading) return;
 
-    warmPinsRequest ||= chrome.storage.local.get({ [PINNED_STORAGE_KEY]: [] });
-    const stored = await warmPinsRequest;
+    widget.dataset.ghrcWarmPins = "loading";
+    const stored = await chrome.storage.local.get({ [PINNED_STORAGE_KEY]: [] });
     const pins = normalizedPins(stored[PINNED_STORAGE_KEY]);
     if (!pins.length || !widget.isConnected || !loading.isConnected) return;
 

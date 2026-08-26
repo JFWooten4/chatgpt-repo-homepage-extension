@@ -5,22 +5,48 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GitHub Repositories for ChatGPT</title>
     <link rel="stylesheet" href="css/options.css" />
-    <link rel="stylesheet" href="css/popup-adjustments.css" />
+    <style>
+      :root {
+        accent-color: #a97dee;
+      }
+
+      input[type="checkbox"] {
+        accent-color: #a97dee;
+      }
+
+      input:focus,
+      textarea:focus {
+        border-color: #a97dee;
+        box-shadow: 0 0 0 1px #a97dee;
+      }
+
+      button:not(.secondary) {
+        background: #a97dee;
+      }
+
+      button:not(.secondary):hover {
+        background: #9668df;
+      }
+
+      .setup-note {
+        background: color-mix(in srgb, #a97dee 18%, transparent);
+        border-color: color-mix(in srgb, #a97dee 70%, transparent);
+      }
+    </style>
   </head>
   <body>
     <main>
-      <header>
-        <div class="brand">
-          <img
-            src="artwork/squeaky-belle-full.webp"
-            alt="Wizard character artwork by Squeaky_Belle"
-            width="64"
-            height="64"
-          />
-          <div>
-            <h1>GitHub Repositories for ChatGPT</h1>
-            <p>Manage repository access, dashboard layout, and ChatGPT display settings.</p>
-          </div>
+      <header class="standalone-header">
+        <img
+          id="standalone-artwork"
+          class="standalone-artwork"
+          src="artwork/squeaky-belle-full.webp"
+          data-animated-src="artwork/squeaky-belle-full.gif"
+          alt="Wizard character artwork by Squeaky_Belle"
+        />
+        <div>
+          <h1>GitHub Repositories for ChatGPT</h1>
+          <p>Manage repository access, dashboard layout, and ChatGPT display settings.</p>
         </div>
       </header>
 
@@ -88,6 +114,13 @@
         <fieldset>
           <legend>ChatGPT display</legend>
           <label class="preference">
+            <input id="auto-focus-composer" type="checkbox" checked />
+            <span>
+              <strong>Auto-focus chat input</strong>
+              <small>Places the cursor in ChatGPT's composer whenever a ChatGPT page or conversation opens.</small>
+            </span>
+          </label>
+          <label class="preference">
             <input id="hide-dictation-button" type="checkbox" />
             <span>
               <strong>Hide dictation microphone</strong>
@@ -101,6 +134,13 @@
               <small>Hides the welcome heading and reclaims its vertical space above the composer.</small>
             </span>
           </label>
+          <label class="preference">
+              <input id="show-spellcheck-gpt-launcher" type="checkbox" />
+              <span>
+                <strong>Show Spellcheck Only launcher</strong>
+                <small>Adds a circular shortcut beside the new-chat composer using the bundled artwork.</small>
+              </span>
+            </label>
           <label class="preference">
             <input id="skip-external-site-warning" type="checkbox" />
             <span>
@@ -158,5 +198,7 @@
     <script src="js/token-vault.js"></script>
     <script src="js/options.js"></script>
     <script src="js/owner-grid-options.js"></script>
+    <script src="js/options-page.js"></script>
+    <script src="js/autofocus-options.js"></script>
   </body>
 </html>

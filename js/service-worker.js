@@ -5,7 +5,7 @@ const REPOSITORIES_PER_PAGE = 100;
 const REPOSITORY_CACHE_KEY = "repositoryPayloadCacheV1";
 const REPOSITORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const ownerProfileCache = new Map();
-let repositoryRefreshRequest = null;
+const repositoryRefreshRequests = new Map();
 
 function githubHeaders(token) {
   const headers = {
@@ -207,7 +207,9 @@ function sameOwnerOrder(first, second) {
 }
 
 async function persistResolvedOwnerOrder(configuredOrder, resolvedOrder) {
-  if (sameOwnerOrder(configuredOrder, resolvedOrder)) return resolvedOrder;
+  if (sameOwnerOrder(configuredOrder, resolvedOrder)) {
+    return { ownerOrder: resolvedOrder, stateChanged: false };
+  }
 
   const currentSettings = await chrome.storage.local.get({
     ownerOrder: DEFAULT_OWNER_ORDER,
@@ -215,10 +217,12 @@ async function persistResolvedOwnerOrder(configuredOrder, resolvedOrder) {
   const currentOrder = normalizedOwnerOrder(currentSettings.ownerOrder);
 
   // Do not overwrite an owner-order edit made while repository discovery was running.
-  if (!sameOwnerOrder(currentOrder, configuredOrder)) return currentOrder;
+  if (!sameOwnerOrder(currentOrder, configuredOrder)) {
+    return { ownerOrder: currentOrder, stateChanged: true };
+  }
 
   await chrome.storage.local.set({ ownerOrder: resolvedOrder });
-  return resolvedOrder;
+  return { ownerOrder: resolvedOrder, stateChanged: false };
 }
 
 async function tokenSignature(tokens) {
@@ -253,6 +257,13 @@ function cacheMatchesState(cache, state) {
   return sameOwnerOrder(normalizedOwnerOrder(cache.ownerOrder), state.ownerOrder);
 }
 
+function repositoryStateKey(state) {
+  return JSON.stringify([
+    state.tokenSignature,
+    state.ownerOrder.map((owner) => owner.toLowerCase()),
+  ]);
+}
+
 async function loadRepositoryCache(state) {
   const stored = await chrome.storage.local.get({ [REPOSITORY_CACHE_KEY]: null });
   const cache = stored[REPOSITORY_CACHE_KEY];
@@ -260,14 +271,11 @@ async function loadRepositoryCache(state) {
 }
 
 async function saveRepositoryCache(payload, state) {
-  // repositoryPayload may discover owners and persist a more complete order.
-  const latestSettings = await chrome.storage.local.get({ ownerOrder: DEFAULT_OWNER_ORDER });
-  const ownerOrder = normalizedOwnerOrder(latestSettings.ownerOrder);
   await chrome.storage.local.set({
     [REPOSITORY_CACHE_KEY]: {
       fetchedAt: Date.now(),
       tokenSignature: state.tokenSignature,
-      ownerOrder,
+      ownerOrder: normalizedOwnerOrder(payload.ownerOrder),
       payload,
     },
   });
@@ -304,30 +312,39 @@ async function repositoryPayload(state = null) {
 
   const ownerProfiles = await loadOwnerProfiles(repositories, tokens[0]?.token);
   const resolvedOrder = resolvedOwnerOrder(repositories, ownerOrder);
-  const displayOwnerOrder = await persistResolvedOwnerOrder(ownerOrder, resolvedOrder);
+  const resolvedOwnerState = await persistResolvedOwnerOrder(ownerOrder, resolvedOrder);
 
   return {
-    mode: tokens.length ? "authenticated" : "public",
-    ownerOrder: displayOwnerOrder,
-    repositories: repositories.map((repository) => (
-      normalizeRepository(repository, ownerProfiles)
-    )),
+    payload: {
+      mode: tokens.length ? "authenticated" : "public",
+      ownerOrder: resolvedOwnerState.ownerOrder,
+      repositories: repositories.map((repository) => (
+        normalizeRepository(repository, ownerProfiles)
+      )),
+    },
+    stateChanged: resolvedOwnerState.stateChanged,
   };
 }
 
 async function refreshRepositoryCache(state) {
-  if (repositoryRefreshRequest) return repositoryRefreshRequest;
+  const key = repositoryStateKey(state);
+  if (repositoryRefreshRequests.has(key)) return repositoryRefreshRequests.get(key);
 
-  repositoryRefreshRequest = repositoryPayload(state)
-    .then(async (payload) => {
-      await saveRepositoryCache(payload, state);
+  const request = repositoryPayload(state)
+    .then(async ({ payload, stateChanged }) => {
+      const currentState = await loadRepositoryState();
+      const stillCurrent = !stateChanged
+        && currentState.tokenSignature === state.tokenSignature
+        && sameOwnerOrder(currentState.ownerOrder, payload.ownerOrder);
+      if (stillCurrent) await saveRepositoryCache(payload, state);
       return payload;
     })
     .finally(() => {
-      repositoryRefreshRequest = null;
+      repositoryRefreshRequests.delete(key);
     });
 
-  return repositoryRefreshRequest;
+  repositoryRefreshRequests.set(key, request);
+  return request;
 }
 
 async function loadRepositoriesWithCache() {
@@ -371,6 +388,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message?.type === "open-options") {
     chrome.runtime.openOptionsPage();
+    sendResponse({ ok: true });
+    return false;
   }
 
   return false;
