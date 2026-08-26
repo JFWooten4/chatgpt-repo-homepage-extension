@@ -364,6 +364,17 @@
     container.hidden = false;
   }
 
+  function requestOptionsPage() {
+    try {
+      chrome.runtime.sendMessage({ type: "open-options" }, () => {
+        // Consume lastError so a stale/missing worker does not surface as an unchecked error.
+        void chrome.runtime.lastError;
+      });
+    } catch {
+      // A content script from before an extension reload cannot reach the new worker.
+    }
+  }
+
   function createToolbar(widget, repositories, mode, pinnedRepositories) {
     const toolbar = document.createElement("header");
     toolbar.className = "ghrc-toolbar";
@@ -395,7 +406,7 @@
     settings.className = "ghrc-settings";
     settings.textContent = mode === "authenticated" ? "Settings" : "Connect GitHub";
     settings.addEventListener("click", () => {
-      chrome.runtime.sendMessage({ type: "open-options" });
+      requestOptionsPage();
     });
     actions.append(settings);
     toolbar.append(identity, actions);
@@ -510,7 +521,7 @@
       settings.type = "button";
       settings.textContent = "Open settings";
       settings.addEventListener("click", () => {
-        chrome.runtime.sendMessage({ type: "open-options" });
+        requestOptionsPage();
       });
       empty.append(message, settings);
       columns.append(empty);
@@ -550,7 +561,7 @@
     settings.type = "button";
     settings.textContent = "Open settings";
     settings.addEventListener("click", () => {
-      chrome.runtime.sendMessage({ type: "open-options" });
+      requestOptionsPage();
     });
     state.append(title, detail, settings);
     widget.append(state);

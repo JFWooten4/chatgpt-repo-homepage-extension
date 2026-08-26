@@ -188,7 +188,6 @@ async function loadSettings() {
     dismissHistoryRateLimitModal: true,
   });
   const storedOwnerOrder = normalizedOwnerOrder(settings.ownerOrder);
-  let displayedOwnerOrder = storedOwnerOrder;
   let configuredTokens = [];
 
   try {
@@ -197,25 +196,30 @@ async function loadSettings() {
     showStatus(error.message, "error");
   }
 
-  try {
-    const payload = await chrome.runtime.sendMessage({ type: "load-repositories" });
-    if (payload?.ok && Array.isArray(payload.ownerOrder)) {
-      displayedOwnerOrder = normalizedOwnerOrder(payload.ownerOrder);
-    }
-  } catch {
-    // Keep the stored order if repository discovery is temporarily unavailable.
-  }
-
   renderTokenRows(configuredTokens);
   tokenSettings.open = configuredTokens.length === 0;
   renderPinnedRepositories(settings.pinnedRepositories);
-  ownerOrderInput.value = displayedOwnerOrder.join("\n");
+  ownerOrderInput.value = storedOwnerOrder.join("\n");
   ownerGroupsPerPageInput.value = normalizedOwnerGroupsPerPage(settings.ownerGroupsPerPage);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
   showSpellcheckGptLauncherInput.checked = Boolean(settings.showSpellcheckGptLauncher);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
   dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
+
+  const initialOwnerOrderValue = ownerOrderInput.value;
+  try {
+    const payload = await chrome.runtime.sendMessage({ type: "load-repositories" });
+    if (
+      payload?.ok
+      && Array.isArray(payload.ownerOrder)
+      && ownerOrderInput.value === initialOwnerOrderValue
+    ) {
+      ownerOrderInput.value = normalizedOwnerOrder(payload.ownerOrder).join("\n");
+    }
+  } catch {
+    // Keep the already-rendered settings if repository discovery is unavailable.
+  }
 }
 
 addTokenButton.addEventListener("click", () => {

@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GitHub Repositories for ChatGPT</title>
+    <link rel="stylesheet" href="css/options.css" />
+    <link rel="stylesheet" href="css/popup-adjustments.css" />
+    <style>
+      :root {
+        accent-color: #a97dee;
+      }
+
+      input[type="checkbox"] {
+        accent-color: #a97dee;
+      }
+
+      input:focus,
+      textarea:focus {
+        border-color: #a97dee;
+        box-shadow: 0 0 0 1px #a97dee;
+      }
+
+      .popup-actions button[type="submit"] {
+        background: #a97dee;
+      }
+
+      .popup-actions button[type="submit"]:hover {
+        background: #9668df;
+      }
+
+      .setup-note {
+        background: color-mix(in srgb, #a97dee 18%, transparent);
+        border-color: color-mix(in srgb, #a97dee 70%, transparent);
+      }
+
+      .popup-tab {
+        color: light-dark(#24292f, #f0f6fc);
+        font-weight: 600;
+      }
+
+      .popup-tab[aria-selected="true"] {
+        background: #a97dee;
+        color: #ffffff;
+      }
+
+      #clear-tokens,
+      #open-full-settings {
+        margin-left: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="popup-main">
+      <header class="popup-header">
+        <div class="brand">
+          <img
+            src="artwork/squeaky-belle-full.webp"
+            alt="Wizard character artwork by Squeaky_Belle"
+            width="64"
+            height="64"
+          />
+          <div>
+            <h1>GitHub Repositories for ChatGPT</h1>
+            <p>Manage repository access, dashboard layout, and ChatGPT display settings.</p>
+          </div>
+        </div>
+      </header>
+
+      <nav class="popup-tabs" role="tablist" aria-label="Settings categories">
+        <button
+          id="tab-github"
+          class="popup-tab"
+          type="button"
+          role="tab"
+          aria-selected="true"
+          aria-controls="panel-github"
+        >GitHub</button>
+        <button
+          id="tab-dashboard"
+          class="popup-tab"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-dashboard"
+          tabindex="-1"
+        >Dashboard</button>
+        <button
+          id="tab-chatgpt"
+          class="popup-tab"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="panel-chatgpt"
+          tabindex="-1"
+        >ChatGPT</button>
+      </nav>
+
+      <form id="settings-form">
+        <section id="panel-github" class="popup-panel" role="tabpanel" aria-labelledby="tab-github">
+          <details id="token-settings" class="settings-foldout" open>
+            <summary>
+              <span>GitHub tokens</span>
+              <span id="token-summary" class="summary-meta">Not configured</span>
+            </summary>
+            <div class="foldout-body">
+              <p class="help setup-note">
+                Add your GitHub access and preferences below. Use the tabs above to switch settings categories.
+              </p>
+              <p class="help">
+                Optional. Add <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">fine-grained tokens</a> to show private repositories and every repository each token can access. Tokens are encrypted before being stored and remain available across normal extension updates.
+              </p>
+              <div id="github-tokens" class="token-list"></div>
+              <button id="add-token" class="secondary add-token" type="button">Add token</button>
+            </div>
+          </details>
+
+          <div class="panel-actions">
+            <button id="clear-tokens" class="secondary" type="button">Clear tokens</button>
+          </div>
+
+          <label for="owner-order">Repository owners</label>
+          <p class="help">Enter one GitHub user or organization per line. Owners discovered through your GitHub tokens are appended automatically.</p>
+          <textarea
+            id="owner-order"
+            name="owner-order"
+            rows="6"
+            spellcheck="false"
+            placeholder="your-github-username&#10;your-organization"
+          ></textarea>
+        </section>
+
+        <section id="panel-dashboard" class="popup-panel" role="tabpanel" aria-labelledby="tab-dashboard" hidden>
+          <fieldset class="popup-first-fieldset">
+            <legend>Dashboard layout</legend>
+            <label for="owner-groups-per-page">Owner/org groups per page</label>
+            <p class="help">Choose how many GitHub user or organization groups appear on each dashboard page.</p>
+            <input
+              id="owner-groups-per-page"
+              name="owner-groups-per-page"
+              type="number"
+              min="1"
+              max="24"
+              step="1"
+            />
+
+            <label for="owner-groups-per-row">Owner/org groups per row</label>
+            <p class="help">Choose how many owner or organization groups appear across each row on wide screens.</p>
+            <input
+              id="owner-groups-per-row"
+              name="owner-groups-per-row"
+              type="number"
+              min="1"
+              max="8"
+              step="1"
+            />
+          </fieldset>
+
+          <fieldset>
+            <legend>Pinned repositories</legend>
+            <p class="help">Pin repositories from the ChatGPT dashboard. Drag pins here to reorder them, or use the arrow buttons.</p>
+            <div id="pinned-repositories" class="pinned-repositories"></div>
+            <div id="pin-pagination" class="pin-pagination" aria-label="Pinned repository pages" hidden>
+              <button id="pin-page-previous" class="secondary" type="button">Previous</button>
+              <span id="pin-page-status" aria-live="polite">Page 1 of 1</span>
+              <button id="pin-page-next" class="secondary" type="button">Next</button>
+            </div>
+          </fieldset>
+
+          <div class="panel-actions">
+            <button id="open-full-settings" class="secondary" type="button">Full settings</button>
+          </div>
+        </section>
+
+        <section id="panel-chatgpt" class="popup-panel" role="tabpanel" aria-labelledby="tab-chatgpt" hidden>
+          <fieldset class="popup-first-fieldset">
+            <legend>ChatGPT display</legend>
+            <label class="preference">
+              <input id="auto-focus-composer" type="checkbox" checked />
+              <span>
+                <strong>Auto-focus chat input</strong>
+                <small>Places the cursor in ChatGPT's composer whenever a ChatGPT page or conversation opens.</small>
+              </span>
+            </label>
+            <label class="preference">
+              <input id="hide-dictation-button" type="checkbox" />
+              <span>
+                <strong>Hide dictation microphone</strong>
+                <small>Hides the microphone used for dictation without hiding ChatGPT's voice-mode button.</small>
+              </span>
+            </label>
+            <label class="preference">
+              <input id="compact-new-chat-header" type="checkbox" />
+              <span>
+                <strong>Compact new-chat header</strong>
+                <small>Hides the welcome heading and reclaims its vertical space above the composer.</small>
+              </span>
+            </label>
+            <label class="preference">
+              <input id="show-spellcheck-gpt-launcher" type="checkbox" />
+              <span>
+                <strong>Show Spellcheck Only launcher</strong>
+                <small>Adds a circular shortcut beside the new-chat composer using the bundled artwork.</small>
+              </span>
+            </label>
+            <label class="preference">
+              <input id="skip-external-site-warning" type="checkbox" />
+              <span>
+                <strong>Skip external-site warning</strong>
+                <small>Automatically continues when ChatGPT asks you to confirm an external destination.</small>
+              </span>
+            </label>
+            <label class="preference">
+              <input id="dismiss-history-rate-limit-modal" type="checkbox" />
+              <span>
+                <strong>Dismiss history rate-limit modal</strong>
+                <small>Hides the conversation-history rate-limit modal and restores normal scrolling.</small>
+              </span>
+            </label>
+          </fieldset>
+        </section>
+
+        <div class="actions popup-actions">
+          <button type="submit">Save settings</button>
+        </div>
+        <p id="status" role="status" aria-live="polite"></p>
+      </form>
+    </main>
+
+    <template id="token-row-template">
+      <div class="token-row">
+        <input
+          class="token-label"
+          type="text"
+          autocomplete="off"
+          aria-label="GitHub token label"
+          placeholder="Label (optional)"
+        />
+        <input
+          class="token-value"
+          type="password"
+          autocomplete="off"
+          aria-label="Fine-grained GitHub token"
+          placeholder="github_pat_…"
+        />
+        <button class="secondary remove-token" type="button" aria-label="Remove GitHub token">Remove</button>
+      </div>
+    </template>
+    <template id="pinned-repository-template">
+      <div class="pinned-repository" draggable="true">
+        <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+        <code></code>
+        <div class="pin-controls">
+          <button class="secondary move-pin-up" type="button" aria-label="Move pin up">↑</button>
+          <button class="secondary move-pin-down" type="button" aria-label="Move pin down">↓</button>
+          <button class="secondary remove-pin" type="button">Remove</button>
+        </div>
+      </div>
+    </template>
+    <script src="js/token-vault.js"></script>
+    <script src="js/options.js"></script>
+    <script src="js/owner-grid-options.js"></script>
+    <script src="js/popup.js"></script>
+    <script src="js/autofocus-options.js"></script>
+  </body>
+</html>
