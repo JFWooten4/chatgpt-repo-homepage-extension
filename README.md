@@ -25,6 +25,8 @@ The dashboard:
 Extension icon and settings artwork by [Squeaky_Belle](https://disqus.com/by/Squeaky_Belle),
 from the provided [source post](https://x.com/Squeaky_Belle/status/1855267207577731504).
 
+Spellcheck Only launcher artwork by Kiriya, from the [source image](https://derpibooru.org/images/3394656).
+
 ## Install
 
 1. Download or clone this repository.

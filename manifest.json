@@ -47,14 +47,26 @@
         "css/owner-grid.css",
         "css/private-repository-lock.css",
         "css/compact-header.css",
-        "css/inline-toolbar-search.css"
+        "css/inline-toolbar-search.css",
+        "css/spellcheck-launcher.css"
       ],
       "js": [
         "js/content.js",
         "js/owner-grid.js",
-        "js/compact-header.js"
+        "js/compact-header.js",
+        "js/spellcheck-launcher.js"
       ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "artwork/spellcheck-only.png"
+      ],
+      "matches": [
+        "https://chatgpt.com/*"
+      ]
     }
   ]
 }
