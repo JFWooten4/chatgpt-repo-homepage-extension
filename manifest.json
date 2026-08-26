@@ -37,6 +37,7 @@
         "css/homepage-boot.css"
       ],
       "js": [
+        "js/collapse-sidebar.js",
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/external-links.js"
