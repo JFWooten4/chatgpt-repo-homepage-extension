@@ -111,6 +111,10 @@ html.dark #github-repositories-for-chatgpt {
   padding: 6px 10px;
 }
 
+#github-repositories-for-chatgpt .ghrc-settings {
+  font-weight: 400;
+}
+
 #github-repositories-for-chatgpt .ghrc-settings:hover,
 #github-repositories-for-chatgpt .ghrc-state button:hover,
 #github-repositories-for-chatgpt .ghrc-pagination button:hover:not(:disabled) {
