@@ -411,6 +411,8 @@
     showRepositorySearch,
     showRepositoryTotal,
   ) {
+    if (!showRepositorySearch && !showRepositoryTotal) return;
+
     const toolbar = document.createElement("header");
     toolbar.className = showRepositorySearch
       ? "ghrc-toolbar ghrc-toolbar-with-search"
@@ -431,25 +433,15 @@
       toolbar.append(identity);
     }
 
-    const actions = document.createElement("div");
-    actions.className = "ghrc-actions";
-
     if (mode === "public" && showRepositoryTotal) {
+      const actions = document.createElement("div");
+      actions.className = "ghrc-actions";
       const notice = document.createElement("span");
       notice.className = "ghrc-public-notice";
       notice.textContent = "Public repositories only";
       actions.append(notice);
+      toolbar.append(actions);
     }
-
-    const settings = document.createElement("button");
-    settings.type = "button";
-    settings.className = "ghrc-settings";
-    settings.textContent = mode === "authenticated" ? "Settings" : "Connect GitHub";
-    settings.addEventListener("click", () => {
-      requestOptionsPage();
-    });
-    actions.append(settings);
-    toolbar.append(actions);
     widget.append(toolbar);
 
     if (showRepositorySearch) {
@@ -488,6 +480,25 @@
       searchArea.append(searchLabel, results);
       widget.append(searchArea);
     }
+  }
+
+  function createSettingsButton(mode) {
+    const settings = document.createElement("button");
+    settings.type = "button";
+    settings.className = "ghrc-settings";
+    settings.textContent = mode === "authenticated" ? "Settings" : "Connect GitHub";
+    settings.addEventListener("click", () => {
+      requestOptionsPage();
+    });
+    return settings;
+  }
+
+  function createDashboardFooter(mode, pagination = null) {
+    const footer = document.createElement("footer");
+    footer.className = "ghrc-dashboard-footer";
+    if (pagination) footer.append(pagination);
+    footer.append(createSettingsButton(mode));
+    return footer;
   }
 
   function createPagination(pageCount, onPageChange) {
@@ -569,15 +580,9 @@
       empty.className = "ghrc-state ghrc-empty";
       const message = document.createElement("span");
       message.textContent = "Add a GitHub token or account to show repositories here.";
-      const settings = document.createElement("button");
-      settings.type = "button";
-      settings.textContent = "Open settings";
-      settings.addEventListener("click", () => {
-        requestOptionsPage();
-      });
-      empty.append(message, settings);
+      empty.append(message);
       columns.append(empty);
-      widget.append(columns);
+      widget.append(columns, createDashboardFooter(payload.mode));
       return;
     }
 
@@ -593,11 +598,13 @@
 
     widget.append(columns);
 
+    let pagination = null;
     if (pageCount > 1) {
-      widget.append(createPagination(pageCount, renderPage));
+      pagination = createPagination(pageCount, renderPage);
     } else {
       renderPage(0);
     }
+    widget.append(createDashboardFooter(payload.mode, pagination));
   }
 
   function renderError(widget, message) {
