@@ -6,15 +6,15 @@ tweaks.
 
 The dashboard:
 
-- shows seven ranked repositories in each owner column;
-- labels owner columns with their GitHub profile display names;
+- shows seven ranked repositories in each account column;
+- labels account columns with their GitHub profile display names;
 - starts with no accounts configured, so every installation is personal to its
   user;
 - loads public repositories for any configured GitHub users or organizations;
 - optionally hides the dictation microphone or compacts the new-chat heading;
 - can skip ChatGPT's external-site warning and dismiss its history rate-limit
   modal independently;
-- adds columns for any other repository owners the connected account can access;
+- adds columns for any other GitHub accounts the connected tokens can access;
 - pins important repositories at the top of their user or organization column;
 - searches across every loaded repository; and
 - combines recent repository activity with locally tracked opening frequency to
@@ -34,17 +34,17 @@ Spellcheck Only launcher artwork by Kiriya, from the [source image](https://derp
 3. Turn on **Developer mode**.
 4. Select **Load unpacked** and choose this repository's folder.
 5. In the setup page that opens, add a fine-grained GitHub token, public
-   repository owners, or both.
+   GitHub accounts, or both.
 6. Open or refresh [ChatGPT](https://chatgpt.com/).
 
 After setup, click the extension icon in the browser toolbar to open the compact
 settings menu. Select **Full settings** there whenever you want the standalone
 settings page with the complete layout and artwork.
 
-Without a token, the extension displays public repositories from the owners
+Without a token, the extension displays public repositories from the accounts
 entered in settings. With one or more tokens, it also displays every repository
 those tokens can access. Token labels are local identifiers; repository access
-comes from each token's GitHub settings. Tokens and repository owners can be
+comes from each token's GitHub settings. Tokens and GitHub accounts can be
 added, removed, or reordered at any time. Existing single-token settings are
 migrated automatically. Use a fine-grained token with read-only access to only
 the repository metadata the extension should display.
@@ -98,8 +98,8 @@ The extension does not perform a cross-origin request to the destination itself.
 ## Pins
 
 Select **Pin** beside any repository on the dashboard or in search results to
-keep it visible at the top of its owner column. Pinned repositories remain
-visible even when an owner has more than seven repositories. Open the extension
+keep it visible at the top of its account column. Pinned repositories remain
+visible even when an account has more than seven repositories. Open the extension
 settings menu to drag pins into a preferred order, move them with the arrow
 buttons, or remove them.
 

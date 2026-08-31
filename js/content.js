@@ -476,7 +476,7 @@
   function createPagination(pageCount, onPageChange) {
     const pagination = document.createElement("nav");
     pagination.className = "ghrc-pagination";
-    pagination.setAttribute("aria-label", "Repository owner pages");
+    pagination.setAttribute("aria-label", "GitHub account pages");
 
     const previous = document.createElement("button");
     previous.type = "button";
@@ -542,7 +542,7 @@
       const empty = document.createElement("div");
       empty.className = "ghrc-state ghrc-empty";
       const message = document.createElement("span");
-      message.textContent = "Add a GitHub token or repository owner to show repositories here.";
+      message.textContent = "Add a GitHub token or account to show repositories here.";
       const settings = document.createElement("button");
       settings.type = "button";
       settings.textContent = "Open settings";

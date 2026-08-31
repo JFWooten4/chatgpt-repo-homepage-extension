@@ -173,6 +173,12 @@ legend {
   margin-bottom: 10px;
 }
 
+.standalone-options .settings-foldout > summary,
+.standalone-options #settings-form > label,
+.standalone-options legend {
+  font-size: 15px;
+}
+
 .preference {
   align-items: flex-start;
   display: flex;
