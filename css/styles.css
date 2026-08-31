@@ -86,6 +86,7 @@ html.dark #github-repositories-for-chatgpt {
 
 #github-repositories-for-chatgpt .ghrc-actions {
   gap: 10px;
+  margin-left: auto;
 }
 
 #github-repositories-for-chatgpt .ghrc-public-notice {

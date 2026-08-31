@@ -40,7 +40,7 @@
 }
 
 @container (max-width: 820px) {
-  #github-repositories-for-chatgpt .ghrc-toolbar {
+  #github-repositories-for-chatgpt .ghrc-toolbar-with-search {
     min-height: 116px;
     padding-bottom: 62px;
   }

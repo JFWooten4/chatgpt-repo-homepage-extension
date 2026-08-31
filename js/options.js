@@ -8,6 +8,8 @@ const tokenRowTemplate = document.getElementById("token-row-template");
 const addTokenButton = document.getElementById("add-token");
 const ownerOrderInput = document.getElementById("owner-order");
 const ownerGroupsPerPageInput = document.getElementById("owner-groups-per-page");
+const showRepositorySearchInput = document.getElementById("show-repository-search");
+const showRepositoryTotalInput = document.getElementById("show-repository-total");
 const pinnedRepositoryList = document.getElementById("pinned-repositories");
 const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
@@ -180,6 +182,8 @@ async function loadSettings() {
   const settings = await chrome.storage.local.get({
     ownerOrder: DEFAULT_OWNER_ORDER,
     ownerGroupsPerPage: DEFAULT_OWNER_GROUPS_PER_PAGE,
+    showRepositorySearch: true,
+    showRepositoryTotal: true,
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
@@ -201,6 +205,8 @@ async function loadSettings() {
   renderPinnedRepositories(settings.pinnedRepositories);
   ownerOrderInput.value = storedOwnerOrder.join("\n");
   ownerGroupsPerPageInput.value = normalizedOwnerGroupsPerPage(settings.ownerGroupsPerPage);
+  showRepositorySearchInput.checked = Boolean(settings.showRepositorySearch);
+  showRepositoryTotalInput.checked = Boolean(settings.showRepositoryTotal);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
   showSpellcheckGptLauncherInput.checked = Boolean(settings.showSpellcheckGptLauncher);
@@ -248,6 +254,8 @@ form.addEventListener("submit", async (event) => {
     await chrome.storage.local.set({
       ownerOrder: enteredOwnerOrder,
       ownerGroupsPerPage,
+      showRepositorySearch: showRepositorySearchInput.checked,
+      showRepositoryTotal: showRepositoryTotalInput.checked,
       pinnedRepositories: pinnedRepositoriesFromList(),
       hideDictationButton: hideDictationButtonInput.checked,
       compactNewChatHeader: compactNewChatHeaderInput.checked,

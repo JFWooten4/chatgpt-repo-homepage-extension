@@ -7,6 +7,8 @@
   const USAGE_STORAGE_KEY = "repositoryUsage";
   const PINNED_STORAGE_KEY = "pinnedRepositories";
   const OWNER_GROUPS_PER_PAGE_KEY = "ownerGroupsPerPage";
+  const SHOW_REPOSITORY_SEARCH_KEY = "showRepositorySearch";
+  const SHOW_REPOSITORY_TOTAL_KEY = "showRepositoryTotal";
   const DEFAULT_OWNER_GROUPS_PER_PAGE = 6;
   const REPOSITORIES_PER_COLUMN = 7;
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -401,26 +403,38 @@
     }
   }
 
-  function createToolbar(widget, repositories, mode, pinnedRepositories) {
+  function createToolbar(
+    widget,
+    repositories,
+    mode,
+    pinnedRepositories,
+    showRepositorySearch,
+    showRepositoryTotal,
+  ) {
     const toolbar = document.createElement("header");
-    toolbar.className = "ghrc-toolbar";
+    toolbar.className = showRepositorySearch
+      ? "ghrc-toolbar ghrc-toolbar-with-search"
+      : "ghrc-toolbar";
 
-    const identity = document.createElement("div");
-    identity.className = "ghrc-identity";
-    identity.append(githubIcon());
+    if (showRepositoryTotal) {
+      const identity = document.createElement("div");
+      identity.className = "ghrc-identity";
+      identity.append(githubIcon());
 
-    const heading = document.createElement("div");
-    const title = document.createElement("h2");
-    title.textContent = "Repositories";
-    const summary = document.createElement("span");
-    summary.textContent = `${repositories.length} ${mode === "authenticated" ? "accessible" : "public"}`;
-    heading.append(title, summary);
-    identity.append(heading);
+      const heading = document.createElement("div");
+      const title = document.createElement("h2");
+      title.textContent = "Repositories";
+      const summary = document.createElement("span");
+      summary.textContent = `${repositories.length} ${mode === "authenticated" ? "accessible" : "public"}`;
+      heading.append(title, summary);
+      identity.append(heading);
+      toolbar.append(identity);
+    }
 
     const actions = document.createElement("div");
     actions.className = "ghrc-actions";
 
-    if (mode === "public") {
+    if (mode === "public" && showRepositoryTotal) {
       const notice = document.createElement("span");
       notice.className = "ghrc-public-notice";
       notice.textContent = "Public repositories only";
@@ -435,42 +449,45 @@
       requestOptionsPage();
     });
     actions.append(settings);
-    toolbar.append(identity, actions);
+    toolbar.append(actions);
+    widget.append(toolbar);
 
-    const searchArea = document.createElement("div");
-    searchArea.className = "ghrc-search-area";
+    if (showRepositorySearch) {
+      const searchArea = document.createElement("div");
+      searchArea.className = "ghrc-search-area";
 
-    const searchLabel = document.createElement("label");
-    searchLabel.className = "ghrc-search";
-    searchLabel.append(githubIcon("ghrc-search-github-icon"));
+      const searchLabel = document.createElement("label");
+      searchLabel.className = "ghrc-search";
+      searchLabel.append(githubIcon("ghrc-search-github-icon"));
 
-    const search = document.createElement("input");
-    search.type = "search";
-    search.placeholder = "Find a repository…";
-    search.setAttribute("aria-label", "Find an accessible GitHub repository");
-    search.autocomplete = "off";
-    search.spellcheck = false;
-    searchLabel.append(search);
+      const search = document.createElement("input");
+      search.type = "search";
+      search.placeholder = "Find a repository…";
+      search.setAttribute("aria-label", "Find an accessible GitHub repository");
+      search.autocomplete = "off";
+      search.spellcheck = false;
+      searchLabel.append(search);
 
-    const shortcut = document.createElement("kbd");
-    shortcut.textContent = "Alt R";
-    searchLabel.append(shortcut);
+      const shortcut = document.createElement("kbd");
+      shortcut.textContent = "Alt R";
+      searchLabel.append(shortcut);
 
-    const results = document.createElement("div");
-    results.className = "ghrc-search-results";
-    results.hidden = true;
-    search.addEventListener("input", () => {
-      renderSearchResults(results, repositories, search.value, pinnedRepositories);
-    });
-    search.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        search.value = "";
-        renderSearchResults(results, repositories, "", pinnedRepositories);
-        search.blur();
-      }
-    });
-    searchArea.append(searchLabel, results);
-    widget.append(toolbar, searchArea);
+      const results = document.createElement("div");
+      results.className = "ghrc-search-results";
+      results.hidden = true;
+      search.addEventListener("input", () => {
+        renderSearchResults(results, repositories, search.value, pinnedRepositories);
+      });
+      search.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          search.value = "";
+          renderSearchResults(results, repositories, "", pinnedRepositories);
+          search.blur();
+        }
+      });
+      searchArea.append(searchLabel, results);
+      widget.append(searchArea);
+    }
   }
 
   function createPagination(pageCount, onPageChange) {
@@ -520,6 +537,8 @@
     usage,
     pinnedRepositories,
     ownerGroupsPerPage,
+    showRepositorySearch,
+    showRepositoryTotal,
   ) {
     widget.replaceChildren();
     const rankedRepositories = rankRepositories(
@@ -527,7 +546,14 @@
       usage,
       pinnedRepositories,
     );
-    createToolbar(widget, rankedRepositories, payload.mode, pinnedRepositories);
+    createToolbar(
+      widget,
+      rankedRepositories,
+      payload.mode,
+      pinnedRepositories,
+      showRepositorySearch,
+      showRepositoryTotal,
+    );
 
     const groups = groupRepositories(
       payload.repositories,
@@ -602,6 +628,8 @@
           [USAGE_STORAGE_KEY]: {},
           [PINNED_STORAGE_KEY]: [],
           [OWNER_GROUPS_PER_PAGE_KEY]: DEFAULT_OWNER_GROUPS_PER_PAGE,
+          [SHOW_REPOSITORY_SEARCH_KEY]: true,
+          [SHOW_REPOSITORY_TOTAL_KEY]: true,
         }),
       ]);
 
@@ -616,6 +644,8 @@
           stored[USAGE_STORAGE_KEY],
           stored[PINNED_STORAGE_KEY],
           stored[OWNER_GROUPS_PER_PAGE_KEY],
+          Boolean(stored[SHOW_REPOSITORY_SEARCH_KEY]),
+          Boolean(stored[SHOW_REPOSITORY_TOTAL_KEY]),
         );
       }
     } catch (error) {
@@ -701,6 +731,8 @@
       || changes.githubTokens
       || changes.ownerOrder
       || changes.ownerGroupsPerPage
+      || changes.showRepositorySearch
+      || changes.showRepositoryTotal
     ) {
       repositoryRequest = null;
       document.getElementById(WIDGET_ID)?.remove();

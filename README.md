@@ -11,6 +11,7 @@ The dashboard:
 - starts with no accounts configured, so every installation is personal to its
   user;
 - loads public repositories for any configured GitHub users or organizations;
+- can independently hide the repository search bar or repository total;
 - optionally hides the dictation microphone or compacts the new-chat heading;
 - can skip ChatGPT's external-site warning and dismiss its history rate-limit
   modal independently;
