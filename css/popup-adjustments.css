@@ -97,11 +97,12 @@ body {
 }
 
 .popup-actions {
+  align-items: center;
   flex-wrap: wrap;
 }
 
 .popup-actions button {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
 }
 
 @media (min-width: 600px) {
