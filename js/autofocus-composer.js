@@ -1,5 +1,6 @@
 (() => {
   const SETTING_KEY = "autoFocusComposer";
+  const HOMEPAGE_BOOT_ATTR = "data-ghrc-homepage-booting";
   let enabled = false;
   let pendingFocus = true;
   let lastUrl = location.href;
@@ -99,7 +100,12 @@
   });
 
   const observer = new MutationObserver(scheduleFocus);
-  observer.observe(document, { childList: true, subtree: true });
+  observer.observe(document, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: [HOMEPAGE_BOOT_ATTR],
+  });
 
   void loadPreference();
 })();
