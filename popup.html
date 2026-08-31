@@ -36,8 +36,7 @@
         color: #ffffff;
       }
 
-      #clear-tokens,
-      #open-full-settings {
+      #clear-tokens {
         margin-left: auto;
       }
     </style>
@@ -59,34 +58,37 @@
         </div>
       </header>
 
-      <nav class="popup-tabs" role="tablist" aria-label="Settings categories">
-        <button
-          id="tab-github"
-          class="popup-tab"
-          type="button"
-          role="tab"
-          aria-selected="true"
-          aria-controls="panel-github"
-        >GitHub</button>
-        <button
-          id="tab-dashboard"
-          class="popup-tab"
-          type="button"
-          role="tab"
-          aria-selected="false"
-          aria-controls="panel-dashboard"
-          tabindex="-1"
-        >Dashboard</button>
-        <button
-          id="tab-chatgpt"
-          class="popup-tab"
-          type="button"
-          role="tab"
-          aria-selected="false"
-          aria-controls="panel-chatgpt"
-          tabindex="-1"
-        >ChatGPT</button>
-      </nav>
+      <div class="popup-tabs">
+        <nav class="popup-tab-list" role="tablist" aria-label="Settings categories">
+          <button
+            id="tab-github"
+            class="popup-tab"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-github"
+          >GitHub</button>
+          <button
+            id="tab-dashboard"
+            class="popup-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-dashboard"
+            tabindex="-1"
+          >Dashboard</button>
+          <button
+            id="tab-chatgpt"
+            class="popup-tab"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-chatgpt"
+            tabindex="-1"
+          >ChatGPT</button>
+        </nav>
+        <button id="open-full-settings" class="popup-tab" type="button">Full settings</button>
+      </div>
 
       <form id="settings-form">
         <section id="panel-github" class="popup-panel" role="tabpanel" aria-labelledby="tab-github">
@@ -223,9 +225,6 @@
           </fieldset>
         </section>
 
-        <div class="actions popup-actions">
-          <button id="open-full-settings" class="secondary" type="button">Full settings</button>
-        </div>
         <p id="status" role="status" aria-live="polite">Changes save automatically.</p>
       </form>
     </main>
