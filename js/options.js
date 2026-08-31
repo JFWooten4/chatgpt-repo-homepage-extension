@@ -19,6 +19,7 @@ const skipExternalSiteWarningInput = document.getElementById("skip-external-site
 const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
+let saveQueue = Promise.resolve();
 
 function normalizedOwnerOrder(owners) {
   const seen = new Set();
@@ -65,6 +66,7 @@ function createTokenRow({ label = "", owner = "", token = "" } = {}) {
       tokenList.append(createTokenRow());
     }
     updateTokenSummary();
+    void queueSettingsSave();
   });
   return row;
 }
@@ -122,6 +124,7 @@ function movePin(row, direction) {
   else pinnedRepositoryList.insertBefore(sibling, row);
   updatePinControls();
   row.querySelector(direction < 0 ? ".move-pin-up" : ".move-pin-down").focus();
+  void queueSettingsSave();
 }
 
 function createPinnedRepositoryRow(fullName) {
@@ -134,6 +137,7 @@ function createPinnedRepositoryRow(fullName) {
     row.remove();
     if (!pinnedRepositoriesFromList().length) renderPinnedRepositories([]);
     updatePinControls();
+    void queueSettingsSave();
   });
   return row;
 }
@@ -176,6 +180,7 @@ pinnedRepositoryList.addEventListener("dragend", () => {
   draggedPin?.classList.remove("dragging");
   draggedPin = null;
   updatePinControls();
+  void queueSettingsSave();
 });
 
 async function loadSettings() {
@@ -238,8 +243,7 @@ addTokenButton.addEventListener("click", () => {
 
 tokenList.addEventListener("input", updateTokenSummary);
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+async function saveSettings() {
   const enteredOwnerOrder = ownerOrderFromInput();
   const githubTokens = tokensFromInput();
   const ownerGroupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPageInput.value);
@@ -266,10 +270,24 @@ form.addEventListener("submit", async (event) => {
     ownerOrderInput.value = enteredOwnerOrder.join("\n");
     ownerGroupsPerPageInput.value = ownerGroupsPerPage;
     updateTokenSummary();
-    showStatus("Settings saved. GitHub tokens are encrypted in the browser vault.", "success");
+    showStatus("Settings saved automatically.", "success");
   } catch (error) {
     showStatus(`Settings could not be saved: ${error.message}`, "error");
   }
+}
+
+function queueSettingsSave() {
+  saveQueue = saveQueue.catch(() => {}).then(saveSettings);
+  return saveQueue;
+}
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void queueSettingsSave();
+});
+
+form.addEventListener("change", () => {
+  void queueSettingsSave();
 });
 
 clearTokensButton.addEventListener("click", async () => {

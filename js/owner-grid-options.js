@@ -1,7 +1,6 @@
 (() => {
   const SETTING_KEY = "ownerGroupsPerRow";
   const DEFAULT_GROUPS_PER_ROW = 3;
-  const form = document.getElementById("settings-form");
   const input = document.getElementById("owner-groups-per-row");
 
   function normalizedGroupsPerRow(value) {
@@ -17,7 +16,7 @@
     input.value = normalizedGroupsPerRow(settings[SETTING_KEY]);
   }
 
-  form.addEventListener("submit", async () => {
+  input.addEventListener("change", async () => {
     const ownerGroupsPerRow = normalizedGroupsPerRow(input.value);
     input.value = ownerGroupsPerRow;
     await chrome.storage.local.set({ [SETTING_KEY]: ownerGroupsPerRow });
