@@ -20,6 +20,7 @@ const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-histo
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
 let saveQueue = Promise.resolve();
+let tokensDirty = false;
 
 function normalizedOwnerOrder(owners) {
   const seen = new Set();
@@ -65,6 +66,7 @@ function createTokenRow({ label = "", owner = "", token = "" } = {}) {
     if (!tokenList.querySelector(".token-row")) {
       tokenList.append(createTokenRow());
     }
+    tokensDirty = true;
     updateTokenSummary();
     void queueSettingsSave();
   });
@@ -241,20 +243,26 @@ addTokenButton.addEventListener("click", () => {
   row.querySelector(".token-label").focus();
 });
 
-tokenList.addEventListener("input", updateTokenSummary);
+tokenList.addEventListener("input", () => {
+  tokensDirty = true;
+  updateTokenSummary();
+});
 
 async function saveSettings() {
   const enteredOwnerOrder = ownerOrderFromInput();
-  const githubTokens = tokensFromInput();
+  const githubTokens = tokensDirty ? tokensFromInput() : [];
   const ownerGroupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPageInput.value);
-  if (!githubTokens) {
+  if (tokensDirty && !githubTokens) {
     tokenSettings.open = true;
     showStatus("Remove the duplicate token before saving.", "error");
     return;
   }
 
   try {
-    await TokenVault.saveTokens(githubTokens);
+    if (tokensDirty) {
+      await TokenVault.saveTokens(githubTokens);
+      tokensDirty = false;
+    }
     await chrome.storage.local.set({
       ownerOrder: enteredOwnerOrder,
       ownerGroupsPerPage,
@@ -295,6 +303,7 @@ clearTokensButton.addEventListener("click", async () => {
     renderTokenRows([]);
     tokenSettings.open = true;
     await TokenVault.clearTokens();
+    tokensDirty = false;
     showStatus("Tokens cleared. Only public repositories will be loaded.", "success");
   } catch (error) {
     showStatus(`Tokens could not be cleared: ${error.message}`, "error");
