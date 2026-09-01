@@ -104,6 +104,7 @@ body {
 #settings-form > #status {
   margin: 12px 0 0;
   min-height: 0;
+  text-align: center;
 }
 
 @media (min-width: 600px) {

@@ -331,6 +331,10 @@ button.secondary {
   min-height: 20px;
 }
 
+.standalone-options #status {
+  text-align: center;
+}
+
 #status[data-state="success"] {
   color: light-dark(#1a7f37, #3fb950);
 }
