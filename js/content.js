@@ -48,12 +48,16 @@
   }
 
   function isNewChatPage() {
-    if (location.pathname !== "/") return false;
+    if (!document.querySelector("#prompt-textarea")) return false;
 
     const hasConversation = document.querySelector(
       '[data-message-author-role="user"], [data-message-author-role="assistant"]',
     );
     return !hasConversation;
+  }
+
+  function isDashboardPage() {
+    return location.pathname === "/";
   }
 
   function findComposer() {
@@ -97,7 +101,22 @@
         second.getBoundingClientRect().bottom - first.getBoundingClientRect().bottom
       ));
 
-    candidates[0]?.classList.add(HIDDEN_WELCOME_CLASS);
+    if (candidates[0]) {
+      candidates[0].classList.add(HIDDEN_WELCOME_CLASS);
+      return;
+    }
+
+    const thread = composer.closest("#thread");
+    if (!thread) return;
+
+    let composerRegion = composer;
+    while (composerRegion.parentElement && composerRegion.parentElement !== thread) {
+      composerRegion = composerRegion.parentElement;
+    }
+
+    if (composerRegion.parentElement === thread) {
+      composerRegion.previousElementSibling?.classList.add(HIDDEN_WELCOME_CLASS);
+    }
   }
 
   function applyPageAdjustments(composer) {
@@ -690,6 +709,13 @@
     const composer = findComposer();
     if (!composer) return;
     applyPageAdjustments(composer);
+
+    if (!isDashboardPage()) {
+      existingWidget?.remove();
+      layoutObserver?.disconnect();
+      observedLayoutContainer = null;
+      return;
+    }
 
     if (existingWidget) {
       if (existingWidget.previousElementSibling !== composer) {
