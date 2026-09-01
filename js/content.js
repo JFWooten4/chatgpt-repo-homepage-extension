@@ -3,6 +3,7 @@
   const NEW_CHAT_ATTR = "data-ghrc-new-chat";
   const HIDE_DICTATION_ATTR = "data-ghrc-hide-dictation";
   const COMPACT_HEADER_ATTR = "data-ghrc-compact-header";
+  const COMPOSER_READY_ATTR = "data-ghrc-composer-ready";
   const HIDDEN_WELCOME_CLASS = "ghrc-hidden-welcome";
   const USAGE_STORAGE_KEY = "repositoryUsage";
   const PINNED_STORAGE_KEY = "pinnedRepositories";
@@ -78,7 +79,10 @@
     document.querySelectorAll(`.${HIDDEN_WELCOME_CLASS}`).forEach((element) => {
       element.classList.remove(HIDDEN_WELCOME_CLASS);
     });
-    if (!document.documentElement.hasAttribute(COMPACT_HEADER_ATTR)) return;
+    if (
+      !document.documentElement.hasAttribute(COMPACT_HEADER_ATTR)
+      || !document.documentElement.hasAttribute(COMPOSER_READY_ATTR)
+    ) return;
 
     const main = composer.closest("main") || document.querySelector("main");
     if (!main) return;
@@ -781,5 +785,10 @@
   void loadDisplayPreferences();
   scheduleMount();
   const observer = new MutationObserver(scheduleMount);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: [COMPOSER_READY_ATTR],
+  });
 })();
