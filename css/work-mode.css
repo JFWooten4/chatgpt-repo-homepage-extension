@@ -1,3 +1,4 @@
+html[data-ghrc-disable-work-mode] [data-ghrc-work-mode-selector],
 html[data-ghrc-disable-work-mode] [data-ghrc-work-mode-control] {
   display: none !important;
 }

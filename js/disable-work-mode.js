@@ -2,6 +2,7 @@
   const SETTING_KEY = "disableWorkMode";
   const ROOT_ATTR = "data-ghrc-disable-work-mode";
   const CONTROL_ATTR = "data-ghrc-work-mode-control";
+  const SELECTOR_ATTR = "data-ghrc-work-mode-selector";
   const CONTROL_SELECTOR = [
     "button",
     "a[href]",
@@ -14,9 +15,12 @@
   ].join(", ");
   const WORK_LABEL = /^(?:chatgpt\s+)?work(?:\s+mode)?$/i;
   const CHAT_LABEL = /^(?:chatgpt\s+)?chat(?:\s+mode)?$/i;
+  const MAX_CHAT_SELECTION_ATTEMPTS = 3;
   let enabled = false;
   let scanScheduled = false;
-  let handledControls = new WeakSet();
+  let selectingChat = false;
+  let needsChatSelection = false;
+  let chatSelectionAttempts = 0;
 
   function normalizedText(value) {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -41,38 +45,75 @@
       && WORK_LABEL.test(controlLabel(control));
   }
 
-  function findChatControl(workControl) {
+  function modeSelectorFor(workControl) {
     const explicitGroup = workControl.closest('[role="tablist"], [role="radiogroup"], [role="group"]');
-    const containers = explicitGroup ? [explicitGroup] : [];
-    let ancestor = workControl.parentElement;
-    for (let depth = 0; ancestor && depth < 3; depth += 1) {
-      containers.push(ancestor);
-      ancestor = ancestor.parentElement;
+    if (
+      explicitGroup
+      && [...explicitGroup.querySelectorAll(CONTROL_SELECTOR)]
+        .some((control) => CHAT_LABEL.test(controlLabel(control)))
+    ) {
+      return explicitGroup;
     }
 
-    for (const container of containers) {
-      const chatControl = [...container.querySelectorAll(CONTROL_SELECTOR)]
-        .find((control) => control !== workControl && CHAT_LABEL.test(controlLabel(control)));
-      if (chatControl) return chatControl;
+    let ancestor = workControl.parentElement;
+    for (let depth = 0; ancestor && depth < 3; depth += 1) {
+      const controls = [...ancestor.querySelectorAll(CONTROL_SELECTOR)];
+      if (controls.some((control) => CHAT_LABEL.test(controlLabel(control)))) return ancestor;
+      ancestor = ancestor.parentElement;
     }
     return null;
   }
 
-  function disableControl(control) {
-    if (!handledControls.has(control)) {
-      handledControls.add(control);
-      findChatControl(control)?.click();
+  function findChatControl(workControl) {
+    return [...(modeSelectorFor(workControl)?.querySelectorAll(CONTROL_SELECTOR) || [])]
+      .find((control) => control !== workControl && CHAT_LABEL.test(controlLabel(control))) || null;
+  }
+
+  function pageAppearsToBeWorkMode() {
+    return [...document.querySelectorAll("[placeholder], [data-placeholder], [aria-label]")]
+      .some((element) => [
+        element.getAttribute("placeholder"),
+        element.getAttribute("data-placeholder"),
+        element.getAttribute("aria-label"),
+      ].some((label) => /^work on anything$/i.test(normalizedText(label))));
+  }
+
+  function selectChat(chatControl) {
+    selectingChat = true;
+    try {
+      chatControl.click();
+    } finally {
+      selectingChat = false;
     }
+  }
+
+  function disableControl(control) {
+    const selector = modeSelectorFor(control);
+    if (selector) selector.setAttribute(SELECTOR_ATTR, "true");
     control.setAttribute(CONTROL_ATTR, "true");
+    return findChatControl(control);
   }
 
   function scanControls() {
     scanScheduled = false;
     if (!enabled || !document.documentElement) return;
     document.documentElement.setAttribute(ROOT_ATTR, "true");
+    let chatControl = null;
     document.querySelectorAll(CONTROL_SELECTOR).forEach((control) => {
-      if (isWorkControl(control)) disableControl(control);
+      if (!isWorkControl(control)) return;
+      const matchingChatControl = disableControl(control);
+      chatControl ||= matchingChatControl;
     });
+    const shouldSelectChat = needsChatSelection || pageAppearsToBeWorkMode();
+    if (
+      chatControl
+      && shouldSelectChat
+      && chatSelectionAttempts < MAX_CHAT_SELECTION_ATTEMPTS
+    ) {
+      needsChatSelection = false;
+      chatSelectionAttempts += 1;
+      selectChat(chatControl);
+    }
   }
 
   function scheduleScan() {
@@ -83,6 +124,8 @@
 
   function setEnabled(nextEnabled) {
     enabled = nextEnabled;
+    needsChatSelection = enabled;
+    chatSelectionAttempts = 0;
     if (!document.documentElement) {
       requestAnimationFrame(() => setEnabled(nextEnabled));
       return;
@@ -94,14 +137,19 @@
       return;
     }
 
-    document.querySelectorAll(`[${CONTROL_ATTR}]`).forEach((control) => {
-      control.removeAttribute(CONTROL_ATTR);
+    document.querySelectorAll(`[${CONTROL_ATTR}], [${SELECTOR_ATTR}]`).forEach((element) => {
+      element.removeAttribute(CONTROL_ATTR);
+      element.removeAttribute(SELECTOR_ATTR);
     });
-    handledControls = new WeakSet();
   }
 
   function blockWorkSelection(event) {
-    if (!enabled || !(event.target instanceof Element)) return;
+    if (!enabled || selectingChat || !(event.target instanceof Element)) return;
+    if (event.target.closest(`[${SELECTOR_ATTR}]`)) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     const control = event.target.closest(CONTROL_SELECTOR);
     const group = control?.closest('[role="tablist"], [role="radiogroup"], [role="group"]');
     const navigatesModeGroup = event.type === "keydown"
@@ -124,9 +172,6 @@
   new MutationObserver(scheduleScan).observe(document, {
     childList: true,
     subtree: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: ["aria-label", "aria-labelledby", "role", "title"],
   });
   void chrome.storage.local.get({ [SETTING_KEY]: false }).then((settings) => {
     setEnabled(Boolean(settings[SETTING_KEY]));
