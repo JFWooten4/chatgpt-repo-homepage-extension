@@ -12,7 +12,8 @@ The dashboard:
   user;
 - loads public repositories for any configured GitHub users or organizations;
 - can independently hide the repository search bar or repository total;
-- optionally hides the dictation microphone or compacts the new-chat heading;
+- optionally hides the dictation microphone, compacts the new-chat heading, or
+  disables ChatGPT Work mode;
 - can skip ChatGPT's external-site warning and dismiss its history rate-limit
   modal independently;
 - adds columns for any other GitHub accounts the connected tokens can access;
@@ -89,7 +90,9 @@ updates.
 
 The external-site warning bypass and history rate-limit modal dismissal are
 separate settings. Both are enabled by default, while **Hide dictation
-microphone** and **Compact new-chat header** are disabled by default. The
+microphone**, **Compact new-chat header**, and **Disable Work mode** are disabled
+by default. When Work mode is disabled, the extension switches an available
+Work selector back to Chat, hides Work controls, and blocks their selection. The
 external-site setting clicks ChatGPT's own **Open link** confirmation when the
 exact external-site dialog appears. The history setting hides the known
 conversation-history rate-limit modal, clears the page locks it leaves behind,

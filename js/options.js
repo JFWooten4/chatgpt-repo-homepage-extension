@@ -14,6 +14,7 @@ const pinnedRepositoryList = document.getElementById("pinned-repositories");
 const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
 const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
+const disableWorkModeInput = document.getElementById("disable-work-mode");
 const showSpellcheckGptLauncherInput = document.getElementById("show-spellcheck-gpt-launcher");
 const skipExternalSiteWarningInput = document.getElementById("skip-external-site-warning");
 const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
@@ -192,6 +193,7 @@ async function loadSettings() {
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
+    disableWorkMode: false,
     showSpellcheckGptLauncher: false,
     skipExternalSiteWarning: true,
     dismissHistoryRateLimitModal: true,
@@ -214,6 +216,7 @@ async function loadSettings() {
   showRepositoryTotalInput.checked = Boolean(settings.showRepositoryTotal);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
+  disableWorkModeInput.checked = Boolean(settings.disableWorkMode);
   showSpellcheckGptLauncherInput.checked = Boolean(settings.showSpellcheckGptLauncher);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
   dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
@@ -263,6 +266,7 @@ async function saveSettings() {
       pinnedRepositories: pinnedRepositoriesFromList(),
       hideDictationButton: hideDictationButtonInput.checked,
       compactNewChatHeader: compactNewChatHeaderInput.checked,
+      disableWorkMode: disableWorkModeInput.checked,
       showSpellcheckGptLauncher: showSpellcheckGptLauncherInput.checked,
       skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
       dismissHistoryRateLimitModal: dismissHistoryRateLimitModalInput.checked,
