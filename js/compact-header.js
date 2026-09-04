@@ -70,7 +70,7 @@
 
     const stackStillValid = activeStack?.isConnected && activeStack.contains(composer);
     if (!stackStillValid) {
-      setActiveStack(composer.parentElement);
+      setActiveStack(composer.closest("#thread") || composer.parentElement);
     }
 
     const hiddenHeading = document.querySelector(".ghrc-hidden-welcome");
