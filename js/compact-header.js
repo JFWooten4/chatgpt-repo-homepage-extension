@@ -1,6 +1,7 @@
 (() => {
   const NEW_CHAT_ATTR = "data-ghrc-new-chat";
   const COMPACT_HEADER_ATTR = "data-ghrc-compact-header";
+  const COMPOSER_READY_ATTR = "data-ghrc-composer-ready";
   const COMPOSER_STACK_CLASS = "ghrc-compact-composer-stack";
   const WELCOME_REGION_CLASS = "ghrc-compact-welcome-region";
   const SETTLE_DELAY_MS = 120;
@@ -18,7 +19,8 @@
   function compactModeEnabled() {
     const root = document.documentElement;
     return root.hasAttribute(NEW_CHAT_ATTR)
-      && root.hasAttribute(COMPACT_HEADER_ATTR);
+      && root.hasAttribute(COMPACT_HEADER_ATTR)
+      && root.hasAttribute(COMPOSER_READY_ATTR);
   }
 
   function clearCompactLayout() {
@@ -119,7 +121,7 @@
   });
   preferenceObserver.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: [NEW_CHAT_ATTR, COMPACT_HEADER_ATTR],
+    attributeFilter: [NEW_CHAT_ATTR, COMPACT_HEADER_ATTR, COMPOSER_READY_ATTR],
   });
 
   scheduleCompactLayout();

@@ -3,6 +3,7 @@
   const NEW_CHAT_ATTR = "data-ghrc-new-chat";
   const HIDE_DICTATION_ATTR = "data-ghrc-hide-dictation";
   const COMPACT_HEADER_ATTR = "data-ghrc-compact-header";
+  const COMPOSER_READY_ATTR = "data-ghrc-composer-ready";
   const HIDDEN_WELCOME_CLASS = "ghrc-hidden-welcome";
   const USAGE_STORAGE_KEY = "repositoryUsage";
   const PINNED_STORAGE_KEY = "pinnedRepositories";
@@ -48,12 +49,16 @@
   }
 
   function isNewChatPage() {
-    if (location.pathname !== "/") return false;
+    if (!document.querySelector("#prompt-textarea")) return false;
 
     const hasConversation = document.querySelector(
       '[data-message-author-role="user"], [data-message-author-role="assistant"]',
     );
     return !hasConversation;
+  }
+
+  function isDashboardPage() {
+    return location.pathname === "/";
   }
 
   function findComposer() {
@@ -74,7 +79,10 @@
     document.querySelectorAll(`.${HIDDEN_WELCOME_CLASS}`).forEach((element) => {
       element.classList.remove(HIDDEN_WELCOME_CLASS);
     });
-    if (!document.documentElement.hasAttribute(COMPACT_HEADER_ATTR)) return;
+    if (
+      !document.documentElement.hasAttribute(COMPACT_HEADER_ATTR)
+      || !document.documentElement.hasAttribute(COMPOSER_READY_ATTR)
+    ) return;
 
     const main = composer.closest("main") || document.querySelector("main");
     if (!main) return;
@@ -97,7 +105,22 @@
         second.getBoundingClientRect().bottom - first.getBoundingClientRect().bottom
       ));
 
-    candidates[0]?.classList.add(HIDDEN_WELCOME_CLASS);
+    if (candidates[0]) {
+      candidates[0].classList.add(HIDDEN_WELCOME_CLASS);
+      return;
+    }
+
+    const thread = composer.closest("#thread");
+    if (!thread) return;
+
+    let composerRegion = composer;
+    while (composerRegion.parentElement && composerRegion.parentElement !== thread) {
+      composerRegion = composerRegion.parentElement;
+    }
+
+    if (composerRegion.parentElement === thread) {
+      composerRegion.previousElementSibling?.classList.add(HIDDEN_WELCOME_CLASS);
+    }
   }
 
   function applyPageAdjustments(composer) {
@@ -691,6 +714,13 @@
     if (!composer) return;
     applyPageAdjustments(composer);
 
+    if (!isDashboardPage()) {
+      existingWidget?.remove();
+      layoutObserver?.disconnect();
+      observedLayoutContainer = null;
+      return;
+    }
+
     if (existingWidget) {
       if (existingWidget.previousElementSibling !== composer) {
         composer.insertAdjacentElement("afterend", existingWidget);
@@ -755,5 +785,10 @@
   void loadDisplayPreferences();
   scheduleMount();
   const observer = new MutationObserver(scheduleMount);
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: [COMPOSER_READY_ATTR],
+  });
 })();
