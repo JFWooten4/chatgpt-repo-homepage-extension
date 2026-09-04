@@ -400,8 +400,8 @@ html.dark #github-repositories-for-chatgpt {
   align-items: center;
   display: flex;
   gap: 6px;
-  grid-column: 1;
-  justify-self: start;
+  grid-column: 2;
+  justify-self: center;
   min-width: 0;
 }
 
@@ -432,7 +432,8 @@ html.dark #github-repositories-for-chatgpt {
 
 #github-repositories-for-chatgpt .ghrc-dashboard-footer .ghrc-pagination {
   border-top: 0;
-  grid-column: 2;
+  grid-column: 1;
+  justify-self: start;
   min-height: 0;
   padding: 0;
 }
