@@ -14,6 +14,7 @@ The dashboard:
 - can independently hide the repository search bar or repository total;
 - optionally hides the dictation microphone, compacts the new-chat heading, or
   disables ChatGPT Work mode;
+- strips UTM tracking parameters from links shown by ChatGPT by default;
 - can skip ChatGPT's external-site warning and dismiss its history rate-limit
   modal independently;
 - adds columns for any other GitHub accounts the connected tokens can access;
@@ -88,16 +89,18 @@ encryption key needed to decrypt saved tokens. Reloading the existing unpacked
 extension preserves its installed identity and persistent storage during normal
 updates.
 
-The external-site warning bypass and history rate-limit modal dismissal are
-separate settings. Both are enabled by default, while **Hide dictation
+UTM tracking removal, the external-site warning bypass, and history rate-limit
+modal dismissal are separate settings enabled by default. **Hide dictation
 microphone**, **Compact new-chat header**, and **Disable Work mode** are disabled
-by default. When Work mode is disabled, the extension switches an available
-Work selector back to Chat, hides Work controls, and blocks their selection. The
-external-site setting clicks ChatGPT's own **Open link** confirmation when the
-exact external-site dialog appears. The history setting hides the known
-conversation-history rate-limit modal, clears the page locks it leaves behind,
-and preserves native wheel and touch scrolling if stale modal listeners remain.
-The extension does not perform a cross-origin request to the destination itself.
+by default. UTM removal strips `utm_*` query parameters while preserving other
+query parameters and URL fragments. When Work mode is disabled, the extension
+switches an available Work selector back to Chat, hides Work controls, and blocks
+their selection. The external-site setting clicks ChatGPT's own **Open link**
+confirmation when the exact external-site dialog appears. The history setting
+hides the known conversation-history rate-limit modal, clears the page locks it
+leaves behind, and preserves native wheel and touch scrolling if stale modal
+listeners remain. The extension does not perform a cross-origin request to the
+destination itself.
 
 ## Pins
 

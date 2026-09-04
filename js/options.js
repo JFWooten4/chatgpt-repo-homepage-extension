@@ -16,6 +16,7 @@ const hideDictationButtonInput = document.getElementById("hide-dictation-button"
 const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
 const disableWorkModeInput = document.getElementById("disable-work-mode");
 const showSpellcheckGptLauncherInput = document.getElementById("show-spellcheck-gpt-launcher");
+const stripUtmTrackingInput = document.getElementById("strip-utm-tracking");
 const skipExternalSiteWarningInput = document.getElementById("skip-external-site-warning");
 const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
 const clearTokensButton = document.getElementById("clear-tokens");
@@ -198,6 +199,7 @@ async function loadSettings() {
     compactNewChatHeader: false,
     disableWorkMode: false,
     showSpellcheckGptLauncher: false,
+    stripUtmTracking: true,
     skipExternalSiteWarning: true,
     dismissHistoryRateLimitModal: true,
   });
@@ -223,6 +225,7 @@ async function loadSettings() {
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
   disableWorkModeInput.checked = Boolean(settings.disableWorkMode);
   showSpellcheckGptLauncherInput.checked = Boolean(settings.showSpellcheckGptLauncher);
+  stripUtmTrackingInput.checked = Boolean(settings.stripUtmTracking);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
   dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
 
@@ -290,6 +293,7 @@ async function saveSettings() {
       compactNewChatHeader: compactNewChatHeaderInput.checked,
       disableWorkMode: disableWorkModeInput.checked,
       showSpellcheckGptLauncher: showSpellcheckGptLauncherInput.checked,
+      stripUtmTracking: stripUtmTrackingInput.checked,
       skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
       dismissHistoryRateLimitModal: dismissHistoryRateLimitModalInput.checked,
     });

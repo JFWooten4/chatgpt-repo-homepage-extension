@@ -1,6 +1,7 @@
 (() => {
   const EXTERNAL_WARNING_SETTING_KEY = "skipExternalSiteWarning";
   const HISTORY_MODAL_SETTING_KEY = "dismissHistoryRateLimitModal";
+  const STRIP_UTM_TRACKING_SETTING_KEY = "stripUtmTracking";
   const MODAL_ID = "modal-conversation-history-rate-limit";
   const DIALOG_SELECTOR = '[role="dialog"], [role="alertdialog"]';
   const EXTERNAL_DIALOG_TITLE = "External site";
@@ -8,6 +9,7 @@
   const handledExternalDialogs = new WeakSet();
   let externalWarningEnabled = false;
   let historyModalEnabled = false;
+  let stripUtmTrackingEnabled = false;
   let modalWasSuppressed = false;
 
   function normalizedText(element) {
@@ -67,6 +69,31 @@
     }
   }
 
+  function stripTrackingFromLink(link) {
+    if (!stripUtmTrackingEnabled || !(link instanceof HTMLAnchorElement)) return;
+
+    let url;
+    try {
+      url = new URL(link.href);
+    } catch {
+      return;
+    }
+    if (!["http:", "https:"].includes(url.protocol)) return;
+
+    const trackingParameters = [...url.searchParams.keys()]
+      .filter((name) => name.toLowerCase().startsWith("utm_"));
+    if (!trackingParameters.length) return;
+
+    trackingParameters.forEach((name) => url.searchParams.delete(name));
+    link.href = url.href;
+  }
+
+  function stripTrackingFromLinks(node) {
+    if (!stripUtmTrackingEnabled || !(node instanceof Element)) return;
+    if (node.matches("a[href]")) stripTrackingFromLink(node);
+    node.querySelectorAll("a[href]").forEach(stripTrackingFromLink);
+  }
+
   function preserveNativeScroll(event) {
     if (!historyModalEnabled || !modalWasSuppressed) return;
     const modal = document.getElementById(MODAL_ID);
@@ -81,6 +108,7 @@
     if (!(node instanceof Element)) return;
     inspectDialogs(node);
     suppressHistoryRateLimitModal();
+    stripTrackingFromLinks(node);
   }
 
   function watchChatGPTInterruptions() {
@@ -90,24 +118,33 @@
     }
     inspectDialogs(document.documentElement);
     suppressHistoryRateLimitModal();
+    stripTrackingFromLinks(document.documentElement);
     new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         inspectMutationNode(mutation.target);
         for (const node of mutation.addedNodes) inspectMutationNode(node);
       }
-    }).observe(document.documentElement, { childList: true, subtree: true });
+    }).observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["href"],
+    });
   }
 
   async function loadSettings() {
     const settings = await chrome.storage.local.get({
       [EXTERNAL_WARNING_SETTING_KEY]: true,
       [HISTORY_MODAL_SETTING_KEY]: true,
+      [STRIP_UTM_TRACKING_SETTING_KEY]: true,
     });
     externalWarningEnabled = Boolean(settings[EXTERNAL_WARNING_SETTING_KEY]);
     historyModalEnabled = Boolean(settings[HISTORY_MODAL_SETTING_KEY]);
+    stripUtmTrackingEnabled = Boolean(settings[STRIP_UTM_TRACKING_SETTING_KEY]);
     if (document.documentElement) {
       inspectDialogs(document.documentElement);
       suppressHistoryRateLimitModal();
+      stripTrackingFromLinks(document.documentElement);
     }
   }
 
@@ -121,7 +158,17 @@
       historyModalEnabled = Boolean(changes[HISTORY_MODAL_SETTING_KEY].newValue);
       if (historyModalEnabled) suppressHistoryRateLimitModal();
     }
+    if (changes[STRIP_UTM_TRACKING_SETTING_KEY]) {
+      stripUtmTrackingEnabled = Boolean(changes[STRIP_UTM_TRACKING_SETTING_KEY].newValue);
+      if (stripUtmTrackingEnabled && document.documentElement) {
+        stripTrackingFromLinks(document.documentElement);
+      }
+    }
   });
+
+  document.addEventListener("click", (event) => {
+    stripTrackingFromLink(event.target.closest?.("a[href]"));
+  }, true);
 
   watchChatGPTInterruptions();
   setInterval(suppressHistoryRateLimitModal, 100);
