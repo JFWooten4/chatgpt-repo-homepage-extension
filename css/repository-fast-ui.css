@@ -41,23 +41,6 @@
   text-transform: uppercase;
 }
 
-#github-repositories-for-chatgpt .ghrc-search-pagination {
-  align-items: center;
-  border-top: 1px solid var(--ghrc-border);
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-  padding: 8px 10px;
-}
-
-#github-repositories-for-chatgpt .ghrc-search-pagination span {
-  color: var(--ghrc-fg-muted);
-  font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 @media (max-width: 760px) {
   #github-repositories-for-chatgpt .ghrc-warm-pins-list {
     grid-template-columns: 1fr;

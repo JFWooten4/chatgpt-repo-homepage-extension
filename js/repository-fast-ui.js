@@ -2,7 +2,7 @@
   const WIDGET_ID = "github-repositories-for-chatgpt";
   const PINNED_STORAGE_KEY = "pinnedRepositories";
   const LOADING_TEXT = "Loading repositories…";
-  let searchPaginationScheduled = false;
+  let searchCategorizationScheduled = false;
 
   function normalizedPins(pinnedRepositories) {
     const seen = new Set();
@@ -133,7 +133,7 @@
     return category;
   }
 
-  function paginateSearchResults(container) {
+  function categorizeSearchResults(container) {
     if (!container?.isConnected || container.hidden) return;
     const rows = [...container.children]
       .filter((child) => child.classList.contains("ghrc-repository"));
@@ -148,65 +148,23 @@
 
     const categories = [...groupedRows]
       .map(([owner, ownerRows]) => buildSearchCategory(owner, ownerRows));
-    const page = document.createElement("div");
-    page.className = "ghrc-search-category-page";
-    let pageIndex = 0;
-
-    const pagination = document.createElement("nav");
-    pagination.className = "ghrc-pagination ghrc-search-pagination";
-    pagination.setAttribute("aria-label", "Search result category pages");
-
-    const previous = document.createElement("button");
-    previous.type = "button";
-    previous.textContent = "Previous";
-
-    const status = document.createElement("span");
-    status.setAttribute("aria-live", "polite");
-
-    const next = document.createElement("button");
-    next.type = "button";
-    next.textContent = "Next";
-
-    const update = () => {
-      page.replaceChildren(categories[pageIndex]);
-      previous.disabled = pageIndex === 0;
-      next.disabled = pageIndex === categories.length - 1;
-      const owner = categories[pageIndex].querySelector(".ghrc-search-category-heading")?.textContent;
-      status.textContent = `${owner} · ${pageIndex + 1} of ${categories.length}`;
-    };
-
-    previous.addEventListener("click", () => {
-      if (pageIndex === 0) return;
-      pageIndex -= 1;
-      update();
-    });
-
-    next.addEventListener("click", () => {
-      if (pageIndex === categories.length - 1) return;
-      pageIndex += 1;
-      update();
-    });
-
-    pagination.append(previous, status, next);
-    container.replaceChildren(page);
-    if (categories.length > 1) container.append(pagination);
-    update();
+    container.replaceChildren(...categories);
   }
 
-  function scheduleSearchPagination() {
-    if (searchPaginationScheduled) return;
-    searchPaginationScheduled = true;
+  function scheduleSearchCategorization() {
+    if (searchCategorizationScheduled) return;
+    searchCategorizationScheduled = true;
     queueMicrotask(() => {
-      searchPaginationScheduled = false;
+      searchCategorizationScheduled = false;
       document.querySelectorAll(`#${WIDGET_ID} .ghrc-search-results`)
-        .forEach(paginateSearchResults);
+        .forEach(categorizeSearchResults);
     });
   }
 
   function updateFastUi() {
     const widget = document.getElementById(WIDGET_ID);
     if (widget) void showWarmPins(widget);
-    scheduleSearchPagination();
+    scheduleSearchCategorization();
   }
 
   const observer = new MutationObserver(updateFastUi);
