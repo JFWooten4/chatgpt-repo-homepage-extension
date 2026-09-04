@@ -20,6 +20,8 @@ const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-histo
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
 let saveQueue = Promise.resolve();
+let tokenStateLoaded = false;
+let tokenInputsDirty = false;
 
 function normalizedOwnerOrder(owners) {
   const seen = new Set();
@@ -65,6 +67,7 @@ function createTokenRow({ label = "", owner = "", token = "" } = {}) {
     if (!tokenList.querySelector(".token-row")) {
       tokenList.append(createTokenRow());
     }
+    tokenInputsDirty = true;
     updateTokenSummary();
     void queueSettingsSave();
   });
@@ -201,11 +204,13 @@ async function loadSettings() {
 
   try {
     configuredTokens = await TokenVault.loadTokens();
+    tokenStateLoaded = true;
   } catch (error) {
     showStatus(error.message, "error");
   }
 
   renderTokenRows(configuredTokens);
+  tokenInputsDirty = false;
   tokenSettings.open = configuredTokens.length === 0;
   renderPinnedRepositories(settings.pinnedRepositories);
   ownerOrderInput.value = storedOwnerOrder.join("\n");
@@ -241,20 +246,37 @@ addTokenButton.addEventListener("click", () => {
   row.querySelector(".token-label").focus();
 });
 
-tokenList.addEventListener("input", updateTokenSummary);
+tokenList.addEventListener("input", () => {
+  tokenInputsDirty = true;
+  updateTokenSummary();
+});
 
 async function saveSettings() {
   const enteredOwnerOrder = ownerOrderFromInput();
-  const githubTokens = tokensFromInput();
   const ownerGroupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPageInput.value);
-  if (!githubTokens) {
-    tokenSettings.open = true;
-    showStatus("Remove the duplicate token before saving.", "error");
-    return;
+  let githubTokens = null;
+  let shouldSaveTokens = false;
+
+  if (tokenInputsDirty) {
+    githubTokens = tokensFromInput();
+    if (!githubTokens) {
+      tokenSettings.open = true;
+      showStatus("Remove the duplicate token before saving.", "error");
+      return;
+    }
+
+    // A failed vault load renders an empty token row. Do not let an unrelated
+    // settings change write that empty state over token data that may still be
+    // recoverable. A non-empty token entry or Clear tokens remains explicit.
+    shouldSaveTokens = tokenStateLoaded || githubTokens.length > 0;
   }
 
   try {
-    await TokenVault.saveTokens(githubTokens);
+    if (shouldSaveTokens) {
+      await TokenVault.saveTokens(githubTokens);
+      tokenStateLoaded = true;
+      tokenInputsDirty = false;
+    }
     await chrome.storage.local.set({
       ownerOrder: enteredOwnerOrder,
       ownerGroupsPerPage,
@@ -270,7 +292,12 @@ async function saveSettings() {
     ownerOrderInput.value = enteredOwnerOrder.join("\n");
     ownerGroupsPerPageInput.value = ownerGroupsPerPage;
     updateTokenSummary();
-    showStatus("Settings saved automatically.", "success");
+    showStatus(
+      tokenStateLoaded
+        ? "Settings saved automatically."
+        : "Settings saved. Existing tokens were left untouched because the token vault could not be loaded.",
+      tokenStateLoaded ? "success" : "error",
+    );
   } catch (error) {
     showStatus(`Settings could not be saved: ${error.message}`, "error");
   }
@@ -286,7 +313,8 @@ form.addEventListener("submit", (event) => {
   void queueSettingsSave();
 });
 
-form.addEventListener("change", () => {
+form.addEventListener("change", (event) => {
+  if (event.target.closest(".token-row")) tokenInputsDirty = true;
   void queueSettingsSave();
 });
 
@@ -295,6 +323,8 @@ clearTokensButton.addEventListener("click", async () => {
     renderTokenRows([]);
     tokenSettings.open = true;
     await TokenVault.clearTokens();
+    tokenStateLoaded = true;
+    tokenInputsDirty = false;
     showStatus("Tokens cleared. Only public repositories will be loaded.", "success");
   } catch (error) {
     showStatus(`Tokens could not be cleared: ${error.message}`, "error");
