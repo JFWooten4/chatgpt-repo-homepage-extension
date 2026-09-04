@@ -34,10 +34,12 @@
         "https://chatgpt.com/*"
       ],
       "css": [
-        "css/homepage-boot.css"
+        "css/homepage-boot.css",
+        "css/work-mode.css"
       ],
       "js": [
         "js/collapse-sidebar.js",
+        "js/disable-work-mode.js",
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/external-links.js"
