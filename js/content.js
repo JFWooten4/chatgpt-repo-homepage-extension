@@ -16,6 +16,7 @@
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
   let mountScheduled = false;
   let repositoryRequest = null;
+  let wootenLinkKeysRequest = null;
   let layoutObserver = null;
   let observedLayoutContainer = null;
 
@@ -517,6 +518,67 @@
     return settings;
   }
 
+  function parseWootenLinkKeys(html) {
+    const keys = new Set();
+    const redirects = html.match(/<script id="all-redirects">([\s\S]*?)<\/script>/)?.[1] || "";
+    const keyPattern = /"((?:\\.|[^"\\])+)"\s*:/g;
+    let keyMatch;
+
+    while ((keyMatch = keyPattern.exec(redirects))) {
+      try {
+        keys.add(JSON.parse(`"${keyMatch[1]}"`).toLowerCase());
+      } catch {
+        // Skip malformed keys and leave the query on the results page.
+      }
+    }
+
+    const lawRedirects = html.match(
+      /<script type="text\/plain" id="law-redirects">([\s\S]*?)<\/script>/,
+    )?.[1] || "";
+    let delimiter = null;
+    for (const line of lawRedirects.split(/\r?\n/)) {
+      const section = line.match(/^\s*\[redirects\.("(?:\\.|[^"\\])*")\]/);
+      if (section) {
+        try {
+          delimiter = JSON.parse(section[1]);
+        } catch {
+          delimiter = null;
+        }
+        continue;
+      }
+      if (/^\s*\[/.test(line)) {
+        delimiter = null;
+        continue;
+      }
+      if (delimiter === null) continue;
+
+      const entry = line.match(/^\s*("(?:\\.|[^"\\])*")\s*=/);
+      if (!entry) continue;
+      try {
+        keys.add(`${delimiter}${JSON.parse(entry[1])}`.toLowerCase());
+      } catch {
+        // Skip malformed keys and leave the query on the results page.
+      }
+    }
+    return keys;
+  }
+
+  async function loadWootenLinkKeys() {
+    wootenLinkKeysRequest ||= fetch("https://wooten.link/404.html", {
+      cache: "no-store",
+    }).then((response) => {
+      if (!response.ok) throw new Error("wooten.link index could not be loaded");
+      return response.text();
+    }).then(parseWootenLinkKeys);
+
+    try {
+      return await wootenLinkKeysRequest;
+    } catch {
+      wootenLinkKeysRequest = null;
+      return null;
+    }
+  }
+
   function createWootenLinkSearch() {
     const form = document.createElement("form");
     form.className = "ghrc-wooten-link-search";
@@ -536,7 +598,7 @@
     submit.type = "submit";
     submit.textContent = "Search";
     form.append(label, submit);
-    form.addEventListener("submit", (event) => {
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const query = input.value.trim();
       if (!query) {
@@ -544,9 +606,16 @@
         return;
       }
 
-      const url = new URL("https://wooten.link/search");
-      url.searchParams.set("q", query);
-      window.open(url.toString(), "_blank", "noopener,noreferrer");
+      const searchUrl = new URL("https://wooten.link/search");
+      searchUrl.searchParams.set("q", query);
+      const resultTab = window.open(searchUrl.toString(), "_blank");
+      if (!resultTab) return;
+      resultTab.opener = null;
+
+      const keys = await loadWootenLinkKeys();
+      if (keys?.has(query.toLowerCase())) {
+        resultTab.location.replace(`https://wooten.link/${encodeURIComponent(query)}`);
+      }
     });
     return form;
   }
