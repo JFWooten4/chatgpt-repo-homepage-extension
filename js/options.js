@@ -195,7 +195,7 @@ async function loadSettings() {
     ownerGroupsPerPage: DEFAULT_OWNER_GROUPS_PER_PAGE,
     showRepositorySearch: true,
     showRepositoryTotal: true,
-    showWootenLinkSearch: true,
+    showWootenLinkSearch: false,
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,

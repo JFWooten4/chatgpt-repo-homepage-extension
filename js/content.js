@@ -624,7 +624,7 @@
     return form;
   }
 
-  function createDashboardFooter(mode, pagination = null, showWootenLinkSearch = true) {
+  function createDashboardFooter(mode, pagination = null, showWootenLinkSearch = false) {
     const footer = document.createElement("footer");
     footer.className = "ghrc-dashboard-footer";
     if (showWootenLinkSearch) footer.append(createWootenLinkSearch());
@@ -773,7 +773,7 @@
           [OWNER_GROUPS_PER_PAGE_KEY]: DEFAULT_OWNER_GROUPS_PER_PAGE,
           [SHOW_REPOSITORY_SEARCH_KEY]: true,
           [SHOW_REPOSITORY_TOTAL_KEY]: true,
-          [SHOW_WOOTEN_LINK_SEARCH_KEY]: true,
+          [SHOW_WOOTEN_LINK_SEARCH_KEY]: false,
         }),
       ]);
 
