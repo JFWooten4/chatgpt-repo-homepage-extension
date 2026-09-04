@@ -10,6 +10,7 @@ const ownerOrderInput = document.getElementById("owner-order");
 const ownerGroupsPerPageInput = document.getElementById("owner-groups-per-page");
 const showRepositorySearchInput = document.getElementById("show-repository-search");
 const showRepositoryTotalInput = document.getElementById("show-repository-total");
+const showWootenLinkSearchInput = document.getElementById("show-wooten-link-search");
 const pinnedRepositoryList = document.getElementById("pinned-repositories");
 const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
@@ -194,6 +195,7 @@ async function loadSettings() {
     ownerGroupsPerPage: DEFAULT_OWNER_GROUPS_PER_PAGE,
     showRepositorySearch: true,
     showRepositoryTotal: true,
+    showWootenLinkSearch: true,
     pinnedRepositories: [],
     hideDictationButton: false,
     compactNewChatHeader: false,
@@ -221,6 +223,7 @@ async function loadSettings() {
   ownerGroupsPerPageInput.value = normalizedOwnerGroupsPerPage(settings.ownerGroupsPerPage);
   showRepositorySearchInput.checked = Boolean(settings.showRepositorySearch);
   showRepositoryTotalInput.checked = Boolean(settings.showRepositoryTotal);
+  showWootenLinkSearchInput.checked = Boolean(settings.showWootenLinkSearch);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
   disableWorkModeInput.checked = Boolean(settings.disableWorkMode);
@@ -288,6 +291,7 @@ async function saveSettings() {
       ownerGroupsPerPage,
       showRepositorySearch: showRepositorySearchInput.checked,
       showRepositoryTotal: showRepositoryTotalInput.checked,
+      showWootenLinkSearch: showWootenLinkSearchInput.checked,
       pinnedRepositories: pinnedRepositoriesFromList(),
       hideDictationButton: hideDictationButtonInput.checked,
       compactNewChatHeader: compactNewChatHeaderInput.checked,

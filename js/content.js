@@ -10,6 +10,7 @@
   const OWNER_GROUPS_PER_PAGE_KEY = "ownerGroupsPerPage";
   const SHOW_REPOSITORY_SEARCH_KEY = "showRepositorySearch";
   const SHOW_REPOSITORY_TOTAL_KEY = "showRepositoryTotal";
+  const SHOW_WOOTEN_LINK_SEARCH_KEY = "showWootenLinkSearch";
   const DEFAULT_OWNER_GROUPS_PER_PAGE = 6;
   const REPOSITORIES_PER_COLUMN = 7;
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -516,9 +517,44 @@
     return settings;
   }
 
-  function createDashboardFooter(mode, pagination = null) {
+  function createWootenLinkSearch() {
+    const form = document.createElement("form");
+    form.className = "ghrc-wooten-link-search";
+
+    const label = document.createElement("label");
+    label.textContent = "wooten.link";
+
+    const input = document.createElement("input");
+    input.type = "search";
+    input.name = "q";
+    input.placeholder = "Search references…";
+    input.setAttribute("aria-label", "Search wooten.link references");
+    input.autocomplete = "off";
+    label.append(input);
+
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.textContent = "Search";
+    form.append(label, submit);
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const query = input.value.trim();
+      if (!query) {
+        input.focus();
+        return;
+      }
+
+      const url = new URL("https://wooten.link/search");
+      url.searchParams.set("q", query);
+      window.open(url.toString(), "_blank", "noopener,noreferrer");
+    });
+    return form;
+  }
+
+  function createDashboardFooter(mode, pagination = null, showWootenLinkSearch = true) {
     const footer = document.createElement("footer");
     footer.className = "ghrc-dashboard-footer";
+    if (showWootenLinkSearch) footer.append(createWootenLinkSearch());
     if (pagination) footer.append(pagination);
     footer.append(createSettingsButton(mode));
     return footer;
@@ -573,6 +609,7 @@
     ownerGroupsPerPage,
     showRepositorySearch,
     showRepositoryTotal,
+    showWootenLinkSearch,
   ) {
     widget.replaceChildren();
     const rankedRepositories = rankRepositories(
@@ -605,7 +642,10 @@
       message.textContent = "Add a GitHub token or account to show repositories here.";
       empty.append(message);
       columns.append(empty);
-      widget.append(columns, createDashboardFooter(payload.mode));
+      widget.append(
+        columns,
+        createDashboardFooter(payload.mode, null, showWootenLinkSearch),
+      );
       return;
     }
 
@@ -627,7 +667,7 @@
     } else {
       renderPage(0);
     }
-    widget.append(createDashboardFooter(payload.mode, pagination));
+    widget.append(createDashboardFooter(payload.mode, pagination, showWootenLinkSearch));
   }
 
   function renderError(widget, message) {
@@ -660,6 +700,7 @@
           [OWNER_GROUPS_PER_PAGE_KEY]: DEFAULT_OWNER_GROUPS_PER_PAGE,
           [SHOW_REPOSITORY_SEARCH_KEY]: true,
           [SHOW_REPOSITORY_TOTAL_KEY]: true,
+          [SHOW_WOOTEN_LINK_SEARCH_KEY]: true,
         }),
       ]);
 
@@ -676,6 +717,7 @@
           stored[OWNER_GROUPS_PER_PAGE_KEY],
           Boolean(stored[SHOW_REPOSITORY_SEARCH_KEY]),
           Boolean(stored[SHOW_REPOSITORY_TOTAL_KEY]),
+          Boolean(stored[SHOW_WOOTEN_LINK_SEARCH_KEY]),
         );
       }
     } catch (error) {
@@ -770,6 +812,7 @@
       || changes.ownerGroupsPerPage
       || changes.showRepositorySearch
       || changes.showRepositoryTotal
+      || changes.showWootenLinkSearch
     ) {
       repositoryRequest = null;
       document.getElementById(WIDGET_ID)?.remove();
