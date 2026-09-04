@@ -73,7 +73,8 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "artwork/spellcheck-only.png"
+        "artwork/spellcheck-only.png",
+        "artwork/calligraphy-initials.png"
       ],
       "matches": [
         "https://chatgpt.com/*"

@@ -5,6 +5,7 @@
   --ghrc-canvas-subtle: #f6f8fa;
   --ghrc-fg: #1f2328;
   --ghrc-fg-muted: #656d76;
+  --ghrc-mark-filter: none;
   background: var(--ghrc-canvas);
   border: 1px solid var(--ghrc-border);
   border-radius: 12px;
@@ -36,6 +37,7 @@ html.dark #github-repositories-for-chatgpt {
   --ghrc-canvas-subtle: #151b23;
   --ghrc-fg: #f0f6fc;
   --ghrc-fg-muted: #9198a1;
+  --ghrc-mark-filter: invert(1);
 }
 
 #github-repositories-for-chatgpt * {
@@ -414,6 +416,13 @@ html.dark #github-repositories-for-chatgpt {
   min-width: 0;
 }
 
+#github-repositories-for-chatgpt .ghrc-wooten-link-mark {
+  filter: var(--ghrc-mark-filter);
+  height: 30px;
+  object-fit: contain;
+  width: 30px;
+}
+
 #github-repositories-for-chatgpt .ghrc-wooten-link-search input {
   background: var(--ghrc-canvas);
   border: 1px solid var(--ghrc-border);
@@ -553,5 +562,6 @@ html.dark #github-repositories-for-chatgpt {
     --ghrc-canvas-subtle: #151b23;
     --ghrc-fg: #f0f6fc;
     --ghrc-fg-muted: #9198a1;
+    --ghrc-mark-filter: invert(1);
   }
 }

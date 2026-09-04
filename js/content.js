@@ -584,7 +584,11 @@
     form.className = "ghrc-wooten-link-search";
 
     const label = document.createElement("label");
-    label.textContent = "wooten.link";
+    const mark = document.createElement("img");
+    mark.className = "ghrc-wooten-link-mark";
+    mark.src = chrome.runtime.getURL("artwork/calligraphy-initials.png");
+    mark.alt = "wooten.link";
+    label.append(mark);
 
     const input = document.createElement("input");
     input.type = "search";
