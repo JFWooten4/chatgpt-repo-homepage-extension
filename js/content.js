@@ -16,7 +16,7 @@
   const DAY_IN_MILLISECONDS = 24 * 60 * 60 * 1000;
   let mountScheduled = false;
   let repositoryRequest = null;
-  let wootenLinkKeysRequest = null;
+  let wootenLinkEntriesRequest = null;
   let layoutObserver = null;
   let observedLayoutContainer = null;
 
@@ -518,17 +518,61 @@
     return settings;
   }
 
-  function parseWootenLinkKeys(html) {
-    const keys = new Set();
-    const redirects = html.match(/<script id="all-redirects">([\s\S]*?)<\/script>/)?.[1] || "";
-    const keyPattern = /"((?:\\.|[^"\\])+)"\s*:/g;
-    let keyMatch;
+  function normalizeWootenLinkText(value) {
+    return String(value || "")
+      .replace(/https?:\/\/\S+/g, " ")
+      .replace(/[#?&_=/%:+.-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
 
-    while ((keyMatch = keyPattern.exec(redirects))) {
+  function wootenLinkTopic(href) {
+    try {
+      const url = new URL(href);
+      return normalizeWootenLinkText(
+        decodeURIComponent(`${url.hostname} ${url.pathname} ${url.search} ${url.hash}`),
+      );
+    } catch {
+      return normalizeWootenLinkText(href);
+    }
+  }
+
+  function createWootenLinkEntry(key, href, comment = "") {
+    const topic = normalizeWootenLinkText(`${comment} ${wootenLinkTopic(href)}`);
+    return {
+      key,
+      href,
+      topic,
+      searchText: normalizeWootenLinkText(`${key} ${href} ${topic}`).toLowerCase(),
+    };
+  }
+
+  function parseWootenLinkEntries(html) {
+    const entries = [];
+    const redirects = html.match(/<script id="all-redirects">([\s\S]*?)<\/script>/)?.[1] || "";
+    const constants = new Map();
+    const constantPattern = /const\s+([A-Z0-9_]+)\s*=\s*("(?:\\.|[^"\\])*");/g;
+    let constantMatch;
+    while ((constantMatch = constantPattern.exec(redirects))) {
       try {
-        keys.add(JSON.parse(`"${keyMatch[1]}"`).toLowerCase());
+        constants.set(constantMatch[1], JSON.parse(constantMatch[2]));
       } catch {
-        // Skip malformed keys and leave the query on the results page.
+        // Ignore malformed constants and fall back to their short links.
+      }
+    }
+
+    const entryPattern = /^\s*("(?:\\.|[^"\\])+")\s*:\s*("(?:\\.|[^"\\])*"|[A-Z0-9_]+)\s*,?\s*(?:\/\/\s*(.*))?$/gm;
+    let entryMatch;
+    while ((entryMatch = entryPattern.exec(redirects))) {
+      try {
+        const key = JSON.parse(entryMatch[1]);
+        const rawHref = entryMatch[2];
+        const href = constants.get(rawHref)
+          || (/^"/.test(rawHref) ? JSON.parse(rawHref) : "")
+          || `https://wooten.link/${encodeURIComponent(key)}`;
+        entries.push(createWootenLinkEntry(key, href, entryMatch[3] || ""));
+      } catch {
+        // Ignore malformed entries from the public index.
       }
     }
 
@@ -555,27 +599,59 @@
       const entry = line.match(/^\s*("(?:\\.|[^"\\])*")\s*=/);
       if (!entry) continue;
       try {
-        keys.add(`${delimiter}${JSON.parse(entry[1])}`.toLowerCase());
+        const hrefMatch = line.match(
+          /^\s*("(?:\\.|[^"\\])*")\s*=\s*("(?:\\.|[^"\\])*")/,
+        );
+        if (!hrefMatch) continue;
+        const key = `${delimiter}${JSON.parse(hrefMatch[1])}`.toLowerCase();
+        entries.push(createWootenLinkEntry(key, JSON.parse(hrefMatch[2])));
       } catch {
-        // Skip malformed keys and leave the query on the results page.
+        // Ignore malformed entries from the public law-link index.
       }
     }
-    return keys;
+    return entries.sort((first, second) => first.key.localeCompare(second.key));
   }
 
-  async function loadWootenLinkKeys() {
-    wootenLinkKeysRequest ||= fetch("https://wooten.link/404.html", {
+  async function loadWootenLinkEntries() {
+    wootenLinkEntriesRequest ||= fetch("https://wooten.link/404.html", {
       cache: "no-store",
     }).then((response) => {
       if (!response.ok) throw new Error("wooten.link index could not be loaded");
       return response.text();
-    }).then(parseWootenLinkKeys);
+    }).then(parseWootenLinkEntries);
 
     try {
-      return await wootenLinkKeysRequest;
+      return await wootenLinkEntriesRequest;
     } catch {
-      wootenLinkKeysRequest = null;
+      wootenLinkEntriesRequest = null;
       return null;
+    }
+  }
+
+  function matchingWootenLinkEntries(entries, query) {
+    const term = query.trim().toLowerCase();
+    const normalizedTerm = normalizeWootenLinkText(term).toLowerCase();
+    if (!term) return [];
+
+    return entries.filter((entry) => (
+      entry.searchText.includes(normalizedTerm)
+      || entry.key.toLowerCase().includes(term)
+      || entry.href.toLowerCase().includes(term)
+    )).sort((first, second) => {
+      const firstKey = first.key.toLowerCase();
+      const secondKey = second.key.toLowerCase();
+      if (firstKey === term && secondKey !== term) return -1;
+      if (secondKey === term && firstKey !== term) return 1;
+      if (firstKey.startsWith(term) && !secondKey.startsWith(term)) return -1;
+      if (secondKey.startsWith(term) && !firstKey.startsWith(term)) return 1;
+      return first.key.localeCompare(second.key);
+    });
+  }
+
+  async function openWootenLink(url) {
+    const response = await chrome.runtime.sendMessage({ type: "open-wooten-link", url });
+    if (!response?.ok) {
+      throw new Error(response?.error || "wooten.link could not be opened");
     }
   }
 
@@ -595,14 +671,122 @@
     input.name = "q";
     input.placeholder = "Search references…";
     input.setAttribute("aria-label", "Search wooten.link references");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-controls", "ghrc-wooten-link-results");
+    input.setAttribute("aria-expanded", "false");
+    input.setAttribute("role", "combobox");
     input.autocomplete = "off";
     label.append(input);
 
     const submit = document.createElement("button");
     submit.type = "submit";
+    submit.className = "ghrc-wooten-link-submit";
     submit.textContent = "Search";
-    form.append(label, submit);
-    void loadWootenLinkKeys();
+
+    const results = document.createElement("div");
+    results.id = "ghrc-wooten-link-results";
+    results.className = "ghrc-wooten-link-results";
+    results.setAttribute("role", "listbox");
+    results.hidden = true;
+
+    let visibleEntries = [];
+    let activeIndex = -1;
+    const setActiveEntry = (index) => {
+      activeIndex = index;
+      [...results.querySelectorAll('[role="option"]')].forEach((option, optionIndex) => {
+        const active = optionIndex === activeIndex;
+        option.classList.toggle("ghrc-active", active);
+        option.setAttribute("aria-selected", String(active));
+        if (active) {
+          input.setAttribute("aria-activedescendant", option.id);
+          option.scrollIntoView({ block: "nearest" });
+        }
+      });
+      if (activeIndex < 0) input.removeAttribute("aria-activedescendant");
+    };
+    const hideResults = () => {
+      results.hidden = true;
+      input.setAttribute("aria-expanded", "false");
+      setActiveEntry(-1);
+    };
+    const openEntry = async (entry) => {
+      hideResults();
+      await openWootenLink(`https://wooten.link/${encodeURIComponent(entry.key)}`);
+    };
+    const renderResults = async () => {
+      const query = input.value;
+      if (!query.trim()) {
+        hideResults();
+        return;
+      }
+
+      const entries = await loadWootenLinkEntries();
+      if (input.value !== query || !entries) return;
+      visibleEntries = matchingWootenLinkEntries(entries, query).slice(0, 8);
+      results.replaceChildren();
+      setActiveEntry(-1);
+
+      if (!visibleEntries.length) {
+        const empty = document.createElement("p");
+        empty.className = "ghrc-wooten-link-empty";
+        empty.textContent = "No matching references";
+        results.append(empty);
+      } else {
+        visibleEntries.forEach((entry, index) => {
+          const option = document.createElement("button");
+          option.type = "button";
+          option.id = `ghrc-wooten-link-option-${index}`;
+          option.setAttribute("role", "option");
+          option.setAttribute("aria-selected", "false");
+
+          const key = document.createElement("strong");
+          key.textContent = entry.key;
+          const href = document.createElement("span");
+          href.textContent = entry.href;
+          option.append(key, href);
+          option.addEventListener("pointermove", () => setActiveEntry(index));
+          option.addEventListener("click", () => {
+            void openEntry(entry);
+          });
+          results.append(option);
+        });
+      }
+      results.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+    };
+
+    input.addEventListener("input", () => {
+      void renderResults();
+    });
+    input.addEventListener("focus", () => {
+      if (input.value.trim()) void renderResults();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        hideResults();
+        return;
+      }
+      if (!visibleEntries.length || results.hidden) return;
+      if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+        event.preventDefault();
+        const direction = event.key === "ArrowDown" ? 1 : -1;
+        const nextIndex = activeIndex < 0
+          ? (direction > 0 ? 0 : visibleEntries.length - 1)
+          : (activeIndex + direction + visibleEntries.length) % visibleEntries.length;
+        setActiveEntry(nextIndex);
+      } else if (event.key === "Enter" && activeIndex >= 0) {
+        event.preventDefault();
+        void openEntry(visibleEntries[activeIndex]);
+      }
+    });
+    form.addEventListener("focusout", () => {
+      requestAnimationFrame(() => {
+        if (!form.contains(document.activeElement)) hideResults();
+      });
+    });
+
+    form.append(label, submit, results);
+    void loadWootenLinkEntries();
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const query = input.value.trim();
@@ -613,11 +797,15 @@
 
       const searchUrl = new URL("https://wooten.link/search");
       searchUrl.searchParams.set("q", query);
-      const keys = await loadWootenLinkKeys();
-      const url = keys?.has(query.toLowerCase())
-        ? `https://wooten.link/${encodeURIComponent(query)}`
+      const entries = await loadWootenLinkEntries();
+      const exactEntry = entries?.find(
+        (entry) => entry.key.toLowerCase() === query.toLowerCase(),
+      );
+      const url = exactEntry
+        ? `https://wooten.link/${encodeURIComponent(exactEntry.key)}`
         : searchUrl.toString();
-      await chrome.runtime.sendMessage({ type: "open-wooten-link", url });
+      hideResults();
+      await openWootenLink(url);
     });
     return form;
   }
