@@ -8,12 +8,18 @@ browser extension never contains a GitHub App client secret or private key.
 
 1. Open GitHub **Settings → Developer settings → GitHub Apps → New GitHub App**.
 2. Give the app a name and a normal public homepage URL.
-3. Under **Identifying and authorizing users**, enable **Device Flow**.
+3. Under **Identifying and authorizing users**, enable **Device Flow**. The
+   device-flow MVP does not need a callback URL, and **Request user authorization
+   (OAuth) during installation** can stay off.
 4. Leave expiring user authorization tokens enabled so access tokens rotate.
 5. Under **Repository permissions**, set **Metadata** to **Read-only** and leave
    every other repository, organization, and account permission at **No access**.
 6. Disable the webhook if the app does not otherwise need one.
-7. Create the app, then copy its public **Client ID** and note its app slug from
+7. Under **Where can this GitHub App be installed?**, choose **Any account** if
+   you want the same app installable on both your personal account and your
+   organizations. Choose **Only on this account** only if that single owner is
+   sufficient.
+8. Create the app, then copy its public **Client ID** and note its app slug from
    `https://github.com/apps/<app-slug>`.
 
 Do not copy a client secret or private key into this repository or the extension.
