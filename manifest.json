@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "GitHub Repositories for ChatGPT",
-  "version": "1.6.0",
-  "description": "Adds a personalized GitHub repository dashboard and optional ChatGPT interface tweaks.",
+  "version": "1.7.0",
+  "description": "Adds a personalized GitHub repository dashboard, wooten.link reference search, and optional ChatGPT interface tweaks.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -56,6 +56,7 @@
         "css/private-repository-lock.css",
         "css/compact-header.css",
         "css/inline-toolbar-search.css",
+        "css/reference-search.css",
         "css/spellcheck-launcher.css",
         "css/repository-fast-ui.css"
       ],
@@ -64,6 +65,7 @@
         "js/repository-fast-ui.js",
         "js/content.js",
         "js/owner-grid.js",
+        "js/reference-search.js",
         "js/compact-header.js",
         "js/spellcheck-launcher.js"
       ],
