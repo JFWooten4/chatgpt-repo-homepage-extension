@@ -602,6 +602,7 @@
     submit.type = "submit";
     submit.textContent = "Search";
     form.append(label, submit);
+    void loadWootenLinkKeys();
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const query = input.value.trim();
@@ -612,14 +613,11 @@
 
       const searchUrl = new URL("https://wooten.link/search");
       searchUrl.searchParams.set("q", query);
-      const resultTab = window.open(searchUrl.toString(), "ghrc-wooten-link-search");
-      if (!resultTab) return;
-      resultTab.opener = null;
-
       const keys = await loadWootenLinkKeys();
-      if (keys?.has(query.toLowerCase())) {
-        resultTab.location.replace(`https://wooten.link/${encodeURIComponent(query)}`);
-      }
+      const url = keys?.has(query.toLowerCase())
+        ? `https://wooten.link/${encodeURIComponent(query)}`
+        : searchUrl.toString();
+      await chrome.runtime.sendMessage({ type: "open-wooten-link", url });
     });
     return form;
   }
