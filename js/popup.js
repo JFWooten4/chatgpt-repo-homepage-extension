@@ -93,4 +93,11 @@
 
   openFullSettingsButton.addEventListener("click", () => chrome.runtime.openOptionsPage());
   renderPinPage();
+
+  const authScript = document.createElement("script");
+  authScript.src = chrome.runtime.getURL("js/github-app-auth.js");
+  authScript.addEventListener("load", () => {
+    void globalThis.GitHubAppAuth?.mountSettingsUi({ popup: true });
+  });
+  document.head.append(authScript);
 })();
