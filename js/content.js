@@ -612,7 +612,7 @@
 
       const searchUrl = new URL("https://wooten.link/search");
       searchUrl.searchParams.set("q", query);
-      const resultTab = window.open(searchUrl.toString(), "_blank");
+      const resultTab = window.open(searchUrl.toString(), "ghrc-wooten-link-search");
       if (!resultTab) return;
       resultTab.opener = null;
 
