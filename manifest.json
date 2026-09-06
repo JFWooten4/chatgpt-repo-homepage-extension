@@ -52,6 +52,7 @@
       ],
       "css": [
         "css/styles.css",
+        "css/hide-dictation.css",
         "css/owner-grid.css",
         "css/private-repository-lock.css",
         "css/compact-header.css",
