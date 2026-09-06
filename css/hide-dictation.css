@@ -1,0 +1,6 @@
+html[data-ghrc-hide-dictation]
+  button[data-testid="composer-speech-button"],
+html[data-ghrc-hide-dictation]
+  button[aria-label*="dictat" i] {
+  display: none !important;
+}
