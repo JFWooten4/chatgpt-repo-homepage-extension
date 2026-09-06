@@ -1,3 +1,7 @@
+#github-repositories-for-chatgpt > .ghrc-columns:first-child {
+  border-radius: 11px 11px 0 0;
+}
+
 #github-repositories-for-chatgpt .ghrc-owner-profile-link,
 #github-repositories-for-chatgpt .ghrc-owner-profile-link:hover {
   color: inherit;
