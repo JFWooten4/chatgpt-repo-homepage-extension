@@ -669,7 +669,7 @@
     const input = document.createElement("input");
     input.type = "search";
     input.name = "q";
-    input.placeholder = "WL refs";
+    input.placeholder = "hrefs";
     input.setAttribute("aria-label", "Search wooten.link references");
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-controls", "ghrc-wooten-link-results");
