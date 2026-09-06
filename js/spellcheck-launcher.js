@@ -85,9 +85,23 @@
   }
 
   function composerText(composer) {
-    return composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
-      ? composer.value
-      : (composer.innerText || composer.textContent || "");
+    if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
+      return composer.value;
+    }
+    // ProseMirror renders each source line as a paragraph. innerText adds visual
+    // paragraph spacing, while textContent drops the separators altogether.
+    const paragraphs = [...(composer.children || [])];
+    if (paragraphs.length && paragraphs.every((node) => node.tagName === "P")) {
+      const readNode = (node) => {
+        if (node.nodeType === 3) return node.nodeValue || "";
+        if (node.nodeName === "BR") {
+          return node.classList.contains("ProseMirror-trailingBreak") ? "" : "\n";
+        }
+        return [...node.childNodes].map(readNode).join("");
+      };
+      return paragraphs.map(readNode).join("\n");
+    }
+    return composer.innerText || composer.textContent || "";
   }
 
   function matchesClipboard(composer, text) {
@@ -96,7 +110,7 @@
     return normalize(composerText(composer)) === normalize(text);
   }
 
-  function pasteIntoComposer(composer, text) {
+  async function pasteIntoComposer(composer, text) {
     // Never replace or automatically submit a restored destination draft.
     if (composerText(composer).trim() || !text.trim()) return false;
     composer.focus({ preventScroll: true });
@@ -116,12 +130,16 @@
     try {
       const clipboardData = new DataTransfer();
       clipboardData.setData("text/plain", text);
-      composer.dispatchEvent(new ClipboardEvent("paste", {
+      const unhandled = composer.dispatchEvent(new ClipboardEvent("paste", {
         bubbles: true,
         cancelable: true,
         clipboardData,
       }));
+      // ChatGPT applies the paste asynchronously; inspecting immediately can see
+      // an intermediate DOM and inserting a fallback then duplicates the text.
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
       if (matchesClipboard(composer, text)) return true;
+      if (!unhandled) return false;
       // A partial paste must not be retried over existing content.
       if (composerText(composer).trim()) return false;
     } catch {
@@ -129,19 +147,32 @@
     }
 
     document.execCommand("insertText", false, text);
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
     return matchesClipboard(composer, text);
   }
 
   function findSendButton(composer) {
-    const form = composer.closest("form") || composer.closest('[data-type="unified-composer"]');
-    return form?.querySelector([
+    // The action row can be a sibling of the editor's immediate container.
+    // Prefer explicit send controls, and only accept generic submit buttons in a form.
+    const selectors = [
       'button[data-testid="send-button"]',
       'button[aria-label^="Send" i]',
-      'button[type="submit"]',
-    ].join(", ")) || null;
+      'button#composer-submit-button:not([data-testid="stop-button"]):not([aria-label*="Stop" i]):not([aria-label*="voice" i])',
+    ];
+    for (let container = composer.parentElement; container; container = container.parentElement) {
+      for (const selector of selectors) {
+        const button = [...container.querySelectorAll(selector)].find((candidate) => (
+          candidate.getClientRects().length
+        ));
+        if (button) return button;
+      }
+      if (container.matches("main, body")) break;
+    }
+    const form = composer.closest("form");
+    return form?.querySelector('button[type="submit"]') || null;
   }
 
-  function submitWhenReady(composer, text, deadline) {
+  function submitWhenReady(composer, text, deadline, shortcutAttempted = false) {
     if (
       Date.now() >= deadline
       || !isSpellcheckPage()
@@ -156,10 +187,22 @@
       sendButton.click();
       return;
     }
-    window.setTimeout(() => submitWhenReady(composer, text, deadline), SUBMIT_RETRY_MS);
+    if (!sendButton && !shortcutAttempted) {
+      composer.focus({ preventScroll: true });
+      for (const type of ["keydown", "keyup"]) {
+        composer.dispatchEvent(new KeyboardEvent(type, {
+          key: "Enter", code: "Enter", keyCode: 13, which: 13,
+          shiftKey: true, bubbles: true, cancelable: true,
+        }));
+      }
+      // Give the shortcut time to clear the editor before considering a button fallback.
+      window.setTimeout(() => submitWhenReady(composer, text, deadline, true), 500);
+      return;
+    }
+    window.setTimeout(() => submitWhenReady(composer, text, deadline, shortcutAttempted), SUBMIT_RETRY_MS);
   }
 
-  function runClipboardHandoff() {
+  async function runClipboardHandoff() {
     handoffScheduled = false;
     if (!pendingClipboardText || handoffStarted || !isSpellcheckPage()) return;
 
@@ -168,7 +211,7 @@
     const text = pendingClipboardText;
     handoffStarted = true;
     pendingClipboardText = null;
-    if (!pasteIntoComposer(composer, text)) return;
+    if (!await pasteIntoComposer(composer, text)) return;
 
     const deadline = Date.now() + SUBMIT_TIMEOUT_MS;
     window.setTimeout(() => submitWhenReady(composer, text, deadline), SUBMIT_RETRY_MS);
