@@ -40,6 +40,7 @@
       "js": [
         "js/collapse-sidebar.js",
         "js/disable-work-mode.js",
+        "js/force-high-thinking.js",
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/external-links.js"
