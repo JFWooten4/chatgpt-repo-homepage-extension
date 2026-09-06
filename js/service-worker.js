@@ -4,6 +4,7 @@ const DEFAULT_OWNER_ORDER = [];
 const REPOSITORIES_PER_PAGE = 100;
 const REPOSITORY_CACHE_KEY = "repositoryPayloadCacheV1";
 const REPOSITORY_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const WOOTEN_LINK_TAB_ID_KEY = "wootenLinkSearchTabId";
 const ownerProfileCache = new Map();
 const repositoryRefreshRequests = new Map();
 
@@ -378,6 +379,29 @@ async function loadRepositoriesWithCache() {
   };
 }
 
+async function openWootenLink(urlValue) {
+  const url = new URL(urlValue);
+  if (url.origin !== "https://wooten.link") {
+    throw new Error("Only wooten.link URLs can be opened in the reference tab");
+  }
+
+  const stored = await chrome.storage.session.get({ [WOOTEN_LINK_TAB_ID_KEY]: null });
+  const existingTabId = stored[WOOTEN_LINK_TAB_ID_KEY];
+  if (Number.isInteger(existingTabId)) {
+    try {
+      await chrome.tabs.update(existingTabId, { active: true, url: url.toString() });
+      return;
+    } catch {
+      await chrome.storage.session.remove(WOOTEN_LINK_TAB_ID_KEY);
+    }
+  }
+
+  const tab = await chrome.tabs.create({ active: true, url: url.toString() });
+  if (Number.isInteger(tab.id)) {
+    await chrome.storage.session.set({ [WOOTEN_LINK_TAB_ID_KEY]: tab.id });
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "load-repositories") {
     loadRepositoriesWithCache()
@@ -390,6 +414,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.runtime.openOptionsPage();
     sendResponse({ ok: true });
     return false;
+  }
+
+  if (message?.type === "open-wooten-link") {
+    openWootenLink(message.url)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error.message }));
+    return true;
   }
 
   return false;
