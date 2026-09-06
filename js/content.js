@@ -669,7 +669,7 @@
     const input = document.createElement("input");
     input.type = "search";
     input.name = "q";
-    input.placeholder = "Search references…";
+    input.placeholder = "WL refs";
     input.setAttribute("aria-label", "Search wooten.link references");
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-controls", "ghrc-wooten-link-results");
@@ -691,6 +691,19 @@
 
     let visibleEntries = [];
     let activeIndex = -1;
+    const positionResults = () => {
+      form.classList.remove("ghrc-results-above");
+      const formBounds = form.getBoundingClientRect();
+      const resultsBounds = results.getBoundingClientRect();
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const spaceBelow = viewportHeight - formBounds.bottom - 8;
+      const spaceAbove = formBounds.top - 8;
+      const opensPastViewport = resultsBounds.bottom > viewportHeight - 8;
+      form.classList.toggle(
+        "ghrc-results-above",
+        opensPastViewport && spaceAbove > spaceBelow,
+      );
+    };
     const setActiveEntry = (index) => {
       activeIndex = index;
       [...results.querySelectorAll('[role="option"]')].forEach((option, optionIndex) => {
@@ -753,6 +766,7 @@
       }
       results.hidden = false;
       input.setAttribute("aria-expanded", "true");
+      positionResults();
     };
 
     input.addEventListener("input", () => {
