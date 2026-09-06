@@ -8,7 +8,8 @@
   const ICON_PATH = "artwork/spellcheck-only.png";
   const CLIPBOARD_HANDOFF_KEY = "ghrcSpellcheckClipboardHandoffV1";
   const CLIPBOARD_HANDOFF_MAX_AGE_MS = 30_000;
-  const SUBMIT_DELAY_MS = 80;
+  const SUBMIT_RETRY_MS = 100;
+  const SUBMIT_TIMEOUT_MS = 5_000;
 
   let enabled = false;
   let mountScheduled = false;
@@ -83,13 +84,34 @@
     return control.value === text;
   }
 
+  function composerText(composer) {
+    return composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement
+      ? composer.value
+      : (composer.innerText || composer.textContent || "");
+  }
+
+  function matchesClipboard(composer, text) {
+    // Contenteditable paragraphs may add a final line break to innerText.
+    const normalize = (value) => value.replace(/\r\n/g, "\n").replace(/\n+$/, "");
+    return normalize(composerText(composer)) === normalize(text);
+  }
+
   function pasteIntoComposer(composer, text) {
+    // Never replace or automatically submit a restored destination draft.
+    if (composerText(composer).trim() || !text.trim()) return false;
     composer.focus({ preventScroll: true });
 
     if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
       return replaceTextControlValue(composer, text);
     }
     if (!composer.isContentEditable) return false;
+
+    const selection = window.getSelection();
+    if (!selection) return false;
+    const range = document.createRange();
+    range.selectNodeContents(composer);
+    selection.removeAllRanges();
+    selection.addRange(range);
 
     try {
       const clipboardData = new DataTransfer();
@@ -99,31 +121,19 @@
         cancelable: true,
         clipboardData,
       }));
-      if ((composer.innerText || composer.textContent || "").trim()) return true;
+      if (matchesClipboard(composer, text)) return true;
+      // A partial paste must not be retried over existing content.
+      if (composerText(composer).trim()) return false;
     } catch {
-      // Fall through to an editable-range insertion for browsers that block synthetic clipboard data.
+      // Fall through when synthetic clipboard data is unsupported.
     }
 
-    const selection = window.getSelection();
-    if (!selection) return false;
-    const range = document.createRange();
-    range.selectNodeContents(composer);
-    selection.removeAllRanges();
-    selection.addRange(range);
-
-    if (document.execCommand("insertText", false, text)) return true;
-
-    composer.textContent = text;
-    composer.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      inputType: "insertText",
-      data: text,
-    }));
-    return Boolean((composer.innerText || composer.textContent || "").trim());
+    document.execCommand("insertText", false, text);
+    return matchesClipboard(composer, text);
   }
 
   function findSendButton(composer) {
-    const form = composer.closest("form");
+    const form = composer.closest("form") || composer.closest('[data-type="unified-composer"]');
     return form?.querySelector([
       'button[data-testid="send-button"]',
       'button[aria-label^="Send" i]',
@@ -131,27 +141,22 @@
     ].join(", ")) || null;
   }
 
-  function submitWithEnter(composer) {
-    const enterEvent = new KeyboardEvent("keydown", {
-      key: "Enter",
-      code: "Enter",
-      keyCode: 13,
-      which: 13,
-      bubbles: true,
-      cancelable: true,
-    });
-    const enterHandled = !composer.dispatchEvent(enterEvent);
-    composer.dispatchEvent(new KeyboardEvent("keyup", {
-      key: "Enter",
-      code: "Enter",
-      keyCode: 13,
-      which: 13,
-      bubbles: true,
-    }));
+  function submitWhenReady(composer, text, deadline) {
+    if (
+      Date.now() >= deadline
+      || !isSpellcheckPage()
+      || !composer.isConnected
+      || findComposerInput() !== composer
+      || !matchesClipboard(composer, text)
+    ) return;
 
-    if (enterHandled) return;
     const sendButton = findSendButton(composer);
-    if (sendButton && !sendButton.disabled) sendButton.click();
+    if (sendButton && !sendButton.disabled && sendButton.getAttribute("aria-disabled") !== "true") {
+      // Use one explicit send action; canceled Enter events do not prove submission.
+      sendButton.click();
+      return;
+    }
+    window.setTimeout(() => submitWhenReady(composer, text, deadline), SUBMIT_RETRY_MS);
   }
 
   function runClipboardHandoff() {
@@ -160,11 +165,13 @@
 
     const composer = findComposerInput();
     if (!composer) return;
-    if (!pasteIntoComposer(composer, pendingClipboardText)) return;
-
+    const text = pendingClipboardText;
     handoffStarted = true;
     pendingClipboardText = null;
-    window.setTimeout(() => submitWithEnter(composer), SUBMIT_DELAY_MS);
+    if (!pasteIntoComposer(composer, text)) return;
+
+    const deadline = Date.now() + SUBMIT_TIMEOUT_MS;
+    window.setTimeout(() => submitWhenReady(composer, text, deadline), SUBMIT_RETRY_MS);
   }
 
   function scheduleClipboardHandoff() {
