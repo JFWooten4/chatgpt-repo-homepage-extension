@@ -40,11 +40,18 @@
 
   function effortLevel(control) {
     const label = controlLabel(control);
-    if (!label) return "";
-    const explicitlyEffort = /\b(?:thinking|reasoning)\b|\beffort\b/i.test(label);
-    const plainLevel = /^(?:instant|low|medium|high|extra high)$/i.test(label);
+    const visibleText = normalizedText(control.textContent);
+    const combinedText = normalizedText(`${label} ${visibleText}`);
+    if (!combinedText) return "";
+
+    const explicitlyEffort = /\b(?:thinking|reasoning)\b|\beffort\b/i.test(combinedText);
+    const plainLevel = /^(?:instant|low|medium|high|extra high)$/i.test(label)
+      || /^(?:instant|low|medium|high|extra high)$/i.test(visibleText);
     if (!explicitlyEffort && !plainLevel) return "";
-    const match = label.match(/\b(extra high|high|medium|low|instant)\b/i);
+
+    const match = visibleText.match(/\b(extra high|high|medium|low|instant)\b/i)
+      || label.match(/\b(extra high|high|medium|low|instant)\b/i)
+      || combinedText.match(/\b(extra high|high|medium|low|instant)\b/i);
     return match ? match[1].toLowerCase() : "";
   }
 
