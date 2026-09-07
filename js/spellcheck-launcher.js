@@ -110,9 +110,22 @@
     return normalize(composerText(composer)) === normalize(text);
   }
 
+  async function waitForClipboard(composer, text) {
+    // Allow React/ProseMirror to finish applying a handled paste on slower loads.
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+      if (!isSpellcheckPage() || !composer.isConnected || findComposerInput() !== composer) return false;
+      if (matchesClipboard(composer, text)) return true;
+    }
+    return false;
+  }
+
   async function pasteIntoComposer(composer, text) {
-    // Never replace or automatically submit a restored destination draft.
-    if (composerText(composer).trim() || !text.trim()) return false;
+    if (!text.trim()) return false;
+    // A previous failed attempt may have restored this exact clipboard text.
+    if (matchesClipboard(composer, text)) return true;
+    // ChatGPT may restore the homepage draft here. The launcher explicitly sends
+    // the clipboard, so replace the destination selection before verifying it.
     composer.focus({ preventScroll: true });
 
     if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
@@ -126,6 +139,9 @@
     range.selectNodeContents(composer);
     selection.removeAllRanges();
     selection.addRange(range);
+    // ProseMirror updates its editor selection after the DOM selectionchange event.
+    // Pasting in the same task can append to its stale caret instead of replacing.
+    await new Promise((resolve) => window.setTimeout(resolve, 50));
 
     try {
       const clipboardData = new DataTransfer();
@@ -137,9 +153,9 @@
       }));
       // ChatGPT applies the paste asynchronously; inspecting immediately can see
       // an intermediate DOM and inserting a fallback then duplicates the text.
+      if (!unhandled) return waitForClipboard(composer, text);
       await new Promise((resolve) => window.setTimeout(resolve, 50));
       if (matchesClipboard(composer, text)) return true;
-      if (!unhandled) return false;
       // A partial paste must not be retried over existing content.
       if (composerText(composer).trim()) return false;
     } catch {

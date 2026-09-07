@@ -46,12 +46,12 @@ function fixture({ draft = '', paste = 'accept', disabled = false } = {}) {
     tick() { const timer = timers.shift(); assert.ok(timer); now = timer.time; timer.fn(); } };
 }
 
-test('existing draft is preserved and never submitted', async () => {
-  const f = fixture({ draft: 'unrelated draft', paste: 'ignore' });
+test('restored homepage draft is replaced with clipboard text before sending', async () => {
+  const f = fixture({ draft: 'unrelated draft' });
   await f.api.handoff('clipboard');
-  assert.equal(f.composer.innerText, 'unrelated draft');
-  assert.equal(f.timers.length, 0);
-  assert.equal(f.button.clicks, 0);
+  f.tick();
+  assert.equal(f.composer.innerText, 'clipboard');
+  assert.equal(f.button.clicks, 1);
 });
 test('accepted clipboard text is submitted exactly once', async () => {
   const f = fixture();
@@ -199,4 +199,47 @@ test('asynchronous handled paste settles before verification without duplicate f
   assert.equal(fallbacks, 0);
   assert.equal(f.button.clicks, 1);
   assert.equal(f.composer.innerText, 'First line.\n\nSecond line.');
+});
+
+test('restored clipboard draft is sent without pasting a second copy', async () => {
+  const f = fixture({ draft: 'clipboard' });
+  let pastes = 0;
+  f.composer.dispatchEvent = () => { pastes++; return true; };
+  await f.api.handoff('clipboard');
+  f.tick();
+  assert.equal(pastes, 0);
+  assert.equal(f.button.clicks, 1);
+});
+test('handled paste can settle later than the first 50ms check', async () => {
+  const f = fixture({ paste: 'ignore' });
+  let checks = 0;
+  const schedule = f.context.window.setTimeout;
+  f.context.window.setTimeout = (fn, delay) => {
+    if (delay === 50 && ++checks === 4) f.composer.innerText = 'clipboard';
+    return schedule(fn, delay);
+  };
+  f.composer.dispatchEvent = () => false;
+  await f.api.handoff('clipboard');
+  f.tick();
+  assert.equal(checks, 4);
+  assert.equal(f.button.clicks, 1);
+});
+
+test('editor selection settles before pasting over a restored draft', async () => {
+  const f = fixture({ draft: 'homepage draft' });
+  let selectionReady = false;
+  const schedule = f.context.window.setTimeout;
+  f.context.window.setTimeout = (fn, delay) => schedule(() => { selectionReady = true; fn(); }, delay);
+  f.composer.dispatchEvent = (event) => {
+    if (event.type === 'paste') {
+      assert.equal(selectionReady, true);
+      f.composer.innerText = event.clipboardData.text;
+      return false;
+    }
+    return true;
+  };
+  await f.api.handoff('clipboard');
+  f.tick();
+  assert.equal(f.button.clicks, 1);
+  assert.equal(f.composer.innerText, 'clipboard');
 });
