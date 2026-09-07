@@ -21,8 +21,8 @@
   preference.innerHTML = `
     <input id="force-high-thinking" type="checkbox" />
     <span>
-      <strong>Force High thinking</strong>
-      <small>Sets ChatGPT's thinking effort to High and hides the effort selector after High is selected.</small>
+      <strong>Maximize thinking</strong>
+      <small>Sets thinking effort and thinking time to their highest available levels, then hides their selectors.</small>
     </span>
   `;
 

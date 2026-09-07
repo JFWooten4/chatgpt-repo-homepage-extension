@@ -2,57 +2,38 @@
   const SETTING_KEY = "forceHighThinking";
   const SELECTOR_ATTR = "data-ghrc-high-thinking-selector";
   const STYLE_ID = "ghrc-force-high-thinking-style";
-  const SELECTOR_QUERY = [
-    'button[aria-haspopup="menu"]',
-    'button[aria-haspopup="listbox"]',
-    '[role="button"][aria-haspopup]',
-    '[role="combobox"]',
-  ].join(", ");
-  const OPTION_QUERY = [
-    '[role="menuitem"]',
-    '[role="menuitemradio"]',
-    '[role="option"]',
-    '[role="radio"]',
-    "button",
-  ].join(", ");
+  const SELECTOR_QUERY = 'button[aria-haspopup="menu"], button[aria-haspopup="listbox"], [role="button"][aria-haspopup], [role="combobox"]';
+  const OPTION_QUERY = '[role="menuitem"], [role="menuitemradio"], [role="option"], [role="radio"]';
+  const LEVELS = { instant: 0, lite: 1, light: 1, low: 1, standard: 2, medium: 2, high: 3, extended: 3, heavy: 4, "extra high": 4, max: 5, maximum: 5 };
+  const LEVEL_PATTERN = /\b(extra high|maximum|max|extended|standard|instant|medium|heavy|high|light|lite|low)\b/i;
   const MAX_SELECTION_ATTEMPTS = 5;
   let enabled = false;
   let scanScheduled = false;
-  let pendingSelector = null;
-  let selectionAttempts = 0;
+  let pending = null;
+  let states = new WeakMap();
 
   function normalizedText(value) {
     return (value || "").replace(/\s+/g, " ").trim();
   }
 
-  function labelledByText(control) {
-    const ids = normalizedText(control.getAttribute("aria-labelledby")).split(" ");
-    if (!ids[0]) return "";
-    return normalizedText(ids.map((id) => document.getElementById(id)?.textContent || "").join(" "));
-  }
-
   function controlLabel(control) {
+    const labelledBy = normalizedText(control.getAttribute("aria-labelledby"))
+      .split(" ").map((id) => document.getElementById(id)?.textContent || "").join(" ");
     return normalizedText(control.getAttribute("aria-label"))
-      || labelledByText(control)
+      || normalizedText(labelledBy)
       || normalizedText(control.getAttribute("title"))
       || normalizedText(control.textContent);
   }
 
   function effortLevel(control) {
+    const visible = normalizedText(control.textContent);
     const label = controlLabel(control);
-    const visibleText = normalizedText(control.textContent);
-    const combinedText = normalizedText(`${label} ${visibleText}`);
-    if (!combinedText) return "";
-
-    const explicitlyEffort = /\b(?:thinking|reasoning)\b|\beffort\b/i.test(combinedText);
-    const plainLevel = /^(?:instant|low|medium|high|extra high)$/i.test(label)
-      || /^(?:instant|low|medium|high|extra high)$/i.test(visibleText);
-    if (!explicitlyEffort && !plainLevel) return "";
-
-    const match = visibleText.match(/\b(extra high|high|medium|low|instant)\b/i)
-      || label.match(/\b(extra high|high|medium|low|instant)\b/i)
-      || combinedText.match(/\b(extra high|high|medium|low|instant)\b/i);
-    return match ? match[1].toLowerCase() : "";
+    const combined = `${label} ${visible}`;
+    if (!/\b(thinking|reasoning|effort)\b/i.test(combined)
+      && !Object.hasOwn(LEVELS, visible.toLowerCase())
+      && !Object.hasOwn(LEVELS, label.toLowerCase())) return "";
+    return (visible.match(LEVEL_PATTERN) || label.match(LEVEL_PATTERN))?.[1].toLowerCase()
+      || (/^thinking(?: time| effort)?$/i.test(visible) ? "thinking" : "");
   }
 
   function isVisible(element) {
@@ -61,37 +42,71 @@
     return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
   }
 
-  function isHighOption(control) {
-    const label = controlLabel(control);
-    return /^high(?:\b|\s)/i.test(label) && !/^extra high\b/i.test(label) && isVisible(control);
-  }
-
   function ensureStyle() {
-    if (!document.documentElement || document.getElementById(STYLE_ID)) return;
-    const style = document.createElement("style");
-    style.id = STYLE_ID;
-    style.textContent = `[${SELECTOR_ATTR}="true"] { display: none !important; }`;
-    document.documentElement.append(style);
+    if (!document.documentElement) return;
+    let style = document.getElementById(STYLE_ID);
+    if (!style) {
+      style = document.createElement("style");
+      style.id = STYLE_ID;
+      document.documentElement.append(style);
+    }
+    const rule = `[${SELECTOR_ATTR}] { display: none !important; }`;
+    if (style.textContent !== rule) style.textContent = rule;
   }
 
-  function clearHiddenSelectors() {
-    document.querySelectorAll(`[${SELECTOR_ATTR}]`).forEach((selector) => {
-      selector.removeAttribute(SELECTOR_ATTR);
-    });
+  function findMenu(selector) {
+    const controlled = document.getElementById(selector.getAttribute("aria-controls"));
+    if (controlled && isVisible(controlled)) return controlled;
+    const menus = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(isVisible);
+    return menus.length === 1 ? menus[0] : null;
   }
 
-  function findEffortSelectors() {
-    return [...document.querySelectorAll(SELECTOR_QUERY)]
-      .filter((control) => Boolean(effortLevel(control)));
+  function key(control, value) {
+    control.dispatchEvent(new KeyboardEvent("keydown", { key: value, code: value, bubbles: true, cancelable: true }));
+    control.dispatchEvent(new KeyboardEvent("keyup", { key: value, code: value, bubbles: true }));
   }
 
-  function selectHighFromOpenMenu() {
-    if (!pendingSelector) return false;
-    const highOption = [...document.querySelectorAll(OPTION_QUERY)].find(isHighOption);
-    if (!highOption) return false;
-    highOption.click();
-    pendingSelector = null;
+  function finishSelection(target, closeMenu) {
+    const { selector, state } = pending;
+    state.target = target;
+    pending = null;
+    if (closeMenu) {
+      key(selector, "Escape");
+      if (selector.getAttribute("aria-expanded") === "true") selector.click();
+    }
     window.setTimeout(scheduleScan, 50);
+  }
+
+  function selectMaximum() {
+    if (!pending) return false;
+    const { selector, state, initialLevel } = pending;
+    const menu = findMenu(selector);
+    if (!menu) return false;
+    const slider = menu.querySelector('[role="slider"][aria-valuemax][aria-valuenow]');
+    if (slider) {
+      const maximum = Number(slider.getAttribute("aria-valuemax"));
+      const current = Number(slider.getAttribute("aria-valuenow"));
+      if (!Number.isFinite(maximum) || !Number.isFinite(current)) return false;
+      if (current === maximum) {
+        const label = menu.querySelector('[aria-label="Select model"]');
+        finishSelection((label && effortLevel(label)) || initialLevel, true);
+      } else if (state.adjustments++ < 8) {
+        key(slider.closest('[role="menuitem"]') || slider, "ArrowRight");
+        window.setTimeout(scheduleScan, 50);
+      }
+      return true;
+    }
+    const options = [...menu.querySelectorAll(OPTION_QUERY)]
+      .filter((option) => isVisible(option) && !option.disabled
+        && option.getAttribute("aria-disabled") !== "true" && !option.hasAttribute("data-disabled"))
+      .map((option) => ({ option, level: effortLevel(option) }))
+      .filter(({ level }) => Object.hasOwn(LEVELS, level))
+      .sort((a, b) => LEVELS[b.level] - LEVELS[a.level]);
+    if (!options.length) return false;
+    const { option, level } = options[0];
+    const selected = option.getAttribute("aria-checked") === "true" || option.getAttribute("aria-selected") === "true";
+    if (!selected) option.click();
+    finishSelection(level, selected);
     return true;
   }
 
@@ -99,33 +114,36 @@
     scanScheduled = false;
     if (!enabled) return;
     ensureStyle();
-
-    if (selectHighFromOpenMenu()) return;
-
-    const selectors = findEffortSelectors();
-    let foundHigh = false;
-    for (const selector of selectors) {
+    if (pending && !pending.selector.isConnected) pending = null;
+    if (selectMaximum() || pending) return;
+    for (const selector of document.querySelectorAll(SELECTOR_QUERY)) {
       const level = effortLevel(selector);
-      const isHigh = level === "high";
-      selector.toggleAttribute(SELECTOR_ATTR, isHigh);
-      if (isHigh) {
-        foundHigh = true;
-        pendingSelector = null;
-        selectionAttempts = 0;
+      if (!level) continue;
+      let state = states.get(selector);
+      if (!state) {
+        state = { attempts: 0, adjustments: 0, target: "" };
+        states.set(selector, state);
       }
+      if (state.target === level) {
+        selector.setAttribute(SELECTOR_ATTR, "");
+        continue;
+      }
+      selector.removeAttribute(SELECTOR_ATTR);
+      if (!isVisible(selector) || state.attempts >= MAX_SELECTION_ATTEMPTS) continue;
+      state.attempts += 1;
+      state.adjustments = 0;
+      pending = { selector, state, initialLevel: level };
+      // Both effort and thinking-time menus support the keyboard open action.
+      // The effort trigger does not consistently respond to synthetic clicks.
+      key(selector, "ArrowDown");
+      window.setTimeout(scheduleScan, 50);
+      const attempt = pending;
+      window.setTimeout(() => {
+        if (pending === attempt) pending = null;
+        scheduleScan();
+      }, 1000);
+      return;
     }
-
-    if (foundHigh || pendingSelector || selectionAttempts >= MAX_SELECTION_ATTEMPTS) return;
-    const selector = selectors.find((control) => effortLevel(control) !== "high" && isVisible(control));
-    if (!selector) return;
-    selectionAttempts += 1;
-    pendingSelector = selector;
-    selector.click();
-    window.setTimeout(scheduleScan, 50);
-    window.setTimeout(() => {
-      if (pendingSelector === selector) pendingSelector = null;
-      scheduleScan();
-    }, 250);
   }
 
   function scheduleScan() {
@@ -136,10 +154,10 @@
 
   function setEnabled(nextEnabled) {
     enabled = nextEnabled;
-    pendingSelector = null;
-    selectionAttempts = 0;
+    pending = null;
+    states = new WeakMap();
     if (!enabled) {
-      clearHiddenSelectors();
+      document.querySelectorAll(`[${SELECTOR_ATTR}]`).forEach((selector) => selector.removeAttribute(SELECTOR_ATTR));
       return;
     }
     ensureStyle();
@@ -147,19 +165,11 @@
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local" || !changes[SETTING_KEY]) return;
-    setEnabled(Boolean(changes[SETTING_KEY].newValue));
+    if (areaName === "local" && changes[SETTING_KEY]) setEnabled(Boolean(changes[SETTING_KEY].newValue));
   });
-
   new MutationObserver(scheduleScan).observe(document, {
-    childList: true,
-    subtree: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: ["aria-label", "aria-selected", "aria-checked", "data-state", "title"],
+    childList: true, subtree: true, characterData: true, attributes: true,
+    attributeFilter: ["aria-label", "aria-selected", "aria-checked", "aria-valuenow", "data-state", "title"],
   });
-
-  void chrome.storage.local.get({ [SETTING_KEY]: false }).then((settings) => {
-    setEnabled(Boolean(settings[SETTING_KEY]));
-  });
+  void chrome.storage.local.get({ [SETTING_KEY]: false }).then((settings) => setEnabled(Boolean(settings[SETTING_KEY])));
 })();
