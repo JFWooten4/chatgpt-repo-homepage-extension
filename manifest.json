@@ -11,7 +11,8 @@
   },
   "permissions": [
     "storage",
-    "clipboardRead"
+    "clipboardRead",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "https://api.github.com/*",

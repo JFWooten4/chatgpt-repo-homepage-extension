@@ -102,6 +102,29 @@ leaves behind, and preserves native wheel and touch scrolling if stale modal
 listeners remain. The extension does not perform a cross-origin request to the
 destination itself.
 
+## Deep research publisher
+
+**Deep research publisher** is off by default in both the popup and full settings.
+Enable it to reveal **Link publisher** and **Open publisher…**. Linking requires
+macOS, Python 3, and an installed DOCX publishing app. The linking page supplies
+an install command for this extension ID and lets you select Chrome or Brave.
+Run that command from this extension's folder and select your publishing app.
+
+Download a research report as DOCX, then click **Open publisher…** and choose the
+document in the app. Selecting the document starts the app's conversion, commit,
+and push workflow. The app determines the destination repository and uses its
+existing Git credentials; dashboard accounts do not change that destination.
+The extension reports only that the app opened. Check the app for the final
+publishing result.
+
+The bridge uses Chrome's [native messaging protocol](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging).
+It accepts only a launch action from the linked extension ID, opens the locally
+selected app, and does not pass report contents or GitHub tokens. Linking again
+replaces the connection for that browser. Turn the checkbox off to disable
+launching. To uninstall the bridge, remove `org.research.publisher.json` from
+your browser's `NativeMessagingHosts` folder under `~/Library/Application Support`
+and remove the corresponding browser folder under `~/Library/Application Support/Research Publisher`.
+
 ## Pins
 
 Select **Pin** beside any repository on the dashboard or in search results to
