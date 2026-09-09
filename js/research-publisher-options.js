@@ -1,7 +1,7 @@
 (() => {
   const checkbox = document.getElementById("research-publisher-enabled");
   const controls = document.getElementById("research-publisher-controls");
-  const launch = document.getElementById("launch-research-publisher");
+  const launch = document.getElementById("check-research-publisher");
   const status = document.getElementById("research-publisher-status");
   let busy = false;
   const render = (enabled) => {
@@ -32,12 +32,12 @@
   launch.addEventListener("click", async () => {
     busy = true;
     launch.disabled = true;
-    status.textContent = "Opening publisher…";
+    status.textContent = "Checking repository connection…";
     try {
-      const result = await chrome.runtime.sendMessage({ type: "launch-research-publisher" });
+      const result = await chrome.runtime.sendMessage({ type: "research-publisher-status" });
       status.textContent = result?.ok
-        ? "Publisher opened. Choose your downloaded DOCX in the app; the app reports the publishing result."
-        : result?.error || "Could not open publisher.";
+        ? `Linked to ${result.repository} (${result.branch}). Use Add to repo beside the final report’s download button.`
+        : result?.error || "Could not connect to the repository.";
     } catch { status.textContent = "Connection unavailable. Reload the extension and try again."; }
     finally { busy = false; launch.disabled = !checkbox.checked; }
   });
