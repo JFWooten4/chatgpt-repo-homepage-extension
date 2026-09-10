@@ -1,0 +1,249 @@
+#github-repositories-for-chatgpt {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  display: grid;
+  gap: 0 52px;
+  grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.8fr);
+  grid-template-rows: auto auto auto 1fr;
+  padding: 30px 34px 42px;
+  width: 1180px;
+}
+
+#github-repositories-for-chatgpt::before {
+  color: var(--ghrc-fg);
+  content: "Welcome";
+  font-size: clamp(38px, 5cqw, 56px);
+  font-weight: 300;
+  grid-column: 1 / -1;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin-bottom: 34px;
+}
+
+#github-repositories-for-chatgpt .ghrc-toolbar {
+  align-self: start;
+  border: 0;
+  display: block;
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+  padding: 0;
+}
+
+#github-repositories-for-chatgpt .ghrc-toolbar::before {
+  color: var(--ghrc-fg);
+  content: "Start";
+  display: block;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.35;
+  margin-bottom: 10px;
+}
+
+#github-repositories-for-chatgpt .ghrc-identity {
+  gap: 7px;
+  min-height: 30px;
+  padding: 4px 6px;
+}
+
+#github-repositories-for-chatgpt .ghrc-identity .ghrc-github-icon {
+  color: var(--ghrc-accent);
+  height: 16px;
+  width: 16px;
+}
+
+#github-repositories-for-chatgpt .ghrc-identity h2 {
+  color: var(--ghrc-accent);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+#github-repositories-for-chatgpt .ghrc-identity span {
+  font-size: 11px;
+}
+
+#github-repositories-for-chatgpt .ghrc-actions {
+  margin: 4px 0 0;
+}
+
+#github-repositories-for-chatgpt .ghrc-search-area {
+  border: 0;
+  grid-column: 1;
+  grid-row: 3;
+  padding: 8px 0 0;
+  position: relative;
+}
+
+#github-repositories-for-chatgpt .ghrc-search-area::before {
+  color: var(--ghrc-accent);
+  content: "Find Repository";
+  display: block;
+  font-size: 14px;
+  margin: 0 0 7px 7px;
+}
+
+#github-repositories-for-chatgpt .ghrc-search {
+  background: var(--ghrc-canvas-subtle);
+  border-color: transparent;
+  margin: 0;
+  max-width: none;
+  width: 100%;
+}
+
+#github-repositories-for-chatgpt .ghrc-search:hover {
+  border-color: var(--ghrc-border);
+}
+
+#github-repositories-for-chatgpt .ghrc-search-results {
+  left: 0;
+  top: calc(100% - 1px);
+  transform: none;
+  width: 100%;
+}
+
+#github-repositories-for-chatgpt .ghrc-columns {
+  align-content: start;
+  display: grid;
+  gap: 24px;
+  grid-column: 2;
+  grid-row: 2 / span 3;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: visible;
+}
+
+#github-repositories-for-chatgpt .ghrc-columns::before {
+  color: var(--ghrc-fg);
+  content: "Recent";
+  font-size: 20px;
+  font-weight: 400;
+  grid-column: 1 / -1;
+  line-height: 1.35;
+  margin-bottom: -8px;
+}
+
+#github-repositories-for-chatgpt .ghrc-owner-column,
+#github-repositories-for-chatgpt .ghrc-owner-column:nth-child(n) {
+  border: 0;
+  min-width: 0;
+}
+
+#github-repositories-for-chatgpt .ghrc-owner-header {
+  background: transparent;
+  border: 0;
+  gap: 8px;
+  min-height: 38px;
+  padding: 2px 5px 6px;
+}
+
+#github-repositories-for-chatgpt .ghrc-owner-avatar {
+  height: 24px;
+  width: 24px;
+}
+
+#github-repositories-for-chatgpt .ghrc-owner-header h3 {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+#github-repositories-for-chatgpt .ghrc-owner-header span {
+  display: none;
+}
+
+#github-repositories-for-chatgpt .ghrc-repository-list {
+  min-height: 0;
+}
+
+#github-repositories-for-chatgpt .ghrc-repository {
+  border-radius: 4px;
+  min-height: 31px;
+}
+
+#github-repositories-for-chatgpt .ghrc-repository:hover {
+  background: color-mix(in srgb, var(--ghrc-canvas-subtle) 82%, var(--ghrc-accent) 18%);
+}
+
+#github-repositories-for-chatgpt .ghrc-repository-link {
+  padding: 5px 4px 5px 6px;
+}
+
+#github-repositories-for-chatgpt .ghrc-repository-name {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+#github-repositories-for-chatgpt .ghrc-pin {
+  height: 25px;
+  margin-right: 2px;
+  width: 25px;
+}
+
+#github-repositories-for-chatgpt .ghrc-dashboard-footer {
+  align-self: start;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  grid-column: 1;
+  grid-row: 4;
+  padding: 14px 0 0;
+}
+
+#github-repositories-for-chatgpt .ghrc-dashboard-footer .ghrc-settings {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: var(--ghrc-accent);
+  font-size: 14px;
+  font-weight: 400;
+  padding: 5px 7px;
+}
+
+#github-repositories-for-chatgpt .ghrc-dashboard-footer .ghrc-settings::before {
+  content: "⚙ ";
+}
+
+#github-repositories-for-chatgpt .ghrc-dashboard-footer .ghrc-settings:hover {
+  background: color-mix(in srgb, var(--ghrc-canvas-subtle) 82%, var(--ghrc-accent) 18%);
+  border-color: transparent;
+}
+
+#github-repositories-for-chatgpt .ghrc-pagination {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+#github-repositories-for-chatgpt .ghrc-wooten-link-search {
+  width: 100%;
+}
+
+#github-repositories-for-chatgpt .ghrc-state {
+  grid-column: 1 / -1;
+}
+
+@container (max-width: 840px) {
+  #github-repositories-for-chatgpt {
+    gap: 30px;
+    grid-template-columns: 1fr;
+    padding-inline: 20px;
+  }
+
+  #github-repositories-for-chatgpt::before,
+  #github-repositories-for-chatgpt .ghrc-toolbar,
+  #github-repositories-for-chatgpt .ghrc-search-area,
+  #github-repositories-for-chatgpt .ghrc-columns,
+  #github-repositories-for-chatgpt .ghrc-dashboard-footer {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  #github-repositories-for-chatgpt .ghrc-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 540px) {
+  #github-repositories-for-chatgpt .ghrc-columns {
+    grid-template-columns: 1fr;
+  }
+}
