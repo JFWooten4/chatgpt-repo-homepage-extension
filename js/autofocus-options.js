@@ -1,43 +1,60 @@
 (() => {
   const AUTO_FOCUS_SETTING_KEY = "autoFocusComposer";
   const FORCE_HIGH_SETTING_KEY = "forceHighThinking";
-  const autoFocusInput = document.getElementById("auto-focus-composer");
+  const CLIPBOARD_SEND_SETTING_KEY = "showClipboardSendButton";
 
-  if (autoFocusInput) {
-    void chrome.storage.local.get({ [AUTO_FOCUS_SETTING_KEY]: true }).then((settings) => {
-      autoFocusInput.checked = Boolean(settings[AUTO_FOCUS_SETTING_KEY]);
+  function bindCheckbox(input, settingKey, defaultValue) {
+    if (!input) return;
+
+    void chrome.storage.local.get({ [settingKey]: defaultValue }).then((settings) => {
+      input.checked = Boolean(settings[settingKey]);
     });
 
-    autoFocusInput.addEventListener("change", () => {
-      void chrome.storage.local.set({ [AUTO_FOCUS_SETTING_KEY]: autoFocusInput.checked });
+    input.addEventListener("change", () => {
+      void chrome.storage.local.set({ [settingKey]: input.checked });
     });
   }
 
-  const existingHighInput = document.getElementById("force-high-thinking");
-  if (existingHighInput) return;
+  const autoFocusInput = document.getElementById("auto-focus-composer");
+  bindCheckbox(autoFocusInput, AUTO_FOCUS_SETTING_KEY, true);
 
-  const preference = document.createElement("label");
-  preference.className = "preference";
-  preference.innerHTML = `
-    <input id="force-high-thinking" type="checkbox" />
-    <span>
-      <strong>Maximize thinking</strong>
-      <small>Sets thinking effort and thinking time to their highest available levels, then hides their selectors.</small>
-    </span>
-  `;
-
-  const highInput = preference.querySelector("input");
+  const chatDisplayFieldset = autoFocusInput?.closest("fieldset");
   const disableWorkPreference = document.getElementById("disable-work-mode")?.closest("label.preference");
-  const chatDisplayFieldset = document.getElementById("auto-focus-composer")?.closest("fieldset");
-  if (disableWorkPreference) disableWorkPreference.insertAdjacentElement("afterend", preference);
-  else chatDisplayFieldset?.append(preference);
-  if (!preference.isConnected || !highInput) return;
 
-  void chrome.storage.local.get({ [FORCE_HIGH_SETTING_KEY]: false }).then((settings) => {
-    highInput.checked = Boolean(settings[FORCE_HIGH_SETTING_KEY]);
-  });
+  let highInput = document.getElementById("force-high-thinking");
+  if (!highInput && chatDisplayFieldset) {
+    const preference = document.createElement("label");
+    preference.className = "preference";
+    preference.innerHTML = `
+      <input id="force-high-thinking" type="checkbox" />
+      <span>
+        <strong>Maximize thinking</strong>
+        <small>Sets thinking effort and thinking time to their highest available levels, then hides their selectors.</small>
+      </span>
+    `;
+    if (disableWorkPreference) disableWorkPreference.insertAdjacentElement("afterend", preference);
+    else chatDisplayFieldset.append(preference);
+    highInput = preference.querySelector("input");
+  }
+  bindCheckbox(highInput, FORCE_HIGH_SETTING_KEY, false);
 
-  highInput.addEventListener("change", () => {
-    void chrome.storage.local.set({ [FORCE_HIGH_SETTING_KEY]: highInput.checked });
-  });
+  let clipboardSendInput = document.getElementById("show-clipboard-send-button");
+  if (!clipboardSendInput && chatDisplayFieldset) {
+    const preference = document.createElement("label");
+    preference.className = "preference";
+    preference.innerHTML = `
+      <input id="show-clipboard-send-button" type="checkbox" />
+      <span>
+        <strong>Show clipboard send button</strong>
+        <small>Adds a button immediately before Send that replaces the composer with clipboard text and sends it as the prompt.</small>
+      </span>
+    `;
+    const spellcheckPreference = document.getElementById("show-spellcheck-gpt-launcher")?.closest("label.preference");
+    const highPreference = highInput?.closest("label.preference");
+    const anchor = spellcheckPreference || highPreference || disableWorkPreference;
+    if (anchor) anchor.insertAdjacentElement("afterend", preference);
+    else chatDisplayFieldset.append(preference);
+    clipboardSendInput = preference.querySelector("input");
+  }
+  bindCheckbox(clipboardSendInput, CLIPBOARD_SEND_SETTING_KEY, false);
 })();
