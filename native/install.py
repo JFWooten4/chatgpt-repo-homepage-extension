@@ -5,11 +5,33 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import struct
 import subprocess
 import sys
 
 HOST_NAME = "org.research.publisher"
 BROWSERS = {"chrome": "Google/Chrome", "brave": "BraveSoftware/Brave-Browser"}
+
+
+def probe_host(launcher, origin):
+    payload = json.dumps({"action": "status"}).encode("utf-8")
+    request = struct.pack("=I", len(payload)) + payload
+    process = subprocess.run(
+        [str(launcher), origin], input=request, capture_output=True, timeout=15,
+    )
+    if process.returncode != 0 or len(process.stdout) < 4:
+        raise ValueError("The installed native host did not start correctly.")
+    length = struct.unpack("=I", process.stdout[:4])[0]
+    raw = process.stdout[4:]
+    if length != len(raw):
+        raise ValueError("The installed native host returned an invalid response.")
+    try:
+        result = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("The installed native host returned an invalid response.") from error
+    if not result.get("ok"):
+        raise ValueError(result.get("error") or "The installed native host could not verify the repository.")
+    return result
 
 
 def install(extension_id, browser, repo, support):
@@ -41,6 +63,7 @@ def install(extension_id, browser, repo, support):
         "type": "stdio",
         "allowed_origins": [origin],
     }, indent=2) + "\n")
+    probe_host(launcher, origin)
     return manifest
 
 
@@ -62,10 +85,13 @@ def main():
                 'POSIX path of (choose folder with prompt "Choose the repository for research reports:")',
             ], check=True, capture_output=True, text=True)
             repo = Path(selection.stdout.strip())
-        install(args.extension_id, args.browser, repo, Path.home() / "Library/Application Support")
-    except (ValueError, OSError, subprocess.CalledProcessError):
-        parser.exit(1, "Publisher was not linked. Choose a Git repository with an origin remote and try again.\n")
-    print("Publisher linked. Enable Deep research publisher in extension settings, then use Add to repo beside the report download button.")
+        manifest = install(args.extension_id, args.browser, repo, Path.home() / "Library/Application Support")
+        host_manifest = json.loads(manifest.read_text())
+        config = json.loads(Path(host_manifest["path"]).with_name("config.json").read_text())
+    except (ValueError, OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        parser.exit(1, "Publisher bridge was not verified. Choose a Git repository with an origin remote and try again.\n")
+    print(f"Publisher bridge installed and self-tested for {Path(config['repo']).name} ({config['branch']}).")
+    print("Return to extension settings and use Check connection to confirm the browser can reach it. Add to repo stays hidden until that check succeeds.")
 
 
 if __name__ == "__main__":

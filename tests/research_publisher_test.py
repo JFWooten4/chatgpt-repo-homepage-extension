@@ -79,15 +79,22 @@ class PublisherTests(unittest.TestCase):
             with self.assertRaises(host.PublishError):
                 host.validate({**self.message, **values})
 
-    def test_install_links_branch_and_missing_bridge_upgrade(self):
+    def test_install_links_branch_and_self_tests_bridge(self):
         manifest = installer.install("a" * 32, "brave", self.repo, self.base / "Application Support")
         data = json.loads(manifest.read_text())
         self.assertEqual(data["allowed_origins"], [self.origin])
-        config = json.loads(Path(data["path"]).with_name("config.json").read_text())
+        launcher = Path(data["path"])
+        config = json.loads(launcher.with_name("config.json").read_text())
         self.assertEqual(config, self.config)
-        self.assertEqual(host.handle({"action": "status"}, config, self.origin)["branch"], "main")
+        self.assertEqual(installer.probe_host(launcher, self.origin)["branch"], "main")
         with self.assertRaisesRegex(host.PublishError, "Link repository"):
             host.handle(self.message, {"app": "old.app", "origin": self.origin}, self.origin)
+
+    def test_probe_rejects_invalid_native_response(self):
+        response = subprocess.CompletedProcess([], 0, stdout=b"bad", stderr=b"")
+        with patch.object(installer.subprocess, "run", return_value=response):
+            with self.assertRaisesRegex(ValueError, "did not start correctly"):
+                installer.probe_host(Path("/tmp/host"), self.origin)
 
     def test_push_failure_never_reports_success_or_force_pushes(self):
         original = host.git

@@ -1,11 +1,18 @@
 (() => {
   const BUTTON = 'ghrc-add-research-report';
   const PAGE = '[class*="_reportPage_"]';
+  const CONNECTION_KEY = 'researchPublisherConnection';
   const MAX_BYTES = 4 * 1024 * 1024;
   const documents = new WeakSet();
   let enabled = false;
+  let connected = false;
   let scheduled = false;
   let frameTimer;
+  let connectionGeneration = 0;
+
+  function publisherAvailable() {
+    return enabled && connected;
+  }
 
   function reportScope(download) {
     // The export control and paginated report share a card ancestor.
@@ -53,7 +60,7 @@
       new MutationObserver(schedule).observe(doc, { childList: true, subtree: true });
       doc.addEventListener('load', schedule, true);
     }
-    if (!enabled) {
+    if (!publisherAvailable()) {
       doc.querySelectorAll(`.${BUTTON}, .ghrc-report-status`).forEach((node) => node.remove());
     } else {
       for (const download of doc.querySelectorAll('button[aria-label="Export"], button[aria-label="Download"]')) {
@@ -77,7 +84,7 @@
         button.addEventListener('click', async (event) => {
           event.preventDefault();
           event.stopPropagation();
-          if (!event.isTrusted || !enabled || button.disabled) return;
+          if (!event.isTrusted || !publisherAvailable() || button.disabled) return;
           button.disabled = true;
           button.setAttribute('aria-busy', 'true');
           status.textContent = 'Adding report to repository…';
@@ -106,34 +113,48 @@
     scheduled = true;
     requestAnimationFrame(() => { scheduled = false; mount(document); });
   }
+
+  async function checkConnection() {
+    const generation = ++connectionGeneration;
+    connected = false;
+    schedule();
+    try {
+      const result = await chrome.runtime.sendMessage({ type: 'research-publisher-status' });
+      if (generation !== connectionGeneration || !enabled) return;
+      connected = Boolean(result?.ok);
+    } catch {
+      if (generation !== connectionGeneration || !enabled) return;
+      connected = false;
+    }
+    schedule();
+  }
+
   function updateEnabled(value) {
     enabled = Boolean(value);
+    connectionGeneration += 1;
+    connected = false;
     clearInterval(frameTimer);
     // The sandbox can document.open() an existing inner frame, replacing its observers.
     // Revisit it while enabled so document replacement and delayed report loads recover.
-    if (enabled) frameTimer = setInterval(schedule, 1000);
+    if (enabled) {
+      frameTimer = setInterval(schedule, 1000);
+      void checkConnection();
+    }
     schedule();
   }
+
   chrome.storage.local.get({ researchPublisherEnabled: false }).then((settings) => {
     updateEnabled(settings.researchPublisherEnabled);
   }).catch(() => {});
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.researchPublisherEnabled) {
+    if (area !== 'local') return;
+    if (changes.researchPublisherEnabled) {
       updateEnabled(changes.researchPublisherEnabled.newValue);
+      return;
+    }
+    if (changes[CONNECTION_KEY] && enabled) {
+      connected = Boolean(changes[CONNECTION_KEY].newValue?.ok);
+      schedule();
     }
   });
-})();
-
-// Temporary local layout verification.
-(() => {
- let ticks=0;
- const timer=setInterval(()=>{
-  function inspect(doc) {
-   const button=doc.querySelector('.ghrc-add-research-report');
-   window.top.postMessage({type:'research-layout',info:{button:button?.getBoundingClientRect().toJSON(),export:doc.querySelector('button[aria-label="Export"]')?.getBoundingClientRect().toJSON(),label:button?.getAttribute('aria-label'),count:doc.querySelectorAll('.ghrc-add-research-report').length,pages:[...doc.querySelectorAll('[class*="_reportPage_"]')].map(p=>p.textContent.length)}},'https://chatgpt.com');
-   for(const f of doc.querySelectorAll('iframe'))try{if(f.contentDocument)inspect(f.contentDocument)}catch{}
-  }
-  inspect(document);
-  if(++ticks>=20)clearInterval(timer);
- },1000);
 })();
