@@ -41,17 +41,23 @@ test('leaves non-tracking URLs and surrounding copy unchanged', () => {
   assert.equal(stripTrackingFromText(input), input);
 });
 
-function clipboardFixture(settingValue) {
+function runtimeFixture(settingValue, { clipboardAvailable = true } = {}) {
   const writes = [];
+  const opened = [];
   class Clipboard {
     writeText(text) {
       writes.push(text);
       return Promise.resolve();
     }
   }
-  const clipboard = new Clipboard();
-  vm.runInNewContext(source, {
-    Clipboard,
+  const clipboard = clipboardAvailable ? new Clipboard() : undefined;
+  const window = {
+    open(url, ...args) {
+      opened.push([url, ...args]);
+      return { closed: false };
+    },
+  };
+  const context = {
     navigator: { clipboard },
     document: {
       documentElement: {
@@ -59,19 +65,44 @@ function clipboardFixture(settingValue) {
       },
     },
     URL,
-  });
-  return { clipboard, writes };
+    window,
+  };
+  if (clipboardAvailable) context.Clipboard = Clipboard;
+  vm.runInNewContext(source, context);
+  return { clipboard, writes, opened, window };
 }
 
 test('intercepts ChatGPT clipboard writes when the preference is enabled', async () => {
-  const fixture = clipboardFixture('true');
+  const fixture = runtimeFixture('true');
   await fixture.clipboard.writeText('https://example.com/?utm_source=chatgpt.com&id=7');
   assert.deepEqual(fixture.writes, ['https://example.com/?id=7']);
 });
 
 test('leaves ChatGPT clipboard writes untouched when the preference is disabled', async () => {
-  const fixture = clipboardFixture('false');
+  const fixture = runtimeFixture('false');
   const input = 'https://example.com/?utm_source=chatgpt.com&id=7';
   await fixture.clipboard.writeText(input);
   assert.deepEqual(fixture.writes, [input]);
+});
+
+test('sanitizes popup URLs even when the Clipboard API is unavailable', () => {
+  const fixture = runtimeFixture('true', { clipboardAvailable: false });
+  const popup = fixture.window.open(
+    'https://example.com/report?id=7&utm_source=chatgpt.com&utm_medium=referral#part',
+    '_blank',
+    'popup',
+  );
+  assert.equal(popup.closed, false);
+  assert.deepEqual(fixture.opened, [[
+    'https://example.com/report?id=7#part',
+    '_blank',
+    'popup',
+  ]]);
+});
+
+test('leaves popup URLs untouched when tracking removal is disabled', () => {
+  const fixture = runtimeFixture('false', { clipboardAvailable: false });
+  const input = 'https://example.com/?utm_source=chatgpt.com&id=7';
+  fixture.window.open(input, '_blank');
+  assert.deepEqual(fixture.opened, [[input, '_blank']]);
 });

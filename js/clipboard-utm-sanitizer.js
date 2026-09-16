@@ -36,55 +36,68 @@
     return document.documentElement?.getAttribute(STRIP_UTM_TRACKING_ATTR) !== "false";
   }
 
-  function patchClipboardMethod(prototype, name, createReplacement) {
-    const original = prototype?.[name];
+  function patchMethod(target, name, createReplacement) {
+    const original = target?.[name];
     if (typeof original !== "function") return;
     try {
-      Object.defineProperty(prototype, name, {
+      Object.defineProperty(target, name, {
         configurable: true,
         writable: true,
         value: createReplacement(original),
       });
     } catch {
-      // Leave ChatGPT's native clipboard behavior untouched if the API cannot be patched.
+      // Leave the native behavior untouched if this browser does not allow patching it.
     }
   }
+
+  patchMethod(window, "open", (original) => function open(url, ...args) {
+    let value = url;
+    if (trackingRemovalEnabled()) {
+      if (typeof url === "string") {
+        value = stripTrackingFromUrlValue(url);
+      } else if (typeof URL !== "undefined" && url instanceof URL) {
+        value = stripTrackingFromUrlValue(url.href);
+      }
+    }
+    return original.call(this, value, ...args);
+  });
 
   const clipboard = navigator.clipboard;
   const clipboardPrototype = typeof Clipboard !== "undefined"
     ? Clipboard.prototype
     : (clipboard && Object.getPrototypeOf(clipboard));
-  if (!clipboardPrototype) return;
 
-  patchClipboardMethod(clipboardPrototype, "writeText", (original) => function writeText(text) {
-    const value = trackingRemovalEnabled() ? stripTrackingFromText(String(text)) : text;
-    return original.call(this, value);
-  });
-
-  if (typeof ClipboardItem !== "undefined" && typeof Blob !== "undefined") {
-    patchClipboardMethod(clipboardPrototype, "write", (original) => function write(items) {
-      if (!trackingRemovalEnabled()) return original.call(this, items);
-      try {
-        const sanitizedItems = Array.from(items, (item) => {
-          const data = {};
-          for (const type of item.types) {
-            const blob = item.getType(type);
-            data[type] = type === "text/plain" || type === "text/html"
-              ? blob.then(async (value) => new Blob(
-                [stripTrackingFromText(await value.text())],
-                { type: value.type || type },
-              ))
-              : blob;
-          }
-          const options = item.presentationStyle
-            ? { presentationStyle: item.presentationStyle }
-            : undefined;
-          return new ClipboardItem(data, options);
-        });
-        return original.call(this, sanitizedItems);
-      } catch {
-        return original.call(this, items);
-      }
+  if (clipboardPrototype) {
+    patchMethod(clipboardPrototype, "writeText", (original) => function writeText(text) {
+      const value = trackingRemovalEnabled() ? stripTrackingFromText(String(text)) : text;
+      return original.call(this, value);
     });
+
+    if (typeof ClipboardItem !== "undefined" && typeof Blob !== "undefined") {
+      patchMethod(clipboardPrototype, "write", (original) => function write(items) {
+        if (!trackingRemovalEnabled()) return original.call(this, items);
+        try {
+          const sanitizedItems = Array.from(items, (item) => {
+            const data = {};
+            for (const type of item.types) {
+              const blob = item.getType(type);
+              data[type] = type === "text/plain" || type === "text/html"
+                ? blob.then(async (value) => new Blob(
+                  [stripTrackingFromText(await value.text())],
+                  { type: value.type || type },
+                ))
+                : blob;
+            }
+            const options = item.presentationStyle
+              ? { presentationStyle: item.presentationStyle }
+              : undefined;
+            return new ClipboardItem(data, options);
+          });
+          return original.call(this, sanitizedItems);
+        } catch {
+          return original.call(this, items);
+        }
+      });
+    }
   }
 })();
