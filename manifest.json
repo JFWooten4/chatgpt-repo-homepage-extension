@@ -44,7 +44,8 @@
         "js/force-high-thinking.js",
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
-        "js/external-links.js"
+        "js/external-links.js",
+        "js/hide-cookie-preferences.js"
       ],
       "run_at": "document_start"
     },
