@@ -63,6 +63,7 @@
         "css/compact-header.css",
         "css/inline-toolbar-search.css",
         "css/spellcheck-launcher.css",
+        "css/clipboard-send.css",
         "css/repository-fast-ui.css",
         "css/vscode-welcome.css"
       ],
@@ -74,7 +75,8 @@
         "js/wooten-link-zipp-placeholder.js",
         "js/owner-grid.js",
         "js/compact-header.js",
-        "js/spellcheck-launcher.js"
+        "js/spellcheck-launcher.js",
+        "js/clipboard-send.js"
       ],
       "run_at": "document_idle"
     },
