@@ -1,5 +1,6 @@
 (() => {
   const SETTING_KEY = "forceHighThinking";
+  const CACHE_KEY = "forceHighThinkingConfirmedTargets";
   const SELECTOR_ATTR = "data-ghrc-high-thinking-selector";
   const STYLE_ID = "ghrc-force-high-thinking-style";
   const SELECTOR_QUERY = 'button[aria-haspopup="menu"], button[aria-haspopup="listbox"], [role="button"][aria-haspopup], [role="combobox"]';
@@ -11,6 +12,7 @@
   let scanScheduled = false;
   let pending = null;
   let states = new WeakMap();
+  let confirmedTargets = {};
 
   function normalizedText(value) {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -23,6 +25,31 @@
       || normalizedText(labelledBy)
       || normalizedText(control.getAttribute("title"))
       || normalizedText(control.textContent);
+  }
+
+  function controlCacheKey(control) {
+    const labelledBy = normalizedText(control.getAttribute("aria-labelledby"))
+      .split(" ").map((id) => document.getElementById(id)?.textContent || "").join(" ");
+    const semanticLabel = [
+      normalizedText(control.getAttribute("aria-label")),
+      normalizedText(labelledBy),
+      normalizedText(control.getAttribute("title")),
+    ].find((value) => /\b(thinking|reasoning|effort)\b/i.test(value));
+    if (!semanticLabel) return "";
+    return normalizedText(semanticLabel.replace(LEVEL_PATTERN, " ")).toLowerCase();
+  }
+
+  function cachedTarget(control, level) {
+    const cacheKey = controlCacheKey(control);
+    return cacheKey && confirmedTargets[cacheKey] === level ? level : "";
+  }
+
+  function rememberConfirmed(control, level) {
+    if (!Object.hasOwn(LEVELS, level)) return;
+    const cacheKey = controlCacheKey(control);
+    if (!cacheKey || confirmedTargets[cacheKey] === level) return;
+    confirmedTargets = { ...confirmedTargets, [cacheKey]: level };
+    void chrome.storage.local.set({ [CACHE_KEY]: confirmedTargets });
   }
 
   function effortLevel(control) {
@@ -124,8 +151,11 @@
         state = { attempts: 0, adjustments: 0, target: "" };
         states.set(selector, state);
       }
+      const remembered = cachedTarget(selector, level);
+      if (remembered) state.target = remembered;
       if (state.target === level) {
         selector.setAttribute(SELECTOR_ATTR, "");
+        rememberConfirmed(selector, level);
         continue;
       }
       selector.removeAttribute(SELECTOR_ATTR);
@@ -165,11 +195,21 @@
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === "local" && changes[SETTING_KEY]) setEnabled(Boolean(changes[SETTING_KEY].newValue));
+    if (areaName !== "local") return;
+    if (changes[CACHE_KEY]) {
+      const value = changes[CACHE_KEY].newValue;
+      confirmedTargets = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+      scheduleScan();
+    }
+    if (changes[SETTING_KEY]) setEnabled(Boolean(changes[SETTING_KEY].newValue));
   });
   new MutationObserver(scheduleScan).observe(document, {
     childList: true, subtree: true, characterData: true, attributes: true,
     attributeFilter: ["aria-label", "aria-selected", "aria-checked", "aria-valuenow", "data-state", "title"],
   });
-  void chrome.storage.local.get({ [SETTING_KEY]: false }).then((settings) => setEnabled(Boolean(settings[SETTING_KEY])));
+  void chrome.storage.local.get({ [SETTING_KEY]: false, [CACHE_KEY]: {} }).then((settings) => {
+    const value = settings[CACHE_KEY];
+    confirmedTargets = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+    setEnabled(Boolean(settings[SETTING_KEY]));
+  });
 })();
