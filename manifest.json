@@ -35,6 +35,16 @@
       "matches": [
         "https://chatgpt.com/*"
       ],
+      "js": [
+        "js/clipboard-utm-sanitizer.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
       "css": [
         "css/homepage-boot.css",
         "css/work-mode.css"
@@ -46,7 +56,8 @@
         "js/force-high-thinking.js",
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
-        "js/external-links.js"
+        "js/external-links.js",
+        "js/clipboard-utm-preference.js"
       ],
       "run_at": "document_start"
     },
