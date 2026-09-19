@@ -56,6 +56,7 @@
         "css/styles.css",
         "css/youtube-search.css",
         "css/hide-dictation.css",
+        "css/wooten-link-zipp-placeholder.css",
         "css/owner-grid.css",
         "css/private-repository-lock.css",
         "css/compact-header.css",
@@ -68,6 +69,7 @@
         "js/repository-fast-ui.js",
         "js/content.js",
         "js/youtube-search.js",
+        "js/wooten-link-zipp-placeholder.js",
         "js/owner-grid.js",
         "js/compact-header.js",
         "js/spellcheck-launcher.js"
