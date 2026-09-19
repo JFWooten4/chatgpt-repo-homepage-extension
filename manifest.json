@@ -57,6 +57,7 @@
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/external-links.js",
+        "js/hide-cookie-preferences.js",
         "js/clipboard-utm-preference.js"
       ],
       "run_at": "document_start"
