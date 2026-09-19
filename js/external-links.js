@@ -6,7 +6,9 @@
   const DIALOG_SELECTOR = '[role="dialog"], [role="alertdialog"]';
   const EXTERNAL_DIALOG_TITLE = "External site";
   const OPEN_LINK_LABEL = "Open link";
+  const HISTORY_MODAL_DISMISS_LABEL = "Got it";
   const handledExternalDialogs = new WeakSet();
+  const handledHistoryModals = new WeakSet();
   let externalWarningEnabled = false;
   let historyModalEnabled = false;
   let stripUtmTrackingEnabled = false;
@@ -49,6 +51,11 @@
     if (!modal) return;
 
     modalWasSuppressed = true;
+    const dismissControl = findExactControl(modal, HISTORY_MODAL_DISMISS_LABEL);
+    if (dismissControl && !handledHistoryModals.has(modal)) {
+      handledHistoryModals.add(modal);
+      dismissControl.click();
+    }
     modal.style.setProperty("display", "none", "important");
     for (const element of [document.documentElement, document.body]) {
       if (!element) continue;
