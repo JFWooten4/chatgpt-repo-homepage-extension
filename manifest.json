@@ -55,6 +55,7 @@
       ],
       "css": [
         "css/styles.css",
+        "css/2048.css",
         "css/youtube-search.css",
         "css/hide-dictation.css",
         "css/wooten-link-zipp-placeholder.css",
@@ -76,6 +77,7 @@
         "js/owner-grid.js",
         "js/compact-header.js",
         "js/spellcheck-launcher.js",
+        "js/2048.js",
         "js/clipboard-send.js"
       ],
       "run_at": "document_idle"
