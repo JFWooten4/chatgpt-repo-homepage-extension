@@ -94,6 +94,39 @@
     node.querySelectorAll("a[href]").forEach(stripTrackingFromLink);
   }
 
+  function isPlainPrimaryActivation(event) {
+    return event.button === 0
+      && !event.metaKey
+      && !event.ctrlKey
+      && !event.shiftKey
+      && !event.altKey;
+  }
+
+  function openExternalLinkInCurrentTab(event, link) {
+    if (
+      !externalWarningEnabled
+      || !isPlainPrimaryActivation(event)
+      || !(link instanceof HTMLAnchorElement)
+      || link.closest("#github-repositories-for-chatgpt")
+    ) return false;
+
+    let url;
+    try {
+      url = new URL(link.href, window.location.href);
+    } catch {
+      return false;
+    }
+    if (
+      !["http:", "https:"].includes(url.protocol)
+      || url.origin === window.location.origin
+    ) return false;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    window.location.assign(url.href);
+    return true;
+  }
+
   function preserveNativeScroll(event) {
     if (!historyModalEnabled || !modalWasSuppressed) return;
     const modal = document.getElementById(MODAL_ID);
@@ -167,7 +200,9 @@
   });
 
   document.addEventListener("click", (event) => {
-    stripTrackingFromLink(event.target.closest?.("a[href]"));
+    const link = event.target.closest?.("a[href]");
+    stripTrackingFromLink(link);
+    openExternalLinkInCurrentTab(event, link);
   }, true);
 
   watchChatGPTInterruptions();

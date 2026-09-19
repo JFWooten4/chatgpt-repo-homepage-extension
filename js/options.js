@@ -20,6 +20,7 @@ const showSpellcheckGptLauncherInput = document.getElementById("show-spellcheck-
 const stripUtmTrackingInput = document.getElementById("strip-utm-tracking");
 const skipExternalSiteWarningInput = document.getElementById("skip-external-site-warning");
 const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
+const hideCookiePreferencesInput = document.getElementById("hide-cookie-preferences");
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
 let saveQueue = Promise.resolve();
@@ -204,6 +205,7 @@ async function loadSettings() {
     stripUtmTracking: true,
     skipExternalSiteWarning: true,
     dismissHistoryRateLimitModal: true,
+    hideCookiePreferences: false,
   });
   const storedOwnerOrder = normalizedOwnerOrder(settings.ownerOrder);
   let configuredTokens = [];
@@ -231,6 +233,7 @@ async function loadSettings() {
   stripUtmTrackingInput.checked = Boolean(settings.stripUtmTracking);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
   dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
+  hideCookiePreferencesInput.checked = Boolean(settings.hideCookiePreferences);
 
   const initialOwnerOrderValue = ownerOrderInput.value;
   try {
@@ -300,6 +303,7 @@ async function saveSettings() {
       stripUtmTracking: stripUtmTrackingInput.checked,
       skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
       dismissHistoryRateLimitModal: dismissHistoryRateLimitModalInput.checked,
+      hideCookiePreferences: hideCookiePreferencesInput.checked,
     });
     ownerOrderInput.value = enteredOwnerOrder.join("\n");
     ownerGroupsPerPageInput.value = ownerGroupsPerPage;

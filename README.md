@@ -102,6 +102,47 @@ leaves behind, and preserves native wheel and touch scrolling if stale modal
 listeners remain. The extension does not perform a cross-origin request to the
 destination itself.
 
+## Deep research publisher
+
+**Deep research publisher** is off by default in both settings views. Enabling it
+adds an **Add to repo** icon immediately left of the download/export control on
+completed deep research reports, including the embedded report card. Clicking it
+captures the full rendered report as Markdown and commits and pushes it directly
+to the linked repository. There is no per-report download or file picker.
+
+Use **Link repository** in settings for the one-time macOS setup. The page supplies
+an installer command for your extension ID and browser (Chrome or Brave). Run it
+from this extension's folder and select the local research repository. Python 3,
+Git, an origin remote, a Git author, and working push access are required. Use
+**Check connection** to see the destination repository and branch. The installer
+pins the current branch; link again to change it. Existing app-only connections
+must run the updated installer and select the app's repository folder.
+
+The button preserves headings, links, lists, and tables from the report. It reads
+the full report pages, including text clipped by the preview, rather than the
+surrounding chat. The report widget's DOM must be loaded; this integration targets
+the current research widget and may need updating if ChatGPT changes its markup.
+
+Publishing uses a temporary bare clone of the remote branch and a separate Git
+index. Local files, staged changes, and the checkout's branch are untouched.
+Filenames include a stable suffix based on the conversation and report title;
+retrying an identical report produces no additional commit. Concurrent remote
+updates or branch restrictions cause a visible error, never a force-push. The
+button reports success only after Git confirms the push (or the same content is
+already on the remote). Failed attempts can be retried from the report.
+
+The bridge uses Chrome's [native messaging protocol](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging).
+It accepts reports only from this extension's research-frame content script and
+uses the repository selected locally, not a path supplied by the webpage. GitHub
+dashboard tokens are not sent to the bridge. Turn the checkbox off to remove the
+buttons. To uninstall the connection, remove `org.research.publisher.json` from
+your browser's `NativeMessagingHosts` folder under `~/Library/Application Support`
+and the corresponding browser folder under `~/Library/Application Support/Research Publisher`.
+
+Markdown conversion bundles Turndown 7.2.0 and turndown-plugin-gfm 1.0.2 in
+`vendor/`, with their MIT license files. Their npm distribution integrity hashes
+were checked when vendoring.
+
 ## Pins
 
 Select **Pin** beside any repository on the dashboard or in search results to

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "GitHub Repositories for ChatGPT",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Adds a personalized GitHub repository dashboard and optional ChatGPT interface tweaks.",
   "icons": {
     "16": "icons/icon-16.png",
@@ -11,7 +11,8 @@
   },
   "permissions": [
     "storage",
-    "clipboardRead"
+    "clipboardRead",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "https://api.github.com/*",
@@ -34,18 +35,31 @@
       "matches": [
         "https://chatgpt.com/*"
       ],
+      "js": [
+        "js/clipboard-utm-sanitizer.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://chatgpt.com/*"
+      ],
       "css": [
         "css/homepage-boot.css",
         "css/work-mode.css"
       ],
       "js": [
         "js/collapse-sidebar.js",
+        "js/dashboard-visibility.js",
         "js/disable-work-mode.js",
         "js/force-high-thinking.js",
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/hide-background-completion-notifications.js",
-        "js/external-links.js"
+        "js/external-links.js",
+        "js/hide-cookie-preferences.js",
+        "js/clipboard-utm-preference.js"
       ],
       "run_at": "document_start"
     },
@@ -55,22 +69,43 @@
       ],
       "css": [
         "css/styles.css",
+        "css/2048.css",
+        "css/youtube-search.css",
         "css/hide-dictation.css",
+        "css/wooten-link-zipp-placeholder.css",
         "css/owner-grid.css",
         "css/private-repository-lock.css",
         "css/compact-header.css",
         "css/inline-toolbar-search.css",
         "css/spellcheck-launcher.css",
-        "css/repository-fast-ui.css"
+        "css/clipboard-send.css",
+        "css/repository-fast-ui.css",
+        "css/vscode-welcome.css"
       ],
       "js": [
         "js/avatar-cache-ui.js",
         "js/repository-fast-ui.js",
         "js/content.js",
+        "js/youtube-search.js",
+        "js/wooten-link-zipp-placeholder.js",
         "js/owner-grid.js",
         "js/compact-header.js",
-        "js/spellcheck-launcher.js"
+        "js/spellcheck-launcher.js",
+        "js/2048.js",
+        "js/clipboard-send.js"
       ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://connector-openai-deep-research.web-sandbox.oaiusercontent.com/*"
+      ],
+      "js": [
+        "vendor/turndown.js",
+        "vendor/turndown-plugin-gfm.js",
+        "js/research-publisher.js"
+      ],
+      "all_frames": true,
       "run_at": "document_idle"
     }
   ],
