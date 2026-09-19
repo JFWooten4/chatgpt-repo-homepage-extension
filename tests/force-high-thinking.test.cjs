@@ -18,22 +18,29 @@ class Element {
 }
 function fixture() {
   const elements = new Map();
+  const storageWrites = [];
+  let controls = [];
   const context = {
     HTMLElement: Element,
     getComputedStyle: () => ({ display: 'block', visibility: 'visible' }),
     KeyboardEvent: class { constructor(type, args) { this.type = type; Object.assign(this, args); } },
     window: { setTimeout() {} }, requestAnimationFrame() {},
+    chrome: { storage: { local: { set(value) { storageWrites.push(value); return Promise.resolve(); } } } },
     document: {
       getElementById: (id) => elements.get(id),
       createElement: () => new Element(),
       documentElement: { append: (element) => elements.set(element.id, element) },
-      querySelectorAll: () => [],
+      querySelectorAll: () => controls,
     },
   };
   vm.createContext(context);
   vm.runInContext(source.slice(0, source.indexOf('  chrome.storage.onChanged')) + `
-    globalThis.api = { effortLevel, ensureStyle, selectMaximum,
-      begin(selector, state, initialLevel) { pending = { selector, state, initialLevel }; }
+    globalThis.api = { effortLevel, ensureStyle, selectMaximum, controlCacheKey, scanControls,
+      begin(selector, state, initialLevel) { pending = { selector, state, initialLevel }; },
+      clearPending() { pending = null; },
+      seedState(selector, target) { states.set(selector, { attempts: 0, adjustments: 0, target }); },
+      setEnabledForTest(value) { enabled = value; },
+      setConfirmedTargets(value) { confirmedTargets = value; },
     };
   })();`, context);
   const selector = new Element('Standard', { 'aria-controls': 'menu' });
@@ -43,7 +50,10 @@ function fixture() {
   menu.querySelectorAll = () => [];
   elements.set('menu', menu);
   context.api.begin(selector, state, 'standard');
-  return { api: context.api, elements, selector, state, menu };
+  return {
+    api: context.api, elements, selector, state, menu, storageWrites,
+    setControls(value) { controls = value; },
+  };
 }
 
 test('visible level is recognized when accessibility label omits it', () => {
@@ -58,6 +68,46 @@ test('hiding CSS matches the empty marker attribute', () => {
   const f = fixture();
   f.api.ensureStyle();
   assert.equal(f.elements.get('ghrc-force-high-thinking-style').textContent, '[data-ghrc-high-thinking-selector] { display: none !important; }');
+});
+
+test('confirmed visible level is cached when the control is hidden', () => {
+  const f = fixture();
+  const selector = new Element('High', { 'aria-label': 'Thinking effort' });
+  f.api.clearPending();
+  f.api.setEnabledForTest(true);
+  f.api.setConfirmedTargets({});
+  f.api.seedState(selector, 'high');
+  f.setControls([selector]);
+  f.api.scanControls();
+  assert.equal(selector.hasAttribute('data-ghrc-high-thinking-selector'), true);
+  assert.equal(JSON.stringify(f.storageWrites), JSON.stringify([{ forceHighThinkingConfirmedTargets: { 'thinking effort': 'high' } }]));
+});
+test('cached confirmed level skips reopening the selector in a new page', () => {
+  const f = fixture();
+  const selector = new Element('High', { 'aria-label': 'Thinking effort' });
+  const keys = [];
+  selector.dispatchEvent = (event) => { keys.push(event.key); return true; };
+  f.api.clearPending();
+  f.api.setEnabledForTest(true);
+  f.api.setConfirmedTargets({ 'thinking effort': 'high' });
+  f.setControls([selector]);
+  f.api.scanControls();
+  assert.equal(selector.hasAttribute('data-ghrc-high-thinking-selector'), true);
+  assert.deepEqual(keys, []);
+  assert.deepEqual(f.storageWrites, []);
+});
+test('cached level mismatch still rechecks the selector', () => {
+  const f = fixture();
+  const selector = new Element('Standard', { 'aria-label': 'Thinking effort' });
+  const keys = [];
+  selector.dispatchEvent = (event) => { keys.push(event.key); return true; };
+  f.api.clearPending();
+  f.api.setEnabledForTest(true);
+  f.api.setConfirmedTargets({ 'thinking effort': 'high' });
+  f.setControls([selector]);
+  f.api.scanControls();
+  assert.equal(selector.hasAttribute('data-ghrc-high-thinking-selector'), false);
+  assert.ok(keys.includes('ArrowDown'));
 });
 for (const [levels, maximum] of [
   [['Standard', 'Extended'], 'Extended'],
