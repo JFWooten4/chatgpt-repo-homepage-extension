@@ -44,6 +44,7 @@
         "js/force-high-thinking.js",
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
+        "js/hide-background-completion-notifications.js",
         "js/external-links.js"
       ],
       "run_at": "document_start"
@@ -84,4 +85,4 @@
       ]
     }
   ]
-}
+}\n
