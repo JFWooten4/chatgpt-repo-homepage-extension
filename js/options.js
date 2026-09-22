@@ -14,6 +14,7 @@ const showWootenLinkSearchInput = document.getElementById("show-wooten-link-sear
 const pinnedRepositoryList = document.getElementById("pinned-repositories");
 const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
+const preserveScrollPositionOnSendInput = document.getElementById("preserve-scroll-position-on-send");
 const compactNewChatHeaderInput = document.getElementById("compact-new-chat-header");
 const disableWorkModeInput = document.getElementById("disable-work-mode");
 const showSpellcheckGptLauncherInput = document.getElementById("show-spellcheck-gpt-launcher");
@@ -199,6 +200,7 @@ async function loadSettings() {
     showWootenLinkSearch: false,
     pinnedRepositories: [],
     hideDictationButton: false,
+    preserveScrollPositionOnSend: false,
     compactNewChatHeader: false,
     disableWorkMode: false,
     showSpellcheckGptLauncher: false,
@@ -227,6 +229,7 @@ async function loadSettings() {
   showRepositoryTotalInput.checked = Boolean(settings.showRepositoryTotal);
   showWootenLinkSearchInput.checked = Boolean(settings.showWootenLinkSearch);
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
+  preserveScrollPositionOnSendInput.checked = Boolean(settings.preserveScrollPositionOnSend);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
   disableWorkModeInput.checked = Boolean(settings.disableWorkMode);
   showSpellcheckGptLauncherInput.checked = Boolean(settings.showSpellcheckGptLauncher);
@@ -297,6 +300,7 @@ async function saveSettings() {
       showWootenLinkSearch: showWootenLinkSearchInput.checked,
       pinnedRepositories: pinnedRepositoriesFromList(),
       hideDictationButton: hideDictationButtonInput.checked,
+      preserveScrollPositionOnSend: preserveScrollPositionOnSendInput.checked,
       compactNewChatHeader: compactNewChatHeaderInput.checked,
       disableWorkMode: disableWorkModeInput.checked,
       showSpellcheckGptLauncher: showSpellcheckGptLauncherInput.checked,
