@@ -79,6 +79,7 @@
         "css/inline-toolbar-search.css",
         "css/spellcheck-launcher.css",
         "css/clipboard-send.css",
+        "css/top-hat-send-button.css",
         "css/repository-fast-ui.css",
         "css/vscode-welcome.css"
       ],
