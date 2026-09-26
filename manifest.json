@@ -56,6 +56,7 @@
         "js/force-high-thinking.js",
         "js/homepage-boot.js",
         "js/autofocus-composer.js",
+        "js/preserve-scroll-on-send.js",
         "js/hide-background-completion-notifications.js",
         "js/external-links.js",
         "js/hide-cookie-preferences.js",
@@ -80,6 +81,7 @@
         "css/spellcheck-launcher.css",
         "css/clipboard-send.css",
         "css/top-hat-send-button.css",
+        "css/message-queue.css",
         "css/repository-fast-ui.css",
         "css/vscode-welcome.css"
       ],
@@ -93,7 +95,8 @@
         "js/compact-header.js",
         "js/spellcheck-launcher.js",
         "js/2048.js",
-        "js/clipboard-send.js"
+        "js/clipboard-send.js",
+        "js/message-queue.js"
       ],
       "run_at": "document_idle"
     },

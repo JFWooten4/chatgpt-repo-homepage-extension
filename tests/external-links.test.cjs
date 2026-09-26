@@ -92,3 +92,59 @@ test('disabling external-warning bypass leaves link handling untouched', () => {
   assert.equal(f.api.openExternalLinkInCurrentTab(f.event, link), false);
   assert.deepEqual(f.navigations, []);
 });
+
+
+function historyModalFixture() {
+  let clicks = 0;
+  let hides = 0;
+  const dismissControl = {
+    textContent: 'Got it',
+    click() { clicks += 1; },
+  };
+  const modal = {
+    style: {
+      setProperty(name, value) {
+        if (name === 'display' && value === 'none') hides += 1;
+      },
+    },
+    querySelectorAll(selector) {
+      return selector === 'button, a[href], [role="button"]' ? [dismissControl] : [];
+    },
+  };
+  const pageElement = {
+    style: { setProperty() {} },
+    removeAttribute() {},
+  };
+  const context = {
+    document: {
+      documentElement: pageElement,
+      body: pageElement,
+      getElementById: () => modal,
+      querySelectorAll: () => [],
+    },
+    getComputedStyle: () => ({ pointerEvents: 'auto' }),
+  };
+  vm.createContext(context);
+  const boundary = source.indexOf('  function stripTrackingFromLink');
+  vm.runInContext(source.slice(0, boundary) + `
+    historyModalEnabled = true;
+    globalThis.historyApi = { suppressHistoryRateLimitModal };
+  })();`, context);
+
+  return {
+    suppress: context.historyApi.suppressHistoryRateLimitModal,
+    clicks: () => clicks,
+    hides: () => hides,
+  };
+}
+
+test('history rate-limit modal uses ChatGPT native dismissal before fallback hiding', () => {
+  const f = historyModalFixture();
+  f.suppress();
+  assert.equal(f.clicks(), 1);
+  assert.equal(f.hides(), 1);
+
+  f.suppress();
+  assert.equal(f.clicks(), 1);
+  assert.equal(f.hides(), 2);
+});
