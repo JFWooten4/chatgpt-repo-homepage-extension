@@ -17,6 +17,7 @@ The dashboard:
 - strips UTM tracking parameters from links shown by ChatGPT by default;
 - can skip ChatGPT's external-site warning and dismiss its history rate-limit
   modal independently;
+- queues follow-up messages locally while ChatGPT is responding, keeps them editable and reorderable, and sends them FIFO only after the active response fully completes;
 - adds columns for any other GitHub accounts the connected tokens can access;
 - pins important repositories at the top of their user or organization column;
 - searches across every loaded repository; and
@@ -101,6 +102,14 @@ hides the known conversation-history rate-limit modal, clears the page locks it
 leaves behind, and preserves native wheel and touch scrolling if stale modal
 listeners remain. The extension does not perform a cross-origin request to the
 destination itself.
+
+## Queued messages
+
+Use the stack-plus button beside ChatGPT's composer to queue the current draft. While ChatGPT is already responding, pressing **Enter** also adds the draft to the queue instead of interrupting the active response; **Shift+Enter** still inserts a newline. Pending messages appear directly above the composer and can be edited, reordered, or removed before they are sent.
+
+Queues are stored in `chrome.storage.local` per conversation, so pending text survives page reloads and normal extension updates. A queue created during the first response of a new chat is migrated to that conversation once ChatGPT assigns its `/c/...` URL. Navigating away leaves that conversation's queue stored locally until the conversation is opened again.
+
+Automatic sending deliberately does **not** rely on a quiet DOM or the end of ChatGPT's thinking phase. The next item is eligible only when the stop/generation control is gone, the normal send control is ready, user and assistant turns are balanced, the latest assistant turn exposes a completed-response action, and that completed state remains stable for a short settle window. This prevents the queue from firing in the transition between thinking and answer generation.
 
 ## Deep research publisher
 

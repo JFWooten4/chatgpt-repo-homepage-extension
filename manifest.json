@@ -79,6 +79,7 @@
         "css/inline-toolbar-search.css",
         "css/spellcheck-launcher.css",
         "css/clipboard-send.css",
+        "css/message-queue.css",
         "css/repository-fast-ui.css",
         "css/vscode-welcome.css"
       ],
@@ -92,7 +93,8 @@
         "js/compact-header.js",
         "js/spellcheck-launcher.js",
         "js/2048.js",
-        "js/clipboard-send.js"
+        "js/clipboard-send.js",
+        "js/message-queue.js"
       ],
       "run_at": "document_idle"
     },
