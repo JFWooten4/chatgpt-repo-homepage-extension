@@ -24,7 +24,9 @@
 
   function stripTrackingFromText(value) {
     if (typeof value !== "string" || !value) return value;
-    return value.replace(URL_PATTERN, stripTrackingFromUrlValue);
+    return value
+      .replace(CONTENT_REFERENCE_PATTERN, "")
+      .replace(URL_PATTERN, stripTrackingFromUrlValue);
   }
 
   if (typeof module !== "undefined" && module.exports) {
