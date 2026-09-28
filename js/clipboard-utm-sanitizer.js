@@ -1,6 +1,7 @@
 (() => {
   const STRIP_UTM_TRACKING_ATTR = "data-ghrc-strip-utm-tracking";
   const URL_PATTERN = /https?:\/\/[^\s<>"'`\])}]+/gi;
+  const CONTENT_REFERENCE_PATTERN = /:chatgpt-content-reference\{[^}\r\n]*\}/g;
 
   function stripTrackingFromUrlValue(value) {
     const htmlAmpersands = /&amp;/i.test(value);
