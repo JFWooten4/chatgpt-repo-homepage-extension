@@ -1,6 +1,7 @@
 (() => {
   const STRIP_UTM_TRACKING_ATTR = "data-ghrc-strip-utm-tracking";
   const URL_PATTERN = /https?:\/\/[^\s<>"'`\])}]+/gi;
+  const CONTENT_REFERENCE_PATTERN = /:chatgpt-content-reference\{[^}\r\n]*\}/g;
 
   function stripTrackingFromUrlValue(value) {
     const htmlAmpersands = /&amp;/i.test(value);
@@ -24,11 +25,80 @@
 
   function stripTrackingFromText(value) {
     if (typeof value !== "string" || !value) return value;
-    return value.replace(URL_PATTERN, stripTrackingFromUrlValue);
+    return value
+      .replace(CONTENT_REFERENCE_PATTERN, "")
+      .replace(URL_PATTERN, stripTrackingFromUrlValue);
+  }
+
+  function normalizeReferenceLabel(label) {
+    return label.trim().replace(/\s+/g, " ").toLowerCase();
+  }
+
+  function convertReferenceLinksToInlineMarkdown(value) {
+    if (typeof value !== "string" || !value) return value;
+
+    const lineEnding = value.includes("\r\n") ? "\r\n" : "\n";
+    const lines = value.split(/\r?\n/);
+    const definitions = new Map();
+
+    lines.forEach((line, index) => {
+      const match = line.match(
+        /^[ \t]{0,3}\[([^\]\r\n]+)\]:[ \t]*(?:<([^>\r\n]+)>|(\S+))(?:[ \t]+(?:"([^"\r\n]*)"|'([^'\r\n]*)'|\(([^)\r\n]*)\)))?[ \t]*$/,
+      );
+      if (!match) return;
+
+      const label = normalizeReferenceLabel(match[1]);
+      if (!label || definitions.has(label)) return;
+      const wrappedDestination = match[2] != null;
+      definitions.set(label, {
+        destination: wrappedDestination ? `<${match[2]}>` : match[3],
+        title: match[4] ?? match[5] ?? match[6] ?? "",
+        lineIndex: index,
+      });
+    });
+
+    if (!definitions.size) return value;
+
+    const usedDefinitions = new Set();
+    const convertedLines = lines.map((line) => line.replace(
+      /(!?)\[([^\]\r\n]+)\]\[([^\]\r\n]*)\]/g,
+      (match, imagePrefix, text, referenceLabel) => {
+        const label = normalizeReferenceLabel(referenceLabel || text);
+        const definition = definitions.get(label);
+        if (!definition) return match;
+
+        usedDefinitions.add(label);
+        const title = definition.title
+          ? ` "${definition.title.replace(/"/g, '\\"')}"`
+          : "";
+        return `${imagePrefix}[${text}](${definition.destination}${title})`;
+      },
+    ));
+
+    if (!usedDefinitions.size) return value;
+
+    return convertedLines
+      .filter((_, index) => {
+        for (const label of usedDefinitions) {
+          if (definitions.get(label)?.lineIndex === index) return false;
+        }
+        return true;
+      })
+      .join(lineEnding);
+  }
+
+  function sanitizeCopiedText(value, stripTracking = true) {
+    const inlineMarkdown = convertReferenceLinksToInlineMarkdown(value);
+    return stripTracking ? stripTrackingFromText(inlineMarkdown) : inlineMarkdown;
   }
 
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { stripTrackingFromUrlValue, stripTrackingFromText };
+    module.exports = {
+      stripTrackingFromUrlValue,
+      stripTrackingFromText,
+      convertReferenceLinksToInlineMarkdown,
+      sanitizeCopiedText,
+    };
     return;
   }
 
@@ -69,24 +139,31 @@
 
   if (clipboardPrototype) {
     patchMethod(clipboardPrototype, "writeText", (original) => function writeText(text) {
-      const value = trackingRemovalEnabled() ? stripTrackingFromText(String(text)) : text;
+      const value = sanitizeCopiedText(String(text), trackingRemovalEnabled());
       return original.call(this, value);
     });
 
     if (typeof ClipboardItem !== "undefined" && typeof Blob !== "undefined") {
       patchMethod(clipboardPrototype, "write", (original) => function write(items) {
-        if (!trackingRemovalEnabled()) return original.call(this, items);
         try {
+          const stripTracking = trackingRemovalEnabled();
           const sanitizedItems = Array.from(items, (item) => {
             const data = {};
             for (const type of item.types) {
               const blob = item.getType(type);
-              data[type] = type === "text/plain" || type === "text/html"
-                ? blob.then(async (value) => new Blob(
+              if (type === "text/plain") {
+                data[type] = blob.then(async (value) => new Blob(
+                  [sanitizeCopiedText(await value.text(), stripTracking)],
+                  { type: value.type || type },
+                ));
+              } else if (type === "text/html" && stripTracking) {
+                data[type] = blob.then(async (value) => new Blob(
                   [stripTrackingFromText(await value.text())],
                   { type: value.type || type },
-                ))
-                : blob;
+                ));
+              } else {
+                data[type] = blob;
+              }
             }
             const options = item.presentationStyle
               ? { presentationStyle: item.presentationStyle }
