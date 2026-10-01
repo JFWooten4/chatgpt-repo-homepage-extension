@@ -47,11 +47,13 @@
         "https://chatgpt.com/*"
       ],
       "css": [
-        "css/work-mode.css"
+        "css/work-mode.css",
+        "css/compact-header.css"
       ],
       "js": [
         "js/collapse-sidebar.js",
         "js/dashboard-visibility.js",
+        "js/compact-header.js",
         "js/disable-work-mode.js",
         "js/force-high-thinking.js",
         "js/autofocus-composer.js",
@@ -76,7 +78,6 @@
         "css/wooten-link-zipp-placeholder.css",
         "css/owner-grid.css",
         "css/private-repository-lock.css",
-        "css/compact-header.css",
         "css/inline-toolbar-search.css",
         "css/spellcheck-launcher.css",
         "css/clipboard-send.css",
@@ -91,7 +92,6 @@
         "js/youtube-search.js",
         "js/wooten-link-zipp-placeholder.js",
         "js/owner-grid.js",
-        "js/compact-header.js",
         "js/spellcheck-launcher.js",
         "js/2048.js",
         "js/clipboard-send.js",
