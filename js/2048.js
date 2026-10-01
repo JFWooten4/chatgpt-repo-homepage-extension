@@ -157,6 +157,22 @@
     return button;
   }
 
+  function jamJarIcon() {
+    const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 24 24");
+    icon.setAttribute("aria-hidden", "true");
+    icon.classList.add("ghrc-2048-jam-jar");
+    icon.innerHTML = `
+      <path d="M7 6v3l-2 3v7a3 3 0 0 0 3 3h8a3 3 0 0 0 3-3v-7l-2-3V6Z" fill="#b83e78" stroke="#f2a6cb" stroke-width="1.3"/>
+      <rect x="6" y="2" width="12" height="5" rx="1.5" fill="#bda1e7" stroke="#e2d4f8" stroke-width="1.3"/>
+      <path d="M9 3.5v2M12 3.5v2M15 3.5v2" stroke="#8060ae" stroke-width="1"/>
+      <rect x="7" y="12" width="10" height="7" rx="1.5" fill="#fff0d8"/>
+      <path d="M12 17.5c-4-2.3-2-5.3 0-3.4 2-1.9 4 1.1 0 3.4Z" fill="#b83e78"/>
+      <path d="M7 10.5v8" stroke="#ffd2e7" stroke-linecap="round" opacity=".6"/>
+    `;
+    return icon;
+  }
+
   function installLauncher() {
     const footer = document.querySelector(
       "#github-repositories-for-chatgpt .ghrc-dashboard-footer",
@@ -200,15 +216,14 @@
     const title = document.createElement("h2");
     title.id = "ghrc-2048-title";
     title.textContent = "2048";
-    const subtitle = document.createElement("p");
-    subtitle.textContent = "Arrow keys or WASD";
-    heading.append(title, subtitle);
+    heading.append(title);
 
     const close = document.createElement("button");
     close.type = "button";
     close.className = "ghrc-2048-close";
     close.setAttribute("aria-label", "Close 2048");
-    close.textContent = "×";
+    close.title = "Close 2048";
+    close.append(jamJarIcon());
     header.append(heading, close);
 
     const controls = document.createElement("div");
@@ -303,14 +318,14 @@
       ArrowRight: "right",
       ArrowUp: "up",
       ArrowDown: "down",
+      ".": "up",
+      ">": "up",
+      u: "right",
+      U: "right",
       a: "left",
       A: "left",
-      d: "right",
-      D: "right",
-      w: "up",
-      W: "up",
-      s: "down",
-      S: "down",
+      e: "down",
+      E: "down",
     };
 
     const onKeyDown = (event) => {

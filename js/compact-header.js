@@ -5,7 +5,7 @@
   const COMPACT_LAYOUT_READY_ATTR = "data-ghrc-compact-layout-ready";
   const COMPOSER_STACK_CLASS = "ghrc-compact-composer-stack";
   const WELCOME_REGION_CLASS = "ghrc-compact-welcome-region";
-  const SETTLE_DELAY_MS = 120;
+  const SETTLE_DELAY_MS = 0;
   let settleTimer = null;
   let activeStack = null;
   let activeWelcomeRegion = null;
@@ -36,6 +36,10 @@
   }
 
   function findWelcomeHeading(composer) {
+    const homeWelcome = composer.closest('[class~="group/home-composer-layout"]')
+      ?.querySelector(".home-composer-anchor");
+    if (homeWelcome && !homeWelcome.contains(composer)) return homeWelcome;
+
     const existing = document.querySelector(".ghrc-hidden-welcome");
     if (existing) return existing;
 
@@ -76,6 +80,7 @@
   }
 
   function welcomeRegionFor(heading, stack, composer) {
+    if (heading.classList.contains("home-composer-anchor")) return heading;
     let welcomeRegion = heading;
     while (
       welcomeRegion.parentElement
@@ -123,7 +128,13 @@
 
     const stackStillValid = activeStack?.isConnected && activeStack.contains(composer);
     if (!stackStillValid) {
-      setActiveStack(composer.closest("#thread") || composer.parentElement);
+      let stack = composer.closest("#thread")
+        || composer.closest('[class~="group/home-composer-layout"]')
+        || composer.parentElement;
+      while (stack?.parentElement && getComputedStyle(stack).display === "contents") {
+        stack = stack.parentElement;
+      }
+      setActiveStack(stack);
     }
 
     const welcomeHeading = findWelcomeHeading(composer);
@@ -144,7 +155,7 @@
   }
 
   function scheduleCompactLayout(delay = SETTLE_DELAY_MS) {
-    if (settleTimer !== null) clearTimeout(settleTimer);
+    if (settleTimer !== null) return;
     settleTimer = setTimeout(() => {
       settleTimer = null;
       requestAnimationFrame(applyCompactLayout);
@@ -182,4 +193,11 @@
   });
 
   scheduleCompactLayout();
+  void chrome.storage.local.get({ compactNewChatHeader: false }).then((settings) => {
+    document.documentElement.toggleAttribute(COMPACT_HEADER_ATTR, Boolean(settings.compactNewChatHeader));
+    if (location.pathname === "/" && !document.querySelector('[data-message-author-role]')) {
+      document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
+    }
+    scheduleCompactLayout();
+  });
 })();

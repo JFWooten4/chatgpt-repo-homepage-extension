@@ -411,9 +411,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message?.type === "open-options") {
-    chrome.runtime.openOptionsPage();
-    sendResponse({ ok: true });
-    return false;
+    (async () => {
+      if (message.connectGithub) {
+        await chrome.storage.local.set({ githubAppConnectRequested: true });
+        await chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
+      } else {
+        await chrome.runtime.openOptionsPage();
+      }
+    })()
+      .then(() => sendResponse({ ok: true }))
+      .catch(() => sendResponse({ ok: false, error: "Could not open GitHub settings." }));
+    return true;
   }
 
   if (message?.type === "open-wooten-link") {

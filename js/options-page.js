@@ -1,7 +1,7 @@
 (() => {
   const GITHUB_APP_CONFIG = Object.freeze({
     clientId: "Iv23liukJaqMAIiIIfOz",
-    appSlug: "chatgpt-repository-dashboard",
+    appSlug: "flawless-chatgpt",
   });
   const artwork = document.getElementById("standalone-artwork");
   const animatedPath = artwork?.dataset.animatedSrc;

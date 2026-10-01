@@ -122,5 +122,43 @@ class PublisherTests(unittest.TestCase):
             self.assertFalse(json.loads(payload[4:])["ok"])
 
 
+class PublisherInstallTests(unittest.TestCase):
+    def install(self, support):
+        repo = support.parent / "research"
+        repo.mkdir(exist_ok=True)
+
+        def git_result(args, **kwargs):
+            if args[-2:] == ["rev-parse", "--show-toplevel"]:
+                value = str(repo.resolve())
+            elif args[-1] == "HEAD":
+                value = "main"
+            else:
+                value = "https://github.com/example/research.git"
+            return subprocess.CompletedProcess(args, 0, stdout=value + "\n", stderr="")
+
+        with patch.object(installer.subprocess, "run", side_effect=git_result), \
+                patch.object(installer, "probe_host", return_value={"ok": True}):
+            return installer.install("a" * 32, "brave", repo, support)
+
+    def test_brave_registers_host_in_chrome_compatible_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            support = Path(directory).resolve() / "Application Support"
+            manifest = self.install(support)
+            compatibility = support / "Google/Chrome/NativeMessagingHosts" / manifest.name
+            self.assertTrue(compatibility.is_symlink())
+            self.assertEqual(compatibility.resolve(), manifest.resolve())
+            self.assertEqual(json.loads(compatibility.read_text())["allowed_origins"],
+                             ["chrome-extension://" + "a" * 32 + "/"])
+
+    def test_brave_preserves_existing_chrome_publisher_registration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            support = Path(directory).resolve() / "Application Support"
+            compatibility = support / "Google/Chrome/NativeMessagingHosts/org.research.publisher.json"
+            compatibility.parent.mkdir(parents=True)
+            compatibility.write_text('{"existing":true}\n')
+            self.install(support)
+            self.assertEqual(compatibility.read_text(), '{"existing":true}\n')
+
+
 if __name__ == "__main__":
     unittest.main()

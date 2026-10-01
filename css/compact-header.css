@@ -1,3 +1,4 @@
+html[data-ghrc-new-chat][data-ghrc-compact-header] .home-composer-anchor,
 html[data-ghrc-new-chat][data-ghrc-compact-header] .ghrc-compact-welcome-region {
   display: none !important;
   flex: 0 0 0 !important;
@@ -8,6 +9,8 @@ html[data-ghrc-new-chat][data-ghrc-compact-header] .ghrc-compact-welcome-region 
   padding: 0 !important;
 }
 
+html[data-ghrc-new-chat][data-ghrc-compact-header] #thread,
+html[data-ghrc-new-chat][data-ghrc-compact-header] [class~="group/home-composer-layout"],
 html[data-ghrc-new-chat][data-ghrc-compact-header] .ghrc-compact-composer-stack {
   align-content: flex-start !important;
   height: auto !important;

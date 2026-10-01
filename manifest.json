@@ -11,13 +11,15 @@
   },
   "permissions": [
     "storage",
+    "identity",
     "clipboardRead",
     "nativeMessaging"
   ],
   "host_permissions": [
     "https://api.github.com/*",
     "https://avatars.githubusercontent.com/*",
-    "https://github.com/*"
+    "https://github.com/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "js/background.js"
@@ -47,20 +49,21 @@
         "https://chatgpt.com/*"
       ],
       "css": [
-        "css/homepage-boot.css",
-        "css/work-mode.css"
+        "css/work-mode.css",
+        "css/compact-header.css"
       ],
       "js": [
         "js/collapse-sidebar.js",
         "js/dashboard-visibility.js",
+        "js/compact-header.js",
         "js/disable-work-mode.js",
         "js/force-high-thinking.js",
-        "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/preserve-scroll-on-send.js",
         "js/hide-background-completion-notifications.js",
         "js/external-links.js",
         "js/hide-cookie-preferences.js",
+        "js/block-voice-prompts.js",
         "js/clipboard-utm-preference.js"
       ],
       "run_at": "document_start"
@@ -77,14 +80,12 @@
         "css/wooten-link-zipp-placeholder.css",
         "css/owner-grid.css",
         "css/private-repository-lock.css",
-        "css/compact-header.css",
         "css/inline-toolbar-search.css",
         "css/spellcheck-launcher.css",
         "css/clipboard-send.css",
         "css/top-hat-send-button.css",
         "css/message-queue.css",
-        "css/repository-fast-ui.css",
-        "css/vscode-welcome.css"
+        "css/repository-fast-ui.css"
       ],
       "js": [
         "js/avatar-cache-ui.js",
@@ -93,7 +94,6 @@
         "js/youtube-search.js",
         "js/wooten-link-zipp-placeholder.js",
         "js/owner-grid.js",
-        "js/compact-header.js",
         "js/spellcheck-launcher.js",
         "js/2048.js",
         "js/clipboard-send.js",

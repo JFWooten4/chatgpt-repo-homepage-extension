@@ -17,6 +17,7 @@
 
   const autoFocusInput = document.getElementById("auto-focus-composer");
   bindCheckbox(autoFocusInput, AUTO_FOCUS_SETTING_KEY, true);
+  bindCheckbox(document.getElementById("block-voice-prompts"), "blockVoicePrompts", false);
 
   const chatDisplayFieldset = autoFocusInput?.closest("fieldset");
   const disableWorkPreference = document.getElementById("disable-work-mode")?.closest("label.preference");

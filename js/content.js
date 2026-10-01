@@ -78,13 +78,17 @@
   }
 
   function updateWelcomeHeading(composer) {
-    document.querySelectorAll(`.${HIDDEN_WELCOME_CLASS}`).forEach((element) => {
-      element.classList.remove(HIDDEN_WELCOME_CLASS);
-    });
     if (
       !document.documentElement.hasAttribute(COMPACT_HEADER_ATTR)
-      || !document.documentElement.hasAttribute(COMPOSER_READY_ATTR)
-    ) return;
+    ) {
+      document.querySelectorAll(`.${HIDDEN_WELCOME_CLASS}`).forEach((element) => {
+        element.classList.remove(HIDDEN_WELCOME_CLASS);
+      });
+      return;
+    }
+
+    const hiddenHeading = document.querySelector(`.${HIDDEN_WELCOME_CLASS}`);
+    if (hiddenHeading?.isConnected && !hiddenHeading.contains(composer)) return;
 
     const main = composer.closest("main") || document.querySelector("main");
     if (!main) return;
@@ -126,7 +130,9 @@
   }
 
   function applyPageAdjustments(composer) {
-    document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
+    if (!document.documentElement.hasAttribute(NEW_CHAT_ATTR)) {
+      document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
+    }
     updateWelcomeHeading(composer);
   }
 
@@ -431,9 +437,9 @@
     container.hidden = false;
   }
 
-  function requestOptionsPage() {
+  function requestOptionsPage(connectGithub = false) {
     try {
-      chrome.runtime.sendMessage({ type: "open-options" }, () => {
+      chrome.runtime.sendMessage({ type: "open-options", connectGithub }, () => {
         // Consume lastError so a stale/missing worker does not surface as an unchecked error.
         void chrome.runtime.lastError;
       });
@@ -527,7 +533,7 @@
     settings.className = "ghrc-settings";
     settings.textContent = mode === "authenticated" ? "Settings" : "Connect GitHub";
     settings.addEventListener("click", () => {
-      requestOptionsPage();
+      requestOptionsPage(mode !== "authenticated");
     });
     return settings;
   }

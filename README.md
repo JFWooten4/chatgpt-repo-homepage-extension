@@ -53,6 +53,23 @@ added, removed, or reordered at any time. Existing single-token settings are
 migrated automatically. Use a fine-grained token with read-only access to only
 the repository metadata the extension should display.
 
+### GitHub App login
+
+Connect GitHub opens the Flawless ChatGPT app's browser authorization page and returns to the extension automatically. Choose repositories to install the app on a personal account or organization and select its repository access.
+
+The small local login service exchanges GitHub's authorization code; the extension stores the resulting session in its encrypted browser vault. The service listens only on `127.0.0.1:8787`, accepts the configured extension identity, and keeps access tokens out of redirect URLs.
+
+To configure it on macOS:
+
+1. In the app settings, set the callback URL to `http://127.0.0.1:8787/github/callback` and generate a client secret. App settings: https://github.com/settings/apps/flawless-chatgpt
+2. Run `swift auth/configure-secret.swift` and paste the secret into the secure local dialog. It saves the credential in macOS Keychain; do not put it in the repository or extension settings.
+3. Run `python3 auth/install.py` to install the login service, which starts automatically at login. Run the installer again after changing the Keychain credential to restart it.
+4. Reload the extension and select Connect GitHub.
+
+The installed extension ID is `gbokjelbjnifepoeklddjcjoljnfaofk`. For another installation, run the service manually with `GITHUB_APP_EXTENSION_IDS` set to its ID. The server also accepts `GITHUB_APP_CLIENT_SECRET` from its environment for non-Keychain setups. Existing device-flow sessions can still refresh; new connections use browser authorization.
+
+To stop and remove the local service, run `launchctl bootout gui/$(id -u)/com.flawless-chatgpt.auth` and delete `~/Library/LaunchAgents/com.flawless-chatgpt.auth.plist`. This retains the Keychain credential and browser session.
+
 ### Token storage
 
 GitHub token values are encrypted with AES-GCM before being written to
@@ -126,6 +143,8 @@ Git, an origin remote, a Git author, and working push access are required. Use
 **Check connection** to see the destination repository and branch. The installer
 pins the current branch; link again to change it. Existing app-only connections
 must run the updated installer and select the app's repository folder.
+For Brave, the installer also creates a compatibility link in Chrome's native-host
+folder when no publisher registration already exists there.
 
 The button preserves headings, links, lists, and tables from the report. It reads
 the full report pages, including text clipped by the preview, rather than the
@@ -147,6 +166,9 @@ dashboard tokens are not sent to the bridge. Turn the checkbox off to remove the
 buttons. To uninstall the connection, remove `org.research.publisher.json` from
 your browser's `NativeMessagingHosts` folder under `~/Library/Application Support`
 and the corresponding browser folder under `~/Library/Application Support/Research Publisher`.
+For Brave, also remove the compatibility link at
+`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/org.research.publisher.json`
+if it points to Brave's registration.
 
 Markdown conversion bundles Turndown 7.2.0 and turndown-plugin-gfm 1.0.2 in
 `vendor/`, with their MIT license files. Their npm distribution integrity hashes
