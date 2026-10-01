@@ -431,9 +431,9 @@
     container.hidden = false;
   }
 
-  function requestOptionsPage() {
+  function requestOptionsPage(connectGithub = false) {
     try {
-      chrome.runtime.sendMessage({ type: "open-options" }, () => {
+      chrome.runtime.sendMessage({ type: "open-options", connectGithub }, () => {
         // Consume lastError so a stale/missing worker does not surface as an unchecked error.
         void chrome.runtime.lastError;
       });
@@ -527,7 +527,7 @@
     settings.className = "ghrc-settings";
     settings.textContent = mode === "authenticated" ? "Settings" : "Connect GitHub";
     settings.addEventListener("click", () => {
-      requestOptionsPage();
+      requestOptionsPage(mode !== "authenticated");
     });
     return settings;
   }

@@ -1,7 +1,7 @@
 #github-repositories-for-chatgpt .ghrc-footer-searches {
   align-items: center;
   display: flex;
-  gap: 12px;
+  gap: 24px;
   grid-column: 2;
   justify-self: center;
   min-width: 0;
@@ -75,7 +75,7 @@
 @media (max-width: 920px) {
   #github-repositories-for-chatgpt .ghrc-footer-searches {
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
   }
 }
 
