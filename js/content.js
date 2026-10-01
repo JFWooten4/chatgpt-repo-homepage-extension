@@ -132,7 +132,11 @@
 
   function updateWidgetLayout(widget, composer) {
     const content = composer.closest("main");
-    const parent = widget.parentElement;
+    let parent = widget.parentElement;
+    // display: contents wrappers have no box; offsets use the nearest layout box.
+    while (parent && getComputedStyle(parent).display === "contents") {
+      parent = parent.parentElement;
+    }
     if (!content || !parent) return;
 
     const contentBounds = content.getBoundingClientRect();
@@ -142,6 +146,7 @@
     const availableWidth = Math.max(0, Math.floor(contentBounds.width - 40));
 
     widget.style.setProperty("--ghrc-available-width", `${availableWidth}px`);
+    widget.toggleAttribute("data-ghrc-stacked", availableWidth <= 840);
     widget.style.setProperty(
       "--ghrc-center-offset",
       `${Math.round(contentCenter - parentCenter)}px`,
