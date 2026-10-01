@@ -59,6 +59,7 @@
         "js/hide-background-completion-notifications.js",
         "js/external-links.js",
         "js/hide-cookie-preferences.js",
+        "js/block-voice-prompts.js",
         "js/clipboard-utm-preference.js"
       ],
       "run_at": "document_start"
