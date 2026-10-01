@@ -50,17 +50,15 @@
     return icon;
   }
 
-  function isNewChatPage() {
-    if (!document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')) return false;
-
-    const hasConversation = document.querySelector(
-      '[data-message-author-role="user"], [data-message-author-role="assistant"]',
-    );
-    return !hasConversation;
-  }
-
   function isDashboardPage() {
     return location.pathname === "/";
+  }
+
+  function isNewChatPage() {
+    return isDashboardPage()
+      && Boolean(document.querySelector(
+        '#prompt-textarea, [data-composer-markdown][contenteditable="true"]',
+      ));
   }
 
   function findComposer() {
@@ -982,11 +980,15 @@
     widget.append(state);
   }
 
+  function requestRepositories() {
+    repositoryRequest ||= chrome.runtime.sendMessage({ type: "load-repositories" });
+    return repositoryRequest;
+  }
+
   async function loadRepositories(widget) {
     try {
-      repositoryRequest ||= chrome.runtime.sendMessage({ type: "load-repositories" });
       const [payload, stored] = await Promise.all([
-        repositoryRequest,
+        requestRepositories(),
         chrome.storage.local.get({
           [USAGE_STORAGE_KEY]: {},
           [PINNED_STORAGE_KEY]: [],
@@ -1090,6 +1092,8 @@
   });
 
   window.addEventListener("resize", scheduleMount);
+  window.addEventListener("ghrc:route-change", scheduleMount);
+  window.addEventListener("popstate", scheduleMount);
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
@@ -1116,6 +1120,13 @@
       document.getElementById(WIDGET_ID)?.remove();
       scheduleMount();
     }
+  });
+
+  // Warm repository data as soon as the content script starts. On a cache hit this
+  // resolves while ChatGPT is still building the page, so the dashboard can paint
+  // with data on its first mount instead of visibly arriving afterward.
+  void requestRepositories().catch(() => {
+    repositoryRequest = null;
   });
 
   void loadDisplayPreferences();
