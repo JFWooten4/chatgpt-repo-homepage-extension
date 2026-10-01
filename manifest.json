@@ -11,13 +11,15 @@
   },
   "permissions": [
     "storage",
+    "identity",
     "clipboardRead",
     "nativeMessaging"
   ],
   "host_permissions": [
     "https://api.github.com/*",
     "https://avatars.githubusercontent.com/*",
-    "https://github.com/*"
+    "https://github.com/*",
+    "http://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "js/background.js"
