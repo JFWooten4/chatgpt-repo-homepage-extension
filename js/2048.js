@@ -318,10 +318,14 @@
       ArrowRight: "right",
       ArrowUp: "up",
       ArrowDown: "down",
-      KeyA: "left",
-      KeyD: "right",
-      KeyW: "up",
-      KeyS: "down",
+      ".": "up",
+      ">": "up",
+      u: "right",
+      U: "right",
+      a: "left",
+      A: "left",
+      e: "down",
+      E: "down",
     };
 
     const onKeyDown = (event) => {
@@ -332,7 +336,7 @@
         return;
       }
 
-      const direction = keyMap[event.code] || keyMap[event.key];
+      const direction = keyMap[event.key];
       if (!direction) return;
       event.preventDefault();
       event.stopImmediatePropagation();
