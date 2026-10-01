@@ -9,7 +9,7 @@
   let actionRunning = false;
 
   function findComposerInput() {
-    return document.querySelector("#prompt-textarea");
+    return document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
   }
 
   function isVisible(element) {

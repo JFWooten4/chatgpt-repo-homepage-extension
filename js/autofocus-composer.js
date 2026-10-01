@@ -13,7 +13,7 @@
   const retryTimers = new Set();
 
   function findComposerInput() {
-    const prompt = document.querySelector("#prompt-textarea");
+    const prompt = document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!prompt || !prompt.isConnected) return null;
     if (prompt.matches(":disabled") || prompt.getAttribute("aria-disabled") === "true") {
       return null;

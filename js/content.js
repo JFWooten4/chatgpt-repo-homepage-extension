@@ -51,7 +51,7 @@
   }
 
   function isNewChatPage() {
-    if (!document.querySelector("#prompt-textarea")) return false;
+    if (!document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')) return false;
 
     const hasConversation = document.querySelector(
       '[data-message-author-role="user"], [data-message-author-role="assistant"]',
@@ -64,7 +64,7 @@
   }
 
   function findComposer() {
-    const prompt = document.querySelector("#prompt-textarea");
+    const prompt = document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!prompt) return null;
 
     return prompt.closest("form") || prompt.closest('[data-type="unified-composer"]');

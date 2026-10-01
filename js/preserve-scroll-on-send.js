@@ -177,7 +177,7 @@
 
   document.addEventListener("submit", (event) => {
     if (!enabled) return;
-    if (event.target?.querySelector?.("#prompt-textarea")) beginGuard();
+    if (event.target?.querySelector?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')) beginGuard();
   }, true);
 
   document.addEventListener("keydown", (event) => {

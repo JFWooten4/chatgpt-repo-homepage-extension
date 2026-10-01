@@ -11,7 +11,7 @@
   let activeWelcomeRegion = null;
 
   function findComposer() {
-    const prompt = document.querySelector("#prompt-textarea");
+    const prompt = document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!prompt) return null;
 
     return prompt.closest("form") || prompt.closest('[data-type="unified-composer"]');
