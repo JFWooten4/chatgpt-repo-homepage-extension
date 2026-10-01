@@ -131,15 +131,17 @@
     icon.setAttribute("aria-hidden", "true");
     icon.classList.add("ghrc-2048-launcher-icon");
 
-    for (const [x, y] of [[3, 3], [13, 3], [3, 13], [13, 13]]) {
-      const tile = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      tile.setAttribute("x", String(x));
-      tile.setAttribute("y", String(y));
-      tile.setAttribute("width", "8");
-      tile.setAttribute("height", "8");
-      tile.setAttribute("rx", "1.5");
-      icon.append(tile);
-    }
+    const dpad = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    dpad.setAttribute("d", "M8 2.5h8V8h5.5v8H16v5.5H8V16H2.5V8H8z");
+    dpad.classList.add("ghrc-2048-button-mash-mark");
+
+    const center = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    center.setAttribute("cx", "12");
+    center.setAttribute("cy", "12");
+    center.setAttribute("r", "2.6");
+    center.classList.add("ghrc-2048-button-mash-center");
+
+    icon.append(dpad, center);
     return icon;
   }
 
@@ -235,6 +237,14 @@
     boardElement.className = "ghrc-2048-board";
     boardElement.setAttribute("aria-label", "2048 board");
 
+    const tiles = Array.from({ length: SIZE * SIZE }, () => {
+      const tile = document.createElement("div");
+      tile.className = "ghrc-2048-tile ghrc-2048-tile-empty";
+      tile.setAttribute("aria-label", "Empty");
+      return tile;
+    });
+    boardElement.append(...tiles);
+
     const status = document.createElement("p");
     status.className = "ghrc-2048-status";
     status.setAttribute("aria-live", "polite");
@@ -244,15 +254,13 @@
     document.body.append(overlay);
 
     const render = () => {
-      boardElement.replaceChildren();
-      game.board.flat().forEach((value) => {
-        const tile = document.createElement("div");
+      game.board.flat().forEach((value, index) => {
+        const tile = tiles[index];
         tile.className = value
           ? `ghrc-2048-tile ${tileClass(value)}`
           : "ghrc-2048-tile ghrc-2048-tile-empty";
         tile.textContent = value || "";
         tile.setAttribute("aria-label", value ? String(value) : "Empty");
-        boardElement.append(tile);
       });
 
       scoreValue.textContent = game.score.toLocaleString();
@@ -308,6 +316,7 @@
     const onKeyDown = (event) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopImmediatePropagation();
         destroy();
         return;
       }
@@ -315,6 +324,7 @@
       const direction = keyMap[event.key];
       if (!direction) return;
       event.preventDefault();
+      event.stopImmediatePropagation();
       move(direction);
     };
 
@@ -339,7 +349,7 @@
     };
 
     function destroy() {
-      document.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("keydown", onKeyDown, true);
       boardElement.removeEventListener("touchstart", onTouchStart);
       boardElement.removeEventListener("touchend", onTouchEnd);
       overlay.remove();
@@ -351,7 +361,7 @@
     });
     undo.addEventListener("click", undoMove);
     restart.addEventListener("click", reset);
-    document.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("keydown", onKeyDown, true);
     boardElement.addEventListener("touchstart", onTouchStart, { passive: true });
     boardElement.addEventListener("touchend", onTouchEnd, { passive: true });
 

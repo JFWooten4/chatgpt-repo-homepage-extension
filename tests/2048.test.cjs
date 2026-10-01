@@ -76,3 +76,37 @@ test('snapshots remain independent for unlimited undo history', () => {
   assert.equal(history[0][0][0], 2);
   assert.equal(history[199][0][0], 2);
 });
+
+
+test('2048 keeps its board geometry stable while rendering moves', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'js', '2048.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(__dirname, '..', 'css', '2048.css'), 'utf8');
+
+  assert.doesNotMatch(source, /boardElement\.replaceChildren\(\)/);
+  assert.match(source, /const tiles = Array\.from\(\{ length: SIZE \* SIZE \}/);
+  assert.match(styles, /\.ghrc-2048-board \{[\s\S]*?aspect-ratio: 1;/);
+  assert.match(styles, /grid-template-rows: repeat\(4, minmax\(0, 1fr\)\);/);
+});
+
+test('2048 captures game keys before the ChatGPT page can react', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'js', '2048.js'), 'utf8');
+
+  assert.match(source, /window\.addEventListener\("keydown", onKeyDown, true\);/);
+  assert.match(source, /event\.stopImmediatePropagation\(\);/);
+});
+
+test('2048 launcher uses Button Mash D-pad styling and a darker tile palette', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'js', '2048.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(__dirname, '..', 'css', '2048.css'), 'utf8');
+
+  assert.match(source, /ghrc-2048-button-mash-mark/);
+  assert.match(source, /M8 2\.5h8V8h5\.5v8H16v5\.5H8V16H2\.5V8H8z/);
+  assert.match(styles, /\.ghrc-2048-tile-empty \{\s*background: #303844;/);
+  assert.match(styles, /\.ghrc-2048-tile-2 \{\s*background: #34404a;/);
+});
