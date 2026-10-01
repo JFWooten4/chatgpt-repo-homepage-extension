@@ -82,8 +82,7 @@
         "css/clipboard-send.css",
         "css/top-hat-send-button.css",
         "css/message-queue.css",
-        "css/repository-fast-ui.css",
-        "css/vscode-welcome.css"
+        "css/repository-fast-ui.css"
       ],
       "js": [
         "js/avatar-cache-ui.js",
