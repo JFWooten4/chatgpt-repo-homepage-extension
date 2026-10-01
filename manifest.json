@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "GitHub Repositories for ChatGPT",
+  "name": "Flawless ChatGPT",
   "version": "1.7.0",
   "description": "Adds a personalized GitHub repository dashboard and optional ChatGPT interface tweaks.",
   "icons": {
@@ -22,7 +22,7 @@
     "service_worker": "js/background.js"
   },
   "action": {
-    "default_title": "GitHub Repositories for ChatGPT",
+    "default_title": "Flawless ChatGPT",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
