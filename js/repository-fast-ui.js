@@ -124,7 +124,17 @@
 
     const heading = document.createElement("div");
     heading.className = "ghrc-search-category-heading";
-    heading.textContent = owner;
+    const repositoriesUrl = rows[0]?.dataset.ownerRepositoriesUrl;
+    if (repositoriesUrl) {
+      const link = document.createElement("a");
+      link.className = "ghrc-owner-profile-link";
+      link.href = repositoriesUrl;
+      link.textContent = owner;
+      link.setAttribute("aria-label", `Open ${owner} repositories on GitHub`);
+      heading.append(link);
+    } else {
+      heading.textContent = owner;
+    }
 
     const list = document.createElement("div");
     list.className = "ghrc-search-category-list";

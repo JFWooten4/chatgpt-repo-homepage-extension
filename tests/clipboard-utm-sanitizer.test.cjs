@@ -67,6 +67,23 @@ test('normalizes reference links even when UTM removal is disabled', () => {
   );
 });
 
+test('removes orphaned ChatGPT content-reference markers from copied text', () => {
+  const input = 'Useful source:chatgpt-content-reference{index="3"} text';
+  assert.equal(stripTrackingFromText(input), 'Useful source text');
+});
+
+test('removes multiple content references while still stripping UTM tracking', () => {
+  const input = [
+    'A:chatgpt-content-reference{index="1"}',
+    '[source](https://example.com/report?id=7&utm_source=chatgpt.com)',
+    ':chatgpt-content-reference{index="9"}',
+  ].join(' ');
+  assert.equal(
+    stripTrackingFromText(input),
+    'A [source](https://example.com/report?id=7) ',
+  );
+});
+
 test('preserves non-UTM parameters and fragments', () => {
   const input = 'https://example.com/report?id=42&utm_source=chatgpt.com&utm_medium=copy#part-2';
   assert.equal(stripTrackingFromUrlValue(input), 'https://example.com/report?id=42#part-2');

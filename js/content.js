@@ -51,7 +51,7 @@
   }
 
   function isNewChatPage() {
-    if (!document.querySelector("#prompt-textarea")) return false;
+    if (!document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')) return false;
 
     const hasConversation = document.querySelector(
       '[data-message-author-role="user"], [data-message-author-role="assistant"]',
@@ -64,7 +64,7 @@
   }
 
   function findComposer() {
-    const prompt = document.querySelector("#prompt-textarea");
+    const prompt = document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!prompt) return null;
 
     return prompt.closest("form") || prompt.closest('[data-type="unified-composer"]');
@@ -132,7 +132,11 @@
 
   function updateWidgetLayout(widget, composer) {
     const content = composer.closest("main");
-    const parent = widget.parentElement;
+    let parent = widget.parentElement;
+    // display: contents wrappers have no box; offsets use the nearest layout box.
+    while (parent && getComputedStyle(parent).display === "contents") {
+      parent = parent.parentElement;
+    }
     if (!content || !parent) return;
 
     const contentBounds = content.getBoundingClientRect();
@@ -142,6 +146,7 @@
     const availableWidth = Math.max(0, Math.floor(contentBounds.width - 40));
 
     widget.style.setProperty("--ghrc-available-width", `${availableWidth}px`);
+    widget.toggleAttribute("data-ghrc-stacked", availableWidth <= 840);
     widget.style.setProperty(
       "--ghrc-center-offset",
       `${Math.round(contentCenter - parentCenter)}px`,
@@ -301,9 +306,17 @@
     return repositories.slice(0, Math.max(REPOSITORIES_PER_COLUMN, pinnedCount));
   }
 
+  function ownerRepositoriesUrl(owner) {
+    const login = encodeURIComponent(owner.login);
+    return owner.type === "Organization"
+      ? `https://github.com/orgs/${login}/repositories`
+      : `https://github.com/${login}?tab=repositories`;
+  }
+
   function createRepositoryItem(repository, includeOwner, pinnedRepositories) {
     const item = document.createElement("div");
     item.className = "ghrc-repository";
+    item.dataset.ownerRepositoriesUrl = ownerRepositoriesUrl(repository.owner);
     const isPinned = normalizedPins(pinnedRepositories)
       .some((fullName) => fullName.toLowerCase() === repository.fullName.toLowerCase());
     item.dataset.pinned = String(isPinned);
@@ -363,6 +376,7 @@
 
     const header = document.createElement("header");
     header.className = "ghrc-owner-header";
+    header.dataset.ownerRepositoriesUrl = ownerRepositoriesUrl(group.owner);
 
     const avatar = document.createElement("img");
     avatar.className = "ghrc-owner-avatar";

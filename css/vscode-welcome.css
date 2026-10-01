@@ -31,6 +31,11 @@
   padding: 0;
 }
 
+#github-repositories-for-chatgpt .ghrc-toolbar-with-search {
+  min-height: 0;
+  padding-bottom: 0;
+}
+
 #github-repositories-for-chatgpt .ghrc-toolbar::before {
   color: var(--ghrc-fg);
   content: "Start";
@@ -69,10 +74,15 @@
 
 #github-repositories-for-chatgpt .ghrc-search-area {
   border: 0;
+  bottom: auto;
   grid-column: 1;
   grid-row: 3;
   padding: 8px 0 0;
   position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  pointer-events: auto;
 }
 
 #github-repositories-for-chatgpt .ghrc-search-area::before {
@@ -217,29 +227,50 @@
   width: 100%;
 }
 
+#github-repositories-for-chatgpt .ghrc-footer-searches {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+#github-repositories-for-chatgpt .ghrc-youtube-search,
+#github-repositories-for-chatgpt .ghrc-youtube-search label {
+  min-width: 0;
+  width: 100%;
+}
+
+#github-repositories-for-chatgpt .ghrc-youtube-search label {
+  flex: 1;
+}
+
+#github-repositories-for-chatgpt .ghrc-youtube-search input {
+  min-width: 0;
+  width: 100%;
+}
+
 #github-repositories-for-chatgpt .ghrc-state {
   grid-column: 1 / -1;
 }
 
-@container (max-width: 840px) {
-  #github-repositories-for-chatgpt {
-    gap: 30px;
-    grid-template-columns: 1fr;
-    padding-inline: 20px;
-  }
+#github-repositories-for-chatgpt[data-ghrc-stacked] {
+  gap: 30px;
+  grid-template-columns: 1fr;
+  padding-inline: 20px;
+}
 
-  #github-repositories-for-chatgpt::before,
-  #github-repositories-for-chatgpt .ghrc-toolbar,
-  #github-repositories-for-chatgpt .ghrc-search-area,
-  #github-repositories-for-chatgpt .ghrc-columns,
-  #github-repositories-for-chatgpt .ghrc-dashboard-footer {
-    grid-column: 1;
-    grid-row: auto;
-  }
+#github-repositories-for-chatgpt[data-ghrc-stacked]::before,
+#github-repositories-for-chatgpt[data-ghrc-stacked] .ghrc-toolbar,
+#github-repositories-for-chatgpt[data-ghrc-stacked] .ghrc-search-area,
+#github-repositories-for-chatgpt[data-ghrc-stacked] .ghrc-columns,
+#github-repositories-for-chatgpt[data-ghrc-stacked] .ghrc-dashboard-footer {
+  grid-column: 1;
+  grid-row: auto;
+}
 
-  #github-repositories-for-chatgpt .ghrc-columns {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+#github-repositories-for-chatgpt[data-ghrc-stacked] .ghrc-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 @container (max-width: 540px) {

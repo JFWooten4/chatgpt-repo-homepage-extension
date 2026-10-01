@@ -93,7 +93,7 @@
   }
 
   function findComposerInput() {
-    return document.querySelector("#prompt-textarea");
+    return document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
   }
 
   function findComposerForm(composer = findComposerInput()) {
@@ -725,7 +725,7 @@
   }
 
   document.addEventListener("keydown", (event) => {
-    const composer = event.target?.closest?.("#prompt-textarea");
+    const composer = event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!composer || composer !== findComposerInput()) return;
     if (!shouldQueueComposerEnter(event, responseIsActive(composer), queue.length)) return;
 
@@ -747,7 +747,7 @@
   }, true);
 
   document.addEventListener("input", (event) => {
-    if (event.target?.closest?.("#prompt-textarea")) scheduleMount();
+    if (event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')) scheduleMount();
   }, true);
 
   chrome.storage.onChanged.addListener((changes, areaName) => {

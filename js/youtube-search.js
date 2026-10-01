@@ -46,7 +46,7 @@
     const input = document.createElement("input");
     input.type = "search";
     input.name = "search_query";
-    input.placeholder = "YouTube";
+    input.placeholder = "vids";
     input.setAttribute("aria-label", "Search YouTube");
     input.autocomplete = "off";
     label.append(input);

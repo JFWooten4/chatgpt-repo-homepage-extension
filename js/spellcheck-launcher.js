@@ -26,7 +26,7 @@
   }
 
   function findComposerInput() {
-    return document.querySelector("#prompt-textarea");
+    return document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
   }
 
   function findComposer() {

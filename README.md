@@ -1,4 +1,4 @@
-# GitHub Repositories for ChatGPT
+# Flawless ChatGPT
 
 A Brave/Chrome extension that adds a GitHub-style repository dashboard directly
 below the composer on ChatGPT's new-chat page, with optional ChatGPT interface
