@@ -1,6 +1,7 @@
 (() => {
   const STRIP_UTM_TRACKING_ATTR = "data-ghrc-strip-utm-tracking";
   const URL_PATTERN = /https?:\/\/[^\s<>"'`\])}]+/gi;
+  const CONTENT_REFERENCE_PATTERN = /:chatgpt-content-reference\{[^}\r\n]*\}/g;
 
   function stripTrackingFromUrlValue(value) {
     const htmlAmpersands = /&amp;/i.test(value);
@@ -24,7 +25,9 @@
 
   function stripTrackingFromText(value) {
     if (typeof value !== "string" || !value) return value;
-    return value.replace(URL_PATTERN, stripTrackingFromUrlValue);
+    return value
+      .replace(CONTENT_REFERENCE_PATTERN, "")
+      .replace(URL_PATTERN, stripTrackingFromUrlValue);
   }
 
   if (typeof module !== "undefined" && module.exports) {
