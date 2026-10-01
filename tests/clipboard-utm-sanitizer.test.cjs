@@ -8,11 +8,63 @@ const source = fs.readFileSync(sourcePath, 'utf8');
 const {
   stripTrackingFromUrlValue,
   stripTrackingFromText,
+  convertReferenceLinksToInlineMarkdown,
+  sanitizeCopiedText,
 } = require(sourcePath);
 
 test('removes ChatGPT UTM tracking from copied Markdown links', () => {
   const input = '[SEC](https://www.sec.gov/rules/example?utm_source=chatgpt.com)';
   assert.equal(stripTrackingFromText(input), '[SEC](https://www.sec.gov/rules/example)');
+});
+
+test('converts copied reference-style Markdown links to inline links', () => {
+  const input = [
+    'Read the [SEC release][1] and [DTC filing][dtc].',
+    '',
+    '[1]: https://www.sec.gov/rules/example',
+    '[dtc]: <https://www.dtcc.com/example> "DTC filing"',
+  ].join('\n');
+  assert.equal(
+    convertReferenceLinksToInlineMarkdown(input),
+    'Read the [SEC release](https://www.sec.gov/rules/example) and [DTC filing](<https://www.dtcc.com/example> "DTC filing").\n',
+  );
+});
+
+test('reuses a reference definition and leaves unrelated definitions intact', () => {
+  const input = [
+    '[First][source] and [second][SOURCE].',
+    '',
+    '[source]: https://example.com/report',
+    '[unused]: https://example.com/unused',
+  ].join('\n');
+  assert.equal(
+    convertReferenceLinksToInlineMarkdown(input),
+    '[First](https://example.com/report) and [second](https://example.com/report).\n\n[unused]: https://example.com/unused',
+  );
+});
+
+test('supports collapsed reference links', () => {
+  const input = [
+    'Read [the filing][].',
+    '',
+    '[the filing]: https://example.com/filing',
+  ].join('\n');
+  assert.equal(
+    convertReferenceLinksToInlineMarkdown(input),
+    'Read [the filing](https://example.com/filing).\n',
+  );
+});
+
+test('normalizes reference links even when UTM removal is disabled', () => {
+  const input = [
+    '[source][1]',
+    '',
+    '[1]: https://example.com/report?utm_source=chatgpt.com&id=7',
+  ].join('\n');
+  assert.equal(
+    sanitizeCopiedText(input, false),
+    '[source](https://example.com/report?utm_source=chatgpt.com&id=7)\n',
+  );
 });
 
 test('removes orphaned ChatGPT content-reference markers from copied text', () => {
@@ -93,6 +145,16 @@ test('intercepts ChatGPT clipboard writes when the preference is enabled', async
   const fixture = runtimeFixture('true');
   await fixture.clipboard.writeText('https://example.com/?utm_source=chatgpt.com&id=7');
   assert.deepEqual(fixture.writes, ['https://example.com/?id=7']);
+});
+
+test('converts copied reference links in the clipboard runtime', async () => {
+  const fixture = runtimeFixture('false');
+  const input = '[source][1]\n\n[1]: https://example.com/report?utm_source=chatgpt.com';
+  await fixture.clipboard.writeText(input);
+  assert.deepEqual(
+    fixture.writes,
+    ['[source](https://example.com/report?utm_source=chatgpt.com)\n'],
+  );
 });
 
 test('leaves ChatGPT clipboard writes untouched when the preference is disabled', async () => {
