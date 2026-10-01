@@ -46,7 +46,6 @@
         "https://chatgpt.com/*"
       ],
       "css": [
-        "css/homepage-boot.css",
         "css/work-mode.css"
       ],
       "js": [
@@ -54,7 +53,6 @@
         "js/dashboard-visibility.js",
         "js/disable-work-mode.js",
         "js/force-high-thinking.js",
-        "js/homepage-boot.js",
         "js/autofocus-composer.js",
         "js/preserve-scroll-on-send.js",
         "js/hide-background-completion-notifications.js",
