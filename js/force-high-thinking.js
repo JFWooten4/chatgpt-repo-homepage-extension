@@ -53,7 +53,7 @@
   }
 
   function effortLevel(control) {
-    const visible = normalizedText(control.textContent);
+    const visible = normalizedText(control.innerText ?? control.textContent);
     const label = controlLabel(control);
     const combined = `${label} ${visible}`;
     if (!/\b(thinking|reasoning|effort)\b/i.test(combined)
@@ -94,12 +94,21 @@
   }
 
   function finishSelection(target, closeMenu) {
-    const { selector, state } = pending;
+    const { selector, state, focusedComposer } = pending;
+    const menu = findMenu(selector);
     state.target = target;
     pending = null;
     if (closeMenu) {
       key(selector, "Escape");
       if (selector.getAttribute("aria-expanded") === "true") selector.click();
+    }
+    if (focusedComposer?.isConnected) {
+      window.setTimeout(() => {
+        if (document.activeElement === selector || document.activeElement === document.body
+          || menu?.contains(document.activeElement)) {
+          focusedComposer.focus({ preventScroll: true });
+        }
+      }, 50);
     }
     window.setTimeout(scheduleScan, 50);
   }
@@ -162,12 +171,19 @@
       if (!isVisible(selector) || state.attempts >= MAX_SELECTION_ATTEMPTS) continue;
       state.attempts += 1;
       state.adjustments = 0;
-      pending = { selector, state, initialLevel: level };
-      // Both effort and thinking-time menus support the keyboard open action.
-      // The effort trigger does not consistently respond to synthetic clicks.
+      const activeElement = document.activeElement;
+      const focusedComposer = activeElement?.matches('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')
+        ? activeElement : null;
+      pending = { selector, state, initialLevel: level, focusedComposer };
+      // Prefer the keyboard action, then click if this trigger ignores it.
       key(selector, "ArrowDown");
-      window.setTimeout(scheduleScan, 50);
       const attempt = pending;
+      window.setTimeout(() => {
+        if (enabled && pending === attempt && selector.isConnected && !findMenu(selector)) {
+          selector.click();
+        }
+        scheduleScan();
+      }, 50);
       window.setTimeout(() => {
         if (pending === attempt) pending = null;
         scheduleScan();

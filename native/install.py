@@ -63,6 +63,12 @@ def install(extension_id, browser, repo, support):
         "type": "stdio",
         "allowed_origins": [origin],
     }, indent=2) + "\n")
+    if browser == "brave":
+        # Some Brave builds look for user-level hosts in Chrome's directory.
+        compatibility = support / BROWSERS["chrome"] / "NativeMessagingHosts" / manifest.name
+        if not compatibility.exists() and not compatibility.is_symlink():
+            compatibility.parent.mkdir(parents=True, exist_ok=True)
+            compatibility.symlink_to(manifest.resolve())
     probe_host(launcher, origin)
     return manifest
 

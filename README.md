@@ -126,6 +126,8 @@ Git, an origin remote, a Git author, and working push access are required. Use
 **Check connection** to see the destination repository and branch. The installer
 pins the current branch; link again to change it. Existing app-only connections
 must run the updated installer and select the app's repository folder.
+For Brave, the installer also creates a compatibility link in Chrome's native-host
+folder when no publisher registration already exists there.
 
 The button preserves headings, links, lists, and tables from the report. It reads
 the full report pages, including text clipped by the preview, rather than the
@@ -147,6 +149,9 @@ dashboard tokens are not sent to the bridge. Turn the checkbox off to remove the
 buttons. To uninstall the connection, remove `org.research.publisher.json` from
 your browser's `NativeMessagingHosts` folder under `~/Library/Application Support`
 and the corresponding browser folder under `~/Library/Application Support/Research Publisher`.
+For Brave, also remove the compatibility link at
+`~/Library/Application Support/Google/Chrome/NativeMessagingHosts/org.research.publisher.json`
+if it points to Brave's registration.
 
 Markdown conversion bundles Turndown 7.2.0 and turndown-plugin-gfm 1.0.2 in
 `vendor/`, with their MIT license files. Their npm distribution integrity hashes

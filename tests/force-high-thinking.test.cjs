@@ -19,24 +19,25 @@ class Element {
 function fixture() {
   const elements = new Map();
   const storageWrites = [];
+  const timers = [];
   let controls = [];
   const context = {
     HTMLElement: Element,
     getComputedStyle: () => ({ display: 'block', visibility: 'visible' }),
     KeyboardEvent: class { constructor(type, args) { this.type = type; Object.assign(this, args); } },
-    window: { setTimeout() {} }, requestAnimationFrame() {},
+    window: { setTimeout(callback, delay) { timers.push({ callback, delay }); } }, requestAnimationFrame() {},
     chrome: { storage: { local: { set(value) { storageWrites.push(value); return Promise.resolve(); } } } },
     document: {
       getElementById: (id) => elements.get(id),
       createElement: () => new Element(),
       documentElement: { append: (element) => elements.set(element.id, element) },
-      querySelectorAll: () => controls,
+      querySelectorAll: (selector) => selector.includes('[role="menu"]') ? [] : controls,
     },
   };
   vm.createContext(context);
   vm.runInContext(source.slice(0, source.indexOf('  chrome.storage.onChanged')) + `
-    globalThis.api = { effortLevel, ensureStyle, selectMaximum, controlCacheKey, scanControls,
-      begin(selector, state, initialLevel) { pending = { selector, state, initialLevel }; },
+    globalThis.api = { effortLevel, ensureStyle, selectMaximum, controlCacheKey, scanControls, finishSelection,
+      begin(selector, state, initialLevel, focusedComposer) { pending = { selector, state, initialLevel, focusedComposer }; },
       clearPending() { pending = null; },
       seedState(selector, target) { states.set(selector, { attempts: 0, adjustments: 0, target }); },
       setEnabledForTest(value) { enabled = value; },
@@ -51,8 +52,13 @@ function fixture() {
   elements.set('menu', menu);
   context.api.begin(selector, state, 'standard');
   return {
-    api: context.api, elements, selector, state, menu, storageWrites,
+    api: context.api, elements, selector, state, menu, storageWrites, document: context.document,
     setControls(value) { controls = value; },
+    runTimer(delay) {
+      const index = timers.findIndex((timer) => timer.delay === delay);
+      assert.notEqual(index, -1);
+      timers.splice(index, 1)[0].callback();
+    },
   };
 }
 
@@ -63,6 +69,12 @@ test('visible level is recognized when accessibility label omits it', () => {
   assert.equal(f.api.effortLevel(new Element('Thinking')), 'thinking');
   assert.equal(f.api.effortLevel(new Element('Maximum')), 'maximum');
   assert.equal(f.api.effortLevel(new Element('High priority issue')), '');
+});
+test('hidden sizing text does not obscure the displayed effort level', () => {
+  const f = fixture();
+  const selector = new Element('Thinking effortHigh', { 'aria-label': 'Select ChatGPT model' });
+  selector.innerText = 'High';
+  assert.equal(f.api.effortLevel(selector), 'high');
 });
 test('hiding CSS matches the empty marker attribute', () => {
   const f = fixture();
@@ -108,6 +120,62 @@ test('cached level mismatch still rechecks the selector', () => {
   f.api.scanControls();
   assert.equal(selector.hasAttribute('data-ghrc-high-thinking-selector'), false);
   assert.ok(keys.includes('ArrowDown'));
+});
+test('click opens the menu when the trigger ignores the keyboard action', () => {
+  const f = fixture();
+  f.elements.delete('menu');
+  f.api.clearPending();
+  f.api.setEnabledForTest(true);
+  f.setControls([f.selector]);
+  f.api.scanControls();
+  assert.equal(f.selector.clicks, 0);
+  f.runTimer(50);
+  assert.equal(f.selector.clicks, 1);
+});
+test('click fallback leaves an already opened menu open', () => {
+  const f = fixture();
+  f.elements.delete('menu');
+  f.api.clearPending();
+  f.api.setEnabledForTest(true);
+  f.setControls([f.selector]);
+  f.api.scanControls();
+  f.elements.set('menu', f.menu);
+  f.runTimer(50);
+  assert.equal(f.selector.clicks, 0);
+});
+test('canceling a selection prevents its delayed click', () => {
+  const f = fixture();
+  f.elements.delete('menu');
+  f.api.clearPending();
+  f.api.setEnabledForTest(true);
+  f.setControls([f.selector]);
+  f.api.scanControls();
+  f.api.clearPending();
+  f.runTimer(50);
+  assert.equal(f.selector.clicks, 0);
+});
+test('automatic menu selection returns focus to the previously focused composer', () => {
+  const f = fixture();
+  const composer = new Element();
+  let focusCalls = 0;
+  composer.focus = () => { focusCalls += 1; };
+  f.document.activeElement = f.selector;
+  f.api.begin(f.selector, f.state, 'standard', composer);
+  f.api.finishSelection('high', true);
+  f.runTimer(50);
+  assert.equal(focusCalls, 1);
+});
+test('automatic menu selection preserves focus when the user moves elsewhere', () => {
+  const f = fixture();
+  const composer = new Element();
+  let focusCalls = 0;
+  composer.focus = () => { focusCalls += 1; };
+  f.menu.contains = () => false;
+  f.document.activeElement = new Element();
+  f.api.begin(f.selector, f.state, 'standard', composer);
+  f.api.finishSelection('high', true);
+  f.runTimer(50);
+  assert.equal(focusCalls, 0);
 });
 for (const [levels, maximum] of [
   [['Standard', 'Extended'], 'Extended'],
