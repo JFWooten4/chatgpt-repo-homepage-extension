@@ -301,9 +301,17 @@
     return repositories.slice(0, Math.max(REPOSITORIES_PER_COLUMN, pinnedCount));
   }
 
+  function ownerRepositoriesUrl(owner) {
+    const login = encodeURIComponent(owner.login);
+    return owner.type === "Organization"
+      ? `https://github.com/orgs/${login}/repositories`
+      : `https://github.com/${login}?tab=repositories`;
+  }
+
   function createRepositoryItem(repository, includeOwner, pinnedRepositories) {
     const item = document.createElement("div");
     item.className = "ghrc-repository";
+    item.dataset.ownerRepositoriesUrl = ownerRepositoriesUrl(repository.owner);
     const isPinned = normalizedPins(pinnedRepositories)
       .some((fullName) => fullName.toLowerCase() === repository.fullName.toLowerCase());
     item.dataset.pinned = String(isPinned);
@@ -363,6 +371,7 @@
 
     const header = document.createElement("header");
     header.className = "ghrc-owner-header";
+    header.dataset.ownerRepositoriesUrl = ownerRepositoriesUrl(group.owner);
 
     const avatar = document.createElement("img");
     avatar.className = "ghrc-owner-avatar";

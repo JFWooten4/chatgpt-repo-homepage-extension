@@ -34,17 +34,18 @@
 
     const login = (name.title || name.textContent).trim();
     if (!login) return;
-    const profileUrl = `https://github.com/${encodeURIComponent(login)}`;
+    const profileUrl = header.dataset.ownerRepositoriesUrl
+      || `https://github.com/${encodeURIComponent(login)}?tab=repositories`;
 
     const avatarLink = avatar.closest(".ghrc-owner-avatar-link");
     if (avatarLink) {
       avatarLink.href = profileUrl;
-      avatarLink.setAttribute("aria-label", `Open ${login} on GitHub`);
+      avatarLink.setAttribute("aria-label", `Open ${login} repositories on GitHub`);
     } else {
       const link = createOwnerLink(
         "ghrc-owner-avatar-link",
         profileUrl,
-        `Open ${login} on GitHub`,
+        `Open ${login} repositories on GitHub`,
       );
       avatar.replaceWith(link);
       link.append(avatar);
