@@ -34,6 +34,7 @@
   function createCard(page) {
     const card = document.createElement("a");
     card.className = "ghrc-highlighted-page";
+    if (page.documentType === "pdf") card.classList.add("ghrc-highlighted-page-pdf");
     card.href = page.url;
     card.target = "_blank";
     card.rel = "noopener noreferrer";
@@ -52,7 +53,7 @@
     const copy = document.createElement("span");
     copy.className = "ghrc-highlighted-page-copy";
     const title = document.createElement("strong");
-    title.textContent = page.title || page.url;
+    title.textContent = page.customTitle || page.title || page.url;
     const host = document.createElement("small");
     host.textContent = page.siteName || page.hostname || new URL(page.url).hostname;
     copy.append(title, host);
@@ -70,29 +71,40 @@
 
   async function mount() {
     const widget = document.getElementById(WIDGET_ID);
-    if (!widget) return;
+    if (!widget) {
+      document.getElementById(SECTION_ID)?.remove();
+      return;
+    }
 
     const stored = await chrome.storage.local.get({ [STORAGE_KEY]: [] });
     if (!widget.isConnected) return;
     const pages = normalizedPages(stored[STORAGE_KEY]);
-    widget.querySelector(`#${SECTION_ID}`)?.remove();
+    document.getElementById(SECTION_ID)?.remove();
     if (!pages.length) return;
 
     const section = document.createElement("section");
     section.id = SECTION_ID;
     section.className = "ghrc-highlighted-pages";
-    section.setAttribute("aria-label", "Highlighted webpages");
+    section.setAttribute("aria-label", "Highlights");
 
     const heading = document.createElement("h2");
-    heading.textContent = "Highlighted webpages";
+    heading.textContent = "Highlights";
     const row = document.createElement("div");
     row.className = "ghrc-highlighted-pages-row";
     row.append(...pages.map(createCard));
     section.append(heading, row);
 
-    const footer = widget.querySelector(".ghrc-dashboard-footer");
-    if (footer) widget.insertBefore(section, footer);
-    else widget.append(section);
+    syncLayout(widget, section);
+    widget.insertAdjacentElement("afterend", section);
+  }
+
+  function syncLayout(widget, section) {
+    for (const property of ["--ghrc-available-width", "--ghrc-center-offset"]) {
+      const value = widget.style.getPropertyValue(property);
+      if (section.style.getPropertyValue(property) === value) continue;
+      if (value) section.style.setProperty(property, value);
+      else section.style.removeProperty(property);
+    }
   }
 
   function scheduleMount() {
@@ -109,18 +121,25 @@
   });
 
   const observer = new MutationObserver((mutations) => {
-    if (document.getElementById(SECTION_ID)) return;
     const widget = document.getElementById(WIDGET_ID);
-    if (!widget) return;
+    const section = document.getElementById(SECTION_ID);
+    if (!widget) {
+      section?.remove();
+      return;
+    }
+    if (section && widget.nextElementSibling === section) {
+      syncLayout(widget, section);
+      return;
+    }
     const widgetChanged = mutations.some((mutation) => (
       mutation.target === widget
       || [...mutation.addedNodes, ...mutation.removedNodes].some((node) => (
         node instanceof Element
-        && (node.id === WIDGET_ID || Boolean(node.querySelector?.(`#${WIDGET_ID}`)))
+        && ([WIDGET_ID, SECTION_ID].includes(node.id) || Boolean(node.querySelector?.(`#${WIDGET_ID}, #${SECTION_ID}`)))
       ))
     ));
     if (widgetChanged) scheduleMount();
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["style"] });
   scheduleMount();
 })();

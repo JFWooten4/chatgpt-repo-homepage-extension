@@ -28,6 +28,7 @@ const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-histo
 const hideHomeSuggestionsInput = document.getElementById("hide-home-suggestions");
 const hideModelControlsInput = document.getElementById("hide-model-controls");
 const hideConversationFeedbackPromptInput = document.getElementById("hide-conversation-feedback-prompt");
+const composerPlaceholderInput = document.getElementById("composer-placeholder");
 const hideChatgptDisclaimerInput = document.getElementById("hide-chatgpt-disclaimer");
 const hideCookiePreferencesInput = document.getElementById("hide-cookie-preferences");
 const clearTokensButton = document.getElementById("clear-tokens");
@@ -319,6 +320,7 @@ async function loadSettings() {
     hideHomeSuggestions: true,
     hideModelControls: true,
     hideConversationFeedbackPrompt: true,
+    composerPlaceholder: "",
   });
   const storedOwnerOrder = normalizedOwnerOrder(settings.ownerOrder);
   let configuredTokens = [];
@@ -352,6 +354,7 @@ async function loadSettings() {
   hideHomeSuggestionsInput.checked = settings.hideHomeSuggestions !== false;
   hideModelControlsInput.checked = settings.hideModelControls !== false;
   hideConversationFeedbackPromptInput.checked = settings.hideConversationFeedbackPrompt !== false;
+  composerPlaceholderInput.value = typeof settings.composerPlaceholder === "string" ? settings.composerPlaceholder : "";
   hideChatgptDisclaimerInput.checked = !Boolean(settings.showChatgptDisclaimer);
   hideCookiePreferencesInput.checked = Boolean(settings.hideCookiePreferences);
 
@@ -436,6 +439,7 @@ async function saveSettings() {
       hideHomeSuggestions: hideHomeSuggestionsInput.checked,
       hideModelControls: hideModelControlsInput.checked,
       hideConversationFeedbackPrompt: hideConversationFeedbackPromptInput.checked,
+      composerPlaceholder: composerPlaceholderInput.value.trim(),
     });
     ownerListDirty = false;
     ownerGroupsPerPageInput.value = ownerGroupsPerPage;

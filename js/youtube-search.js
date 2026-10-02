@@ -117,7 +117,7 @@
   function scheduleMount() {
     if (mountScheduled) return;
     mountScheduled = true;
-    requestAnimationFrame(() => {
+    queueMicrotask(() => {
       mountScheduled = false;
       mountFooterSearches();
     });

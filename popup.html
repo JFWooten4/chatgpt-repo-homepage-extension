@@ -113,15 +113,9 @@
             <button id="clear-tokens" class="secondary" type="button">Clear tokens</button>
           </div>
 
-          <label for="owner-order">GitHub accounts</label>
-          <p class="help">Enter one GitHub username or organization name per line. Additional accounts discovered through your GitHub tokens are appended automatically.</p>
-          <textarea
-            id="owner-order"
-            name="owner-order"
-            rows="6"
-            spellcheck="false"
-            placeholder="your-github-username&#10;your-organization"
-          ></textarea>
+          <label>GitHub accounts</label>
+          <p class="help">Drag accounts to set their dashboard order. Turn off “Show on dashboard” to hide an account without disconnecting it; hidden accounts remain available to repository search.</p>
+          <div id="github-accounts" class="github-accounts"></div>
         </section>
 
         <section id="panel-dashboard" class="popup-panel" role="tabpanel" aria-labelledby="tab-dashboard" hidden>
@@ -148,6 +142,13 @@
                 <small>Shows a reference search box at the bottom of the repository widget.</small>
               </span>
             </label>
+            <label class="preference">
+            <input id="show-youtube-search" type="checkbox" checked />
+            <span>
+              <strong>Show YouTube search</strong>
+              <small>Shows a YouTube search box at the bottom of the repository widget.</small>
+            </span>
+          </label>
 
             <label for="owner-groups-per-page">Accounts per page</label>
             <p class="help">Choose how many GitHub accounts appear on each dashboard page.</p>
@@ -183,7 +184,7 @@
             </div>
           </fieldset>
           <fieldset id="highlighted-pages-settings">
-            <legend>Highlighted webpages</legend>
+            <legend>Highlights</legend>
             <p class="help">Add webpages to a horizontal shelf beneath the repositories. Cached previews stay in your chosen order.</p>
             <div class="highlighted-page-add">
               <input id="highlighted-page-url" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://example.com/page" aria-label="Webpage URL" />
@@ -197,6 +198,9 @@
         <section id="panel-chatgpt" class="popup-panel" role="tabpanel" aria-labelledby="tab-chatgpt" hidden>
           <fieldset class="popup-first-fieldset">
             <legend>ChatGPT display</legend>
+            <label for="composer-placeholder">Composer placeholder</label>
+            <input id="composer-placeholder" type="text" placeholder="For example, Dash" aria-describedby="composer-placeholder-help" />
+            <p id="composer-placeholder-help" class="help">Choose the text shown in the empty chat input. Leave blank to use ChatGPT’s default.</p>
             <label class="preference">
               <input id="auto-focus-composer" type="checkbox" checked />
               <span>
@@ -259,6 +263,13 @@
               </span>
             </label>
             <label class="preference">
+            <input id="show-2048-launcher" type="checkbox" />
+            <span>
+              <strong>Show 2048 game button</strong>
+              <small>Shows the 2048 launcher in the repository dashboard footer.</small>
+            </span>
+          </label>
+            <label class="preference">
               <input id="strip-utm-tracking" type="checkbox" checked />
               <span>
                 <strong>Strip UTM tracking from links</strong>
@@ -294,12 +305,19 @@
               </span>
             </label>
             <label class="preference">
-              <input id="show-chatgpt-disclaimer" type="checkbox" />
-              <span>
-                <strong>Show “ChatGPT can make mistakes” notice</strong>
-                <small>Shows the notice below the composer. Hidden by default.</small>
-              </span>
-            </label>
+            <input id="hide-conversation-feedback-prompt" type="checkbox" checked />
+            <span>
+              <strong>Hide conversation feedback prompt</strong>
+              <small>Hides the Is this conversation helpful so far? thumbs up/down prompt.</small>
+            </span>
+          </label>
+            <label class="preference">
+            <input id="hide-chatgpt-disclaimer" type="checkbox" checked />
+            <span>
+              <strong>Hide “ChatGPT can make mistakes” notice</strong>
+              <small>Hides the notice below the composer.</small>
+            </span>
+          </label>
             <label class="preference">
               <input id="hide-cookie-preferences" type="checkbox" />
               <span>
@@ -314,6 +332,20 @@
       </form>
     </main>
 
+    <template id="github-account-template">
+      <div class="github-account" draggable="true">
+        <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+        <code></code>
+        <label class="github-account-visibility">
+          <input class="github-account-visible" type="checkbox" checked />
+          <span>Show on dashboard</span>
+        </label>
+        <div class="github-account-controls">
+          <button class="secondary move-account-up" type="button" aria-label="Move account up">↑</button>
+          <button class="secondary move-account-down" type="button" aria-label="Move account down">↓</button>
+        </div>
+      </div>
+    </template>
     <template id="token-row-template">
       <div class="token-row">
         <input

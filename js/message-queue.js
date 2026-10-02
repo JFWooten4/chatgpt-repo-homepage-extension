@@ -140,6 +140,10 @@
       const button = [...form.querySelectorAll(selector)].find(isVisible);
       if (button) return button;
     }
+    // The hidden voice control still provides the correct position for an empty hat.
+    if (document.documentElement.hasAttribute("data-ghrc-hide-dictation")) {
+      return form.querySelector('button[aria-label="Start Voice" i], button[aria-label*="voice mode" i], button[data-testid*="voice" i], button[data-testid="composer-speech-button"]');
+    }
     return null;
   }
 
@@ -671,16 +675,22 @@
     }
 
     let interruptButton = document.getElementById(INTERRUPT_BUTTON_ID);
-    if (responseIsActive(composer) && composerText(composer).trim()) {
+    const hasDraft = Boolean(composerText(composer).trim());
+    const activeResponse = responseIsActive(composer);
+    const emptyHat = !activeResponse && !hasDraft && !findSendButton(composer)
+      && document.documentElement.hasAttribute("data-ghrc-hide-dictation");
+    if ((activeResponse && hasDraft) || emptyHat) {
       if (!interruptButton) {
         interruptButton = document.createElement("button");
         interruptButton.id = INTERRUPT_BUTTON_ID;
         interruptButton.type = "button";
-        interruptButton.title = "Interrupt response and send now";
-        interruptButton.setAttribute("aria-label", "Interrupt and send");
         interruptButton.addEventListener("click", () => void context.run(interruptAndSend));
       }
-      interruptButton.disabled = interruptRunning || Boolean(sendingItemId) || enqueueRunning;
+      const title = emptyHat ? "Write a message to send" : "Interrupt response and send now";
+      const label = emptyHat ? "Send message" : "Interrupt and send";
+      if (interruptButton.title !== title) interruptButton.title = title;
+      if (interruptButton.getAttribute("aria-label") !== label) interruptButton.setAttribute("aria-label", label);
+      interruptButton.disabled = emptyHat || interruptRunning || Boolean(sendingItemId) || enqueueRunning;
       if (interruptButton.parentElement !== actionButton.parentElement
         || interruptButton.nextElementSibling !== actionButton) {
         actionButton.before(interruptButton);
@@ -1037,7 +1047,7 @@
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["aria-disabled", "data-testid", "data-message-status", "data-state"],
+    attributeFilter: ["aria-disabled", "data-testid", "data-message-status", "data-state", "data-ghrc-hide-dictation"],
   });
 
   const pumpInterval = window.setInterval(schedulePump, PUMP_INTERVAL_MS);

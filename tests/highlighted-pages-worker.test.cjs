@@ -24,7 +24,7 @@ test("extracts Open Graph preview metadata regardless of attribute order", () =>
   assert.equal(helpers.metaContent(html, ["description"]), "A short description");
 });
 
-test("previews the SEC PDF without reading its body", async () => {
+test("marks PDFs for first-page rendering without fetching a favicon", async () => {
   const url = "https://www.sec.gov/comments/sr-occ-2025-801/srocc2025801-598095-1737722.pdf";
   let cancelled = false;
   const helpers = api({ fetch: async (requested, options) => {
@@ -37,17 +37,15 @@ test("previews the SEC PDF without reading its body", async () => {
         arrayBuffer: () => { throw new Error("PDF body must not be read"); },
       };
     }
-    assert.equal(requested, "https://www.sec.gov/favicon.ico");
-    return new Response(new Uint8Array([1, 2, 3]), {
-      headers: { "content-type": "image/x-icon" },
-    });
+    throw new Error(`Unexpected request: ${requested}`);
   } });
   const preview = await helpers.loadPreview(url);
   assert.equal(preview.url, url);
   assert.equal(preview.title, "srocc2025801-598095-1737722.pdf");
   assert.equal(preview.hostname, "sec.gov");
   assert.equal(preview.description, "PDF document");
-  assert.equal(preview.faviconDataUrl, "data:image/x-icon;base64,AQID");
+  assert.equal(preview.documentType, "pdf");
+  assert.equal(preview.faviconDataUrl, "");
   assert.equal(cancelled, true);
 });
 
