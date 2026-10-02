@@ -217,3 +217,9 @@ html[data-theme="dark"] #ghrc-message-queue {
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
+
+.ghrc-message-queue-controls .ghrc-message-queue-steer {
+  font-size: 11px;
+  padding: 0 6px;
+  width: auto;
+}
