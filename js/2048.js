@@ -2,6 +2,7 @@
   const SIZE = 4;
   const LAUNCHER_ID = "ghrc-2048-launcher";
   const MODAL_ID = "ghrc-2048-modal";
+  const STORAGE_KEY = "show2048Launcher";
 
   function emptyBoard() {
     return Array.from({ length: SIZE }, () => Array(SIZE).fill(0));
@@ -173,7 +174,21 @@
     return icon;
   }
 
+  let launcherEnabled = !globalThis.chrome?.storage?.local;
+
+  function removeLauncher() {
+    const launcher = document.getElementById(LAUNCHER_ID);
+    const left = launcher?.closest(".ghrc-2048-footer-left");
+    launcher?.remove();
+    if (left && !left.childElementCount) left.remove();
+  }
+
   function installLauncher() {
+    if (!launcherEnabled) {
+      removeLauncher();
+      return;
+    }
+
     const footer = document.querySelector(
       "#github-repositories-for-chatgpt .ghrc-dashboard-footer",
     );
@@ -186,6 +201,11 @@
       footer.prepend(left);
     }
     left.prepend(createLauncher());
+  }
+
+  function setLauncherEnabled(enabled) {
+    launcherEnabled = Boolean(enabled);
+    installLauncher();
   }
 
   function tileClass(value) {
@@ -397,5 +417,17 @@
 
   const observer = new MutationObserver(installLauncher);
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  installLauncher();
+
+  const storage = globalThis.chrome?.storage?.local;
+  if (storage) {
+    storage.get({ [STORAGE_KEY]: false }).then((settings) => {
+      setLauncherEnabled(settings[STORAGE_KEY]);
+    });
+    globalThis.chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "local" || !changes[STORAGE_KEY]) return;
+      setLauncherEnabled(changes[STORAGE_KEY].newValue);
+    });
+  } else {
+    installLauncher();
+  }
 })();
