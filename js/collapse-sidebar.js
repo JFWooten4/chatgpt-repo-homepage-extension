@@ -1,7 +1,9 @@
 (() => {
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
   const SETTING_KEY = "hoverRevealSidebar";
-  const CLOSE_LABELS = new Set(["close sidebar", "collapse sidebar"]);
-  const OPEN_LABELS = new Set(["open sidebar", "expand sidebar"]);
+  const CLOSE_LABELS = new Set(["close sidebar", "collapse sidebar", "hide sidebar"]);
+  const OPEN_LABELS = new Set(["open sidebar", "expand sidebar", "show sidebar"]);
   const EDGE_HOTSPOT_WIDTH = 64;
   const FALLBACK_SIDEBAR_WIDTH = 320;
   const COLLAPSE_DELAY_MS = 90;
@@ -18,6 +20,10 @@
 
     for (const button of buttons) {
       const label = button.getAttribute("aria-label")?.trim().toLowerCase();
+      if (!CLOSE_LABELS.has(label) && !OPEN_LABELS.has(label)) continue;
+      const style = getComputedStyle(button);
+      if (!button.getClientRects().length || style.visibility === "hidden"
+        || style.visibility === "collapse" || button.closest('[inert], [aria-hidden="true"]')) continue;
       if (CLOSE_LABELS.has(label)) return { state: "expanded", button };
       if (OPEN_LABELS.has(label)) return { state: "collapsed", button };
     }
@@ -32,6 +38,7 @@
   }
 
   function collapseOnLoad(observer) {
+    if (!context.active()) return;
     if (initialCollapseFinished) return;
 
     const toggle = sidebarToggleState();
@@ -66,7 +73,7 @@
     const attemptReveal = () => {
       revealFrame = null;
 
-      if (!hoverRevealEnabled || !pointer.inside || pointer.x > EDGE_HOTSPOT_WIDTH) {
+      if (!context.active() || !hoverRevealEnabled || !pointer.inside || pointer.x > EDGE_HOTSPOT_WIDTH) {
         revealDeadline = 0;
         return;
       }
@@ -134,7 +141,7 @@
     if (collapseTimer !== null) return;
     collapseTimer = window.setTimeout(() => {
       collapseTimer = null;
-      if (!hoverRevealEnabled) return;
+      if (!context.active() || !hoverRevealEnabled) return;
 
       const toggle = sidebarToggleState();
       if (!toggle || toggle.state !== "expanded" || pointerOverSidebar(toggle)) return;
@@ -143,7 +150,7 @@
   }
 
   function reconcileHoverState() {
-    if (!hoverRevealEnabled) return;
+    if (!context.active() || !hoverRevealEnabled) return;
 
     const overEdge = pointer.inside && pointer.x <= EDGE_HOTSPOT_WIDTH;
     const toggle = sidebarToggleState();
@@ -207,9 +214,16 @@
   });
 
   collapseOnLoad(observer);
-  window.setTimeout(() => finishInitialCollapse(observer), 10000);
+  const initialCollapseTimer = window.setTimeout(() => finishInitialCollapse(observer), 10000);
+  context.onStop(() => {
+    observer.disconnect();
+    clearTimeout(initialCollapseTimer);
+    clearCollapseTimer();
+    clearRevealRetry();
+  });
 
-  void chrome.storage.local.get({ [SETTING_KEY]: false }).then((settings) => {
-    setHoverRevealEnabled(settings[SETTING_KEY]);
+  void context.run(async () => {
+    const settings = await chrome.storage.local.get({ [SETTING_KEY]: false });
+    if (context.active()) setHoverRevealEnabled(settings[SETTING_KEY]);
   });
 })();

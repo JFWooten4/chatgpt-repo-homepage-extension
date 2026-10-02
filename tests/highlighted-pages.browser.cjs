@@ -107,7 +107,9 @@ test("adding and refreshing a PDF caches the complete first page, preserves link
   assert.equal(centered.card, "center");
   assert.ok(centered.gap >= 20);
   assert.ok(centered.offset < 1);
-  assert.equal(await page.locator(".ghrc-highlighted-page-pdf img").evaluate(image => getComputedStyle(image).objectFit), "contain");
+  assert.equal(await page.locator(".ghrc-highlighted-page-pdf img").evaluate(image => getComputedStyle(image).objectFit), "cover");
+  assert.equal(await page.locator(".ghrc-highlighted-page-pdf img").evaluate(image => getComputedStyle(image).objectPosition), "50% 0%");
+  assert.ok(await page.locator(".ghrc-highlighted-page").evaluate(card => card.getBoundingClientRect().width <= 220));
   assert.equal(await page.locator(".highlighted-page-setting-preview").evaluate(image => getComputedStyle(image).backgroundSize), "contain");
   // Refresh must reuse existing access rather than request another user gesture.
   await page.evaluate(() => document.querySelector(".refresh-highlight").click());
