@@ -21,6 +21,10 @@
     "https://github.com/*",
     "http://127.0.0.1/*"
   ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "background": {
     "service_worker": "js/background.js"
   },
@@ -39,7 +43,8 @@
         "https://chatgpt.com/*"
       ],
       "js": [
-        "js/clipboard-utm-sanitizer.js"
+        "js/clipboard-utm-sanitizer.js",
+        "js/chatgpt-route-events.js"
       ],
       "run_at": "document_start",
       "world": "MAIN"
@@ -50,7 +55,13 @@
       ],
       "css": [
         "css/work-mode.css",
-        "css/compact-header.css"
+        "css/compact-header.css",
+        "css/styles.css",
+        "css/hide-dictation.css",
+        "css/owner-grid.css",
+        "css/private-repository-lock.css",
+        "css/inline-toolbar-search.css",
+        "css/repository-fast-ui.css"
       ],
       "js": [
         "js/collapse-sidebar.js",
@@ -64,7 +75,11 @@
         "js/external-links.js",
         "js/hide-cookie-preferences.js",
         "js/block-voice-prompts.js",
-        "js/clipboard-utm-preference.js"
+        "js/clipboard-utm-preference.js",
+        "js/avatar-cache-ui.js",
+        "js/repository-fast-ui.js",
+        "js/owner-grid.js",
+        "js/content.js"
       ],
       "run_at": "document_start"
     },
@@ -73,31 +88,23 @@
         "https://chatgpt.com/*"
       ],
       "css": [
-        "css/styles.css",
         "css/2048.css",
         "css/youtube-search.css",
-        "css/hide-dictation.css",
         "css/wooten-link-zipp-placeholder.css",
-        "css/owner-grid.css",
-        "css/private-repository-lock.css",
-        "css/inline-toolbar-search.css",
         "css/spellcheck-launcher.css",
         "css/clipboard-send.css",
         "css/top-hat-send-button.css",
         "css/message-queue.css",
-        "css/repository-fast-ui.css"
+        "css/highlighted-pages.css"
       ],
       "js": [
-        "js/avatar-cache-ui.js",
-        "js/repository-fast-ui.js",
-        "js/content.js",
         "js/youtube-search.js",
         "js/wooten-link-zipp-placeholder.js",
-        "js/owner-grid.js",
         "js/spellcheck-launcher.js",
         "js/2048.js",
         "js/clipboard-send.js",
-        "js/message-queue.js"
+        "js/message-queue.js",
+        "js/highlighted-pages.js"
       ],
       "run_at": "document_idle"
     },

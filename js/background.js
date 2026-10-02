@@ -1,5 +1,6 @@
 importScripts(
   "avatar-cache.js",
+  "highlighted-pages-worker.js",
   "service-worker.js",
   "github-app-auth.js",
   "youtube-search-worker.js",

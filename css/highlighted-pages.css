@@ -1,0 +1,114 @@
+#github-repositories-for-chatgpt .ghrc-highlighted-pages {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 4px 0 2px;
+  width: 100%;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-pages h2 {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0 0 8px;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-pages-row {
+  display: flex;
+  gap: 10px;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  padding: 1px 1px 8px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page {
+  background: light-dark(#ffffff, #171717);
+  border: 1px solid light-dark(#d9d9d9, #383838);
+  border-radius: 11px;
+  box-sizing: border-box;
+  color: inherit;
+  display: grid;
+  flex: 0 0 clamp(210px, 24vw, 276px);
+  grid-template-rows: 112px minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  scroll-snap-align: start;
+  text-decoration: none;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page:hover {
+  background: light-dark(#f7f7f7, #202020);
+  border-color: light-dark(#c7c7c7, #4a4a4a);
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-image,
+#github-repositories-for-chatgpt .ghrc-highlighted-page-fallback {
+  background: light-dark(#f2f2f2, #111111);
+  height: 112px;
+  width: 100%;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-image {
+  display: block;
+  object-fit: cover;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-fallback {
+  align-items: center;
+  color: light-dark(#666666, #aaaaaa);
+  display: flex;
+  font-size: 30px;
+  font-weight: 700;
+  justify-content: center;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-fallback img {
+  height: 36px;
+  max-width: 36px;
+  object-fit: contain;
+  width: 36px;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 11px 11px;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-copy strong,
+#github-repositories-for-chatgpt .ghrc-highlighted-page-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-copy strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-copy small {
+  color: light-dark(#666666, #a6a6a6);
+  font-size: 11px;
+}
+
+#github-repositories-for-chatgpt .ghrc-highlighted-page-description {
+  color: light-dark(#565656, #b6b6b6);
+  display: -webkit-box;
+  font-size: 11px;
+  line-height: 1.35;
+  margin-top: 2px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 680px) {
+  #github-repositories-for-chatgpt .ghrc-highlighted-page {
+    flex-basis: min(72vw, 250px);
+  }
+}
