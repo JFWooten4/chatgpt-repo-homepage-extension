@@ -43,7 +43,7 @@ test("normalizes persisted queue items and drops empty entries", () => {
   );
 });
 
-test("Enter always queues, including an idle empty queue", () => {
+test("recognizes unmodified Enter as a send or queue gesture", () => {
   const helpers = api();
   const enter = {
     key: "Enter",

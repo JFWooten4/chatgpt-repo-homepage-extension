@@ -74,6 +74,7 @@
         "js/hide-background-completion-notifications.js",
         "js/external-links.js",
         "js/hide-cookie-preferences.js",
+        "js/chatgpt-disclaimer.js",
         "js/block-voice-prompts.js",
         "js/clipboard-utm-preference.js",
         "js/avatar-cache-ui.js",

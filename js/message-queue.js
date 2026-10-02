@@ -17,6 +17,7 @@
   let activeKey = conversationKey();
   let queue = [];
   let storageState = {};
+  let stateLoaded = false;
   let routeSyncRunning = false;
   let lastHref = location.href;
   let mountScheduled = false;
@@ -388,6 +389,7 @@
       : {};
     queuePaused = Boolean(stored[PAUSED_STORAGE_KEY]?.[activeKey]);
     queue = normalizeQueueItems(storageState[activeKey]);
+    stateLoaded = true;
     renderQueue();
     scheduleMount();
     schedulePump();
@@ -535,7 +537,7 @@
 
     const status = document.createElement("span");
     status.className = "ghrc-message-queue-status";
-    status.textContent = "Sends after the current response fully completes";
+    status.hidden = true;
 
     const toggle = document.createElement("button");
     toggle.type = "button";
@@ -566,9 +568,9 @@
     const title = panel.querySelector(".ghrc-message-queue-title");
     const list = panel.querySelector(".ghrc-message-queue-list");
     title.textContent = `Queued · ${queue.length}`;
-    panel.querySelector(".ghrc-message-queue-status").textContent = queuePaused
-      ? "Queue stopped; messages are saved"
-      : "Sends after the current response fully completes";
+    const status = panel.querySelector(".ghrc-message-queue-status");
+    status.hidden = !queuePaused;
+    status.textContent = queuePaused ? "Queue stopped; messages are saved" : "";
     const toggle = panel.querySelector(".ghrc-message-queue-toggle");
     toggle.textContent = queuePaused ? "Resume queue" : "Stop queue";
     toggle.setAttribute("aria-label", toggle.textContent);
@@ -705,29 +707,38 @@
     }
   }
 
+  async function enqueueText(text) {
+    if (!stateLoaded || routeSyncRunning || conversationKey() !== activeKey) return false;
+    text = normalizedText(text);
+    if (!text.trim()) return false;
+    queue.push({ id: itemId(), text, createdAt: Date.now() });
+    completionCandidateSince = null;
+    renderQueue();
+    scheduleMount();
+    await persistQueue();
+    schedulePump();
+    return true;
+  }
+
+  // Content scripts share an isolated world. Clipboard sends enter the FIFO
+  // without replacing the user's draft or clicking the native Stop button.
+  globalThis.__ghrcMessageQueue = { enqueueText, findActionButton };
+
   async function enqueueComposerMessage() {
-    if (enqueueRunning || sendingItemId || routeSyncRunning || interruptRunning) return false;
+    if (!stateLoaded || enqueueRunning || sendingItemId || routeSyncRunning || interruptRunning) return false;
     enqueueRunning = true;
     try {
       const composer = findComposerInput();
       const text = normalizedText(composerText(composer));
       if (!composer || !text.trim()) return false;
-
       if (!await replaceComposerText(composer, "")) return false;
-
-      queue.push({
-        id: itemId(),
-        text,
-        createdAt: Date.now(),
-      });
-      completionCandidateSince = null;
-      await persistQueue();
-      renderQueue();
-      schedulePump();
+      const queued = await enqueueText(text);
+      if (!queued && !composerText(composer).trim()) await replaceComposerText(composer, text);
       composer.focus({ preventScroll: true });
-      return true;
+      return queued;
     } finally {
       enqueueRunning = false;
+      schedulePump();
     }
   }
 
@@ -756,8 +767,9 @@
     }
 
     const composer = findComposerInput();
-    if (!composer || composerText(composer).trim()) return;
-
+    if (!composer) return;
+    const draft = composerText(composer);
+    const focused = document.activeElement;
     sendingItemId = item.id;
     renderQueue();
 
@@ -803,12 +815,18 @@
       completionCandidateSince = null;
       await persistQueue();
     } finally {
-      if (key === activeKey && queue.some((candidate) => candidate.id === item.id)) {
+      const sameConversation = key === activeKey || (key.startsWith("new:")
+        && activeKey.startsWith("conversation:") && conversationKey() === activeKey);
+      if (sameConversation && conversationKey() === activeKey && composer === findComposerInput()) {
+        const current = composerText(composer);
+        const restored = !current.trim() || textMatchesComposer(composer, item.text)
+          ? draft : (draft ? `${draft}\n${current}` : current);
+        await replaceComposerText(composer, restored);
+        if (focused?.isConnected) focused.focus({ preventScroll: true });
+      }
+      if (sameConversation && queue.some((candidate) => candidate.id === item.id)) {
         // An unconfirmed send must require a deliberate retry, even if the
         // site cleared the composer. Preserve any draft typed in the meantime.
-        if (textMatchesComposer(composer, item.text) && !responseIsActive()) {
-          await replaceComposerText(composer, "");
-        }
         queuePaused = true;
         await persistQueue();
       }
@@ -821,13 +839,13 @@
 
   function evaluatePump() {
     pumpScheduled = false;
-    if (!queue.length || sendingItemId || queuePaused || routeSyncRunning || enqueueRunning || interruptRunning) {
+    if (!stateLoaded || !queue.length || sendingItemId || queuePaused || routeSyncRunning || enqueueRunning || interruptRunning) {
       completionCandidateSince = null;
       return;
     }
 
     const composer = findComposerInput();
-    if (!composer || composerText(composer).trim()) {
+    if (!composer) {
       completionCandidateSince = null;
       return;
     }
@@ -859,6 +877,14 @@
     const composer = event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!composer || composer !== findComposerInput()) return;
     if (!shouldQueueComposerEnter(event)) return;
+    if (sendingItemId) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    // Let ChatGPT handle idle sends synchronously, including the first chat.
+    if (stateLoaded && !queue.length && !enqueueRunning && !interruptRunning
+      && !routeSyncRunning && queueCanAdvance(lifecycleSnapshot(), COMPLETE_SETTLE_MS)) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -908,6 +934,7 @@
 
   window.setInterval(schedulePump, PUMP_INTERVAL_MS);
   window.addEventListener("popstate", () => void syncConversationKey());
+  window.addEventListener("ghrc:route-change", () => void syncConversationKey());
   window.addEventListener("pageshow", () => {
     void syncConversationKey();
     scheduleMount();

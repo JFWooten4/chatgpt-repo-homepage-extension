@@ -105,6 +105,12 @@ async function fixture({ active = false, voice = false, editable = true, stored 
       update();
     };
     editor.addEventListener('input', update);
+    editor.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.defaultPrevented) {
+        event.preventDefault();
+        if (!button.disabled && !window.active) button.click();
+      }
+    });
     button.addEventListener('click', () => {
       if (window.active) { window.stops++; if (!window.deferStop) window.finish(); return; }
       if (window.rejectSend || !read().trim()) return;
@@ -123,8 +129,8 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     search.setAttribute('aria-label', 'Search WootenLink');
     document.querySelector('form').prepend(search);
   });
-  await page.addScriptTag({ content: source });
   if (clipboard) await page.addScriptTag({ content: clipboardSource });
+  await page.addScriptTag({ content: source });
   await page.locator('#ghrc-message-queue-button').waitFor();
   page.errors = errors;
   return page;
@@ -199,17 +205,21 @@ test('edit, reorder, and remove preserve FIFO while Send bypasses the queue', as
   await p.close();
 });
 
-test('drafts block automatic sending; modified Enter keeps a newline', async () => {
+test('queue drains while preserving a partial draft and Shift+Enter newline', async () => {
   const p = await fixture({ active: true });
   await enqueue(p, 'Queued');
+  await enqueue(p, 'Next');
   const editor = p.locator('[data-composer-markdown]');
   await editor.fill('Draft'); await editor.press('Shift+Enter');
-  assert.equal(await p.locator('.ghrc-message-queue-editor').count(), 1);
+  const draft = await p.evaluate(() => read());
   await p.evaluate(() => finish());
-  await p.waitForTimeout(1800);
-  assert.deepEqual(await p.evaluate(() => sent), []);
-  assert.match(await p.evaluate(() => read()), /Draft/);
-  await editor.fill(''); await sentCount(p, 1);
+  await sentCount(p, 1);
+  await p.waitForFunction(d => read().replace(/\n+$/, '') === d.replace(/\n+$/, ''), draft);
+  assert.deepEqual(await p.evaluate(() => sent), ['Queued']);
+  await p.evaluate(() => finish());
+  await sentCount(p, 2);
+  await p.waitForFunction(d => read().replace(/\n+$/, '') === d.replace(/\n+$/, ''), draft);
+  assert.deepEqual(await p.evaluate(() => sent), ['Queued', 'Next']);
   await p.close();
 });
 
@@ -310,15 +320,16 @@ test('stopping during the completion settle period prevents the next send on a n
 });
 
 
-test('Enter in an idle chat queues rather than immediately submitting', async () => {
-  const p = await fixture();
-  await enqueue(p, 'Enter queues', true);
-  assert.deepEqual(await p.evaluate(() => sent), []);
-  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Enter queues');
-  await sentCount(p, 1);
-  assert.deepEqual(await p.evaluate(() => sent), ['Enter queues']);
-  await p.close();
-});
+for (const route of ['/', '/c/test']) {
+  test(`idle Enter sends immediately without a queue panel on ${route}`, async () => {
+    const p = await fixture({ route });
+    await p.locator('[data-composer-markdown]').fill('Send directly');
+    await p.locator('[data-composer-markdown]').press('Enter');
+    assert.deepEqual(await p.evaluate(() => sent), ['Send directly']);
+    assert.equal(await p.locator('#ghrc-message-queue').count(), 0);
+    await p.close();
+  });
+}
 
 test('clicking the hat interrupts and sends immediately ahead of queued messages', async () => {
   const p = await fixture({ active: true });
@@ -420,8 +431,63 @@ test('live grouped markup, label-only Stop, clipboard integration, and dark them
 test('homepage queue anchors to Start Voice instead of embedded dashboard search buttons', async () => {
   const p = await fixture({ voice: true, searches: true });
   assert.equal(await p.locator('#ghrc-message-queue-button').evaluate(e => e.nextElementSibling.getAttribute('aria-label')), 'Start Voice');
-  await enqueue(p, 'Native send', true);
+  await p.locator('[data-composer-markdown]').fill('Native send');
+  await p.locator('[data-composer-markdown]').press('Enter');
   await sentCount(p, 1);
   assert.deepEqual(await p.evaluate(() => sent), ['Native send']);
+  await p.close();
+});
+
+for (const active of [false, true]) {
+  test(`clipboard button mounts empty and queues without interrupting (active=${active})`, async () => {
+    const p = await fixture({ active, voice: true, clipboard: true, liveMarkup: true });
+    await p.locator('#ghrc-clipboard-send-button').waitFor();
+    await p.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', { value: { readText: async () => 'Clipboard prompt' } });
+    });
+    await p.locator('[data-composer-markdown]').fill('Keep this draft');
+    await p.locator('#ghrc-clipboard-send-button').click();
+    await p.locator('.ghrc-message-queue-editor').waitFor();
+    assert.equal(await p.evaluate(() => read()), 'Keep this draft');
+    assert.equal(await p.evaluate(() => stops), 0);
+    if (active) await p.evaluate(() => finish());
+    await sentCount(p, 1);
+    await p.waitForFunction(() => read() === 'Keep this draft');
+    assert.deepEqual(await p.evaluate(() => sent), ['Clipboard prompt']);
+    assert.equal(await p.evaluate(() => stops), 0);
+    assert.deepEqual(p.errors, []);
+    await p.close();
+  });
+}
+
+test('disclaimer is hidden by default, toggles live, and leaves message content visible', async () => {
+  const p = await fixture();
+  await p.evaluate(() => {
+    document.body.insertAdjacentHTML('beforeend', '<div id="notice">ChatGPT can make mistakes. Check important info.</div><article><p id="message">ChatGPT can make mistakes. This is message content.</p></article>');
+  });
+  await p.addScriptTag({ content: fs.readFileSync(path.join(__dirname, '../js/chatgpt-disclaimer.js'), 'utf8') });
+  await p.waitForFunction(() => getComputedStyle(document.getElementById('notice')).display === 'none');
+  assert.equal(await p.locator('#message').isVisible(), true);
+  await p.evaluate(() => chrome.storage.local.set({ showChatgptDisclaimer: true }));
+  await p.waitForFunction(() => getComputedStyle(document.getElementById('notice')).display !== 'none');
+  await p.evaluate(() => chrome.storage.local.set({ showChatgptDisclaimer: false }));
+  await p.waitForFunction(() => getComputedStyle(document.getElementById('notice')).display === 'none');
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
+test('failed queued send restores a partial draft and preserves the queue for retry', async () => {
+  const p = await fixture({ active: true, editable: false });
+  await enqueue(p, 'Queued prompt');
+  await p.locator('#prompt-textarea').fill('Unfinished draft');
+  await p.evaluate(() => { window.rejectSend = true; finish(); });
+  await p.getByRole('button', { name: 'Resume queue', exact: true }).waitFor({ timeout: 10000 });
+  assert.equal(await p.evaluate(() => read()), 'Unfinished draft');
+  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Queued prompt');
+  await p.evaluate(() => { window.rejectSend = false; });
+  await p.getByRole('button', { name: 'Resume queue', exact: true }).click();
+  await sentCount(p, 1);
+  await p.waitForFunction(() => read() === 'Unfinished draft');
+  assert.deepEqual(await p.evaluate(() => sent), ['Queued prompt']);
   await p.close();
 });

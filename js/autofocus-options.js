@@ -65,8 +65,8 @@
     preference.innerHTML = `
       <input id="show-clipboard-send-button" type="checkbox" />
       <span>
-        <strong>Show clipboard send button</strong>
-        <small>Adds a button immediately before Send that replaces the composer with clipboard text and sends it as the prompt.</small>
+        <strong>Show clipboard queue button</strong>
+        <small>Adds a button that queues clipboard text without interrupting the response or replacing your draft.</small>
       </span>
     `;
     const spellcheckPreference = document.getElementById("show-spellcheck-gpt-launcher")?.closest("label.preference");
