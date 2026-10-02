@@ -95,6 +95,9 @@
     return;
   }
 
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
+
   function isVisible(element) {
     return Boolean(element?.isConnected && element.getClientRects().length);
   }
@@ -351,6 +354,7 @@
   }
 
   function persistQueue() {
+    if (!context.active()) return Promise.resolve();
     if (saveTimer !== null) {
       clearTimeout(saveTimer);
       saveTimer = null;
@@ -360,9 +364,11 @@
     const items = storageCopy();
     const paused = queuePaused;
     persistPending = persistPending.catch(() => {}).then(async () => {
+      if (!context.active()) return;
       const stored = await chrome.storage.local.get({
         [STORAGE_KEY]: {}, [PAUSED_STORAGE_KEY]: {},
       });
+      if (!context.active()) return;
       const next = { ...stored[STORAGE_KEY] };
       const pausedState = { ...stored[PAUSED_STORAGE_KEY] };
       if (items.length) next[key] = items;
@@ -377,19 +383,22 @@
   }
 
   function schedulePersist() {
+    if (!context.active()) return;
     if (saveTimer !== null) clearTimeout(saveTimer);
     saveTimer = window.setTimeout(() => {
       saveTimer = null;
-      void persistQueue();
+      void context.run(() => persistQueue());
     }, SAVE_DEBOUNCE_MS);
   }
 
   async function loadQueueState() {
+    if (!context.active()) return;
     const stored = await chrome.storage.local.get({
       [STORAGE_KEY]: {},
       [PAUSED_STORAGE_KEY]: {},
       [QUEUE_BUTTON_SETTING_KEY]: false,
     });
+    if (!context.active()) return;
     showQueueButton = Boolean(stored[QUEUE_BUTTON_SETTING_KEY]);
     storageState = stored[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object"
       ? stored[STORAGE_KEY]
@@ -403,6 +412,7 @@
   }
 
   async function syncConversationKey() {
+    if (!context.active()) return;
     if (routeSyncRunning) return;
     const nextKey = conversationKey();
     if (nextKey === activeKey) return;
@@ -416,8 +426,10 @@
       }
 
       await persistPending;
+      if (!context.active()) return;
       const previousKey = activeKey;
       const stored = await chrome.storage.local.get({ [STORAGE_KEY]: {}, [PAUSED_STORAGE_KEY]: {} });
+      if (!context.active()) return;
       const nextState = stored[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object"
         ? { ...stored[STORAGE_KEY] }
         : {};
@@ -461,14 +473,14 @@
     const target = index + direction;
     if (index < 0 || target < 0 || target >= queue.length) return;
     [queue[index], queue[target]] = [queue[target], queue[index]];
-    void persistQueue();
+    void context.run(() => persistQueue());
     renderQueue();
     schedulePump();
   }
 
   function removeItem(id) {
     queue = queue.filter((item) => item.id !== id);
-    void persistQueue();
+    void context.run(() => persistQueue());
     renderQueue();
     schedulePump();
   }
@@ -533,7 +545,7 @@
     steer.title = "Interrupt and send this queued message";
     steer.setAttribute("aria-label", "Steer queued message");
     steer.disabled = Boolean(sendingItemId) || interruptRunning || enqueueRunning || routeSyncRunning;
-    steer.addEventListener("click", () => void sendQueueHead(item.id, true));
+    steer.addEventListener("click", () => void context.run(() => sendQueueHead(item.id, true)));
 
     controls.append(steer, up, down, remove);
     row.append(ordinal, textarea, controls);
@@ -561,7 +573,7 @@
     toggle.addEventListener("click", () => {
       queuePaused = !queuePaused;
       completionCandidateSince = null;
-      void persistQueue();
+      void context.run(() => persistQueue());
       renderQueue();
       schedulePump();
     });
@@ -614,12 +626,13 @@
       <span class="ghrc-message-queue-badge" aria-hidden="true"></span>
     `;
     button.addEventListener("click", () => {
-      void enqueueComposerMessage();
+      void context.run(() => enqueueComposerMessage());
     });
     return button;
   }
 
   function mountQueueUi() {
+    if (!context.active()) return;
     mountScheduled = false;
     const steeringBusy = Boolean(sendingItemId) || interruptRunning || enqueueRunning || routeSyncRunning;
     for (const steer of document.querySelectorAll(".ghrc-message-queue-steer")) {
@@ -658,7 +671,7 @@
         interruptButton.type = "button";
         interruptButton.title = "Interrupt response and send now";
         interruptButton.setAttribute("aria-label", "Interrupt and send");
-        interruptButton.addEventListener("click", () => void interruptAndSend());
+        interruptButton.addEventListener("click", () => void context.run(interruptAndSend));
       }
       interruptButton.disabled = interruptRunning || Boolean(sendingItemId) || enqueueRunning;
       if (interruptButton.parentElement !== actionButton.parentElement
@@ -688,12 +701,14 @@
   }
 
   function scheduleMount() {
+    if (!context.active()) return;
     if (mountScheduled) return;
     mountScheduled = true;
     requestAnimationFrame(mountQueueUi);
   }
 
   async function interruptAndSend() {
+    if (!context.active()) return false;
     if (interruptRunning || sendingItemId || enqueueRunning || routeSyncRunning) return;
     const composer = findComposerInput();
     const text = composerText(composer);
@@ -711,7 +726,7 @@
       }
       const deadline = Date.now() + SUBMIT_TIMEOUT_MS;
       while (Date.now() < deadline) {
-        if (key !== activeKey || conversationKey() !== key || routeSyncRunning
+        if (!context.active() || key !== activeKey || conversationKey() !== key || routeSyncRunning
           || composer !== findComposerInput() || !composer.isConnected
           || !textMatchesComposer(composer, text)) return;
 
@@ -733,6 +748,7 @@
   }
 
   async function enqueueText(text) {
+    if (!context.active()) return false;
     if (!stateLoaded || routeSyncRunning || conversationKey() !== activeKey) return false;
     text = normalizedText(text);
     if (!text.trim()) return false;
@@ -741,15 +757,17 @@
     renderQueue();
     scheduleMount();
     await persistQueue();
+    if (!context.active()) return false;
     schedulePump();
     return true;
   }
 
   // Content scripts share an isolated world. Clipboard sends enter the FIFO
   // without replacing the user's draft or clicking the native Stop button.
-  globalThis.__ghrcMessageQueue = { enqueueText, findActionButton };
+  globalThis.__ghrcMessageQueue = { enqueueText: text => context.run(() => enqueueText(text)), findActionButton };
 
   async function enqueueComposerMessage() {
+    if (!context.active()) return false;
     if (!stateLoaded || enqueueRunning || sendingItemId || routeSyncRunning || interruptRunning) return false;
     enqueueRunning = true;
     try {
@@ -780,6 +798,7 @@
   }
 
   async function sendQueueHead(id = queue[0]?.id, steer = false) {
+    if (!context.active()) return false;
     if (!stateLoaded || sendingItemId || enqueueRunning || interruptRunning
       || routeSyncRunning || conversationKey() !== activeKey || (queuePaused && !steer)) return;
 
@@ -809,13 +828,13 @@
         stop.click();
         const stopDeadline = Date.now() + SUBMIT_TIMEOUT_MS;
         while (responseIsActive(composer) && Date.now() < stopDeadline) {
-          if (key !== activeKey || conversationKey() !== key || routeSyncRunning
+          if (!context.active() || key !== activeKey || conversationKey() !== key || routeSyncRunning
             || composer !== findComposerInput() || !composer.isConnected) return;
           await new Promise(resolve => window.setTimeout(resolve, 80));
         }
         if (responseIsActive(composer)) return;
       }
-      if (key !== activeKey || conversationKey() !== key || routeSyncRunning
+      if (!context.active() || key !== activeKey || conversationKey() !== key || routeSyncRunning
         || composer !== findComposerInput() || !composer.isConnected
         || !queue.some(candidate => candidate.id === item.id)) return;
       draft = composerText(composer);
@@ -845,7 +864,7 @@
         return;
       }
 
-      if ((queuePaused && !steer) || key !== activeKey || conversationKey() !== key
+      if (!context.active() || (queuePaused && !steer) || key !== activeKey || conversationKey() !== key
         || routeSyncRunning || responseIsActive()
         || !textMatchesComposer(composer, item.text)) return;
       sendButton.click();
@@ -886,6 +905,7 @@
   }
 
   function evaluatePump() {
+    if (!context.active()) return;
     pumpScheduled = false;
     if (!stateLoaded || !queue.length || sendingItemId || queuePaused || routeSyncRunning || enqueueRunning || interruptRunning) {
       completionCandidateSince = null;
@@ -912,19 +932,24 @@
 
     const settledMs = Date.now() - completionCandidateSince;
     if (!queueCanAdvance(snapshot, settledMs)) return;
-    void sendQueueHead();
+    void context.run(() => sendQueueHead());
   }
 
   function schedulePump() {
+    if (!context.active()) return;
     if (pumpScheduled) return;
     pumpScheduled = true;
     requestAnimationFrame(evaluatePump);
   }
 
   document.addEventListener("keydown", (event) => {
+    if (!context.active()) return;
     const composer = event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!composer || composer !== findComposerInput()) return;
     if (!shouldQueueComposerEnter(event)) return;
+    // The overview creates a conversation through ChatGPT's native first send.
+    // Do not wait for queue storage or conversation lifecycle detection here.
+    if (location.pathname === "/") return;
     if (sendingItemId) {
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -936,7 +961,7 @@
 
     event.preventDefault();
     event.stopImmediatePropagation();
-    void enqueueComposerMessage();
+    void context.run(() => enqueueComposerMessage());
   }, true);
 
   document.addEventListener("input", (event) => {
@@ -971,7 +996,7 @@
   const observer = new MutationObserver(() => {
     if (location.href !== lastHref) {
       lastHref = location.href;
-      void syncConversationKey();
+      void context.run(() => syncConversationKey());
     }
     scheduleMount();
     schedulePump();
@@ -984,14 +1009,19 @@
     attributeFilter: ["aria-disabled", "data-testid", "data-message-status", "data-state"],
   });
 
-  window.setInterval(schedulePump, PUMP_INTERVAL_MS);
-  window.addEventListener("popstate", () => void syncConversationKey());
-  window.addEventListener("ghrc:route-change", () => void syncConversationKey());
+  const pumpInterval = window.setInterval(schedulePump, PUMP_INTERVAL_MS);
+  context.onStop(() => {
+    observer.disconnect();
+    clearInterval(pumpInterval);
+    if (saveTimer !== null) clearTimeout(saveTimer);
+  });
+  window.addEventListener("popstate", () => void context.run(syncConversationKey));
+  window.addEventListener("ghrc:route-change", () => void context.run(syncConversationKey));
   window.addEventListener("pageshow", () => {
-    void syncConversationKey();
+    void context.run(() => syncConversationKey());
     scheduleMount();
     schedulePump();
   });
 
-  void loadQueueState();
+  void context.run(() => loadQueueState());
 })();

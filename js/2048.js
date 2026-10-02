@@ -183,8 +183,6 @@
     if (!left) {
       left = document.createElement("div");
       left.className = "ghrc-2048-footer-left";
-      const pagination = footer.querySelector(":scope > .ghrc-pagination");
-      if (pagination) left.append(pagination);
       footer.prepend(left);
     }
     left.prepend(createLauncher());
@@ -329,14 +327,16 @@
     };
 
     const onKeyDown = (event) => {
-      if (event.key === "Escape") {
+      if (event.isComposing || event.ctrlKey || event.metaKey || event.altKey) return;
+      const pressedKey = event.detail?.key || event.key;
+      if (pressedKey === "Escape") {
         event.preventDefault();
         event.stopImmediatePropagation();
         destroy();
         return;
       }
 
-      const direction = keyMap[event.key];
+      const direction = keyMap[pressedKey];
       if (!direction) return;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -365,6 +365,7 @@
 
     function destroy() {
       window.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("ghrc:2048-key", onKeyDown);
       boardElement.removeEventListener("touchstart", onTouchStart);
       boardElement.removeEventListener("touchend", onTouchEnd);
       overlay.remove();
@@ -377,6 +378,7 @@
     undo.addEventListener("click", undoMove);
     restart.addEventListener("click", reset);
     window.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("ghrc:2048-key", onKeyDown);
     boardElement.addEventListener("touchstart", onTouchStart, { passive: true });
     boardElement.addEventListener("touchend", onTouchEnd, { passive: true });
 

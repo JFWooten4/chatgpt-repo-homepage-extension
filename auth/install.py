@@ -5,6 +5,15 @@ import shutil
 import subprocess
 import os
 import time
+import argparse
+import re
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--extension-id", action="append", help="Allow this installed extension ID; repeat to allow multiple installations.")
+args = parser.parse_args()
+extension_ids = args.extension_id or ["gbokjelbjnifepoeklddjcjoljnfaofk"]
+if any(not re.fullmatch(r"[a-p]{32}", value) for value in extension_ids):
+    parser.error("Each extension ID must contain exactly 32 letters from a to p.")
 
 root = Path(__file__).resolve().parent
 node = shutil.which("node")
@@ -21,6 +30,7 @@ configuration = {
     "RunAtLoad": True,
     "KeepAlive": True,
     "ProcessType": "Background",
+    "EnvironmentVariables": {"GITHUB_APP_EXTENSION_IDS": ",".join(extension_ids)},
     "StandardOutPath": str(logs / "service.log"),
     "StandardErrorPath": str(logs / "error.log"),
 }

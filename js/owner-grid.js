@@ -1,4 +1,6 @@
 (() => {
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
   const SETTING_KEY = "ownerGroupsPerRow";
   const SHOW_REPOSITORY_TOTAL_KEY = "showRepositoryTotal";
   const WIDGET_ID = "github-repositories-for-chatgpt";
@@ -65,6 +67,7 @@
   }
 
   function syncOwnerHeaders() {
+    if (!context.active()) return;
     ownerHeaderSyncScheduled = false;
     document
       .querySelectorAll(`#${WIDGET_ID} .ghrc-owner-header`)
@@ -72,6 +75,7 @@
   }
 
   function scheduleOwnerHeaderSync() {
+    if (!context.active()) return;
     if (ownerHeaderSyncScheduled) return;
     ownerHeaderSyncScheduled = true;
     requestAnimationFrame(syncOwnerHeaders);
@@ -95,6 +99,7 @@
       [SETTING_KEY]: DEFAULT_GROUPS_PER_ROW,
       [SHOW_REPOSITORY_TOTAL_KEY]: true,
     });
+    if (!context.active()) return;
     applyGroupsPerRow(settings[SETTING_KEY]);
     showRepositoryTotal = Boolean(settings[SHOW_REPOSITORY_TOTAL_KEY]);
     scheduleOwnerHeaderSync();
@@ -114,8 +119,9 @@
   const observer = new MutationObserver((mutations) => {
     if (mutations.some(mutationTouchesWidget)) scheduleOwnerHeaderSync();
   });
+  context.onStop(() => observer.disconnect());
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
   scheduleOwnerHeaderSync();
-  void loadSettings();
+  void context.run(loadSettings);
 })();

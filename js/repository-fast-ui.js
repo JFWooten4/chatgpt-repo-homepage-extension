@@ -1,4 +1,6 @@
 (() => {
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
   const WIDGET_ID = "github-repositories-for-chatgpt";
   const PINNED_STORAGE_KEY = "pinnedRepositories";
   const LOADING_TEXT = "Loading repositories…";
@@ -46,7 +48,9 @@
   }
 
   async function unpinRepository(fullName) {
+    if (!context.active()) return;
     const stored = await chrome.storage.local.get({ [PINNED_STORAGE_KEY]: [] });
+    if (!context.active()) return;
     const pins = normalizedPins(stored[PINNED_STORAGE_KEY]);
     const key = fullName.toLowerCase();
     await chrome.storage.local.set({
@@ -84,6 +88,8 @@
       try {
         await unpinRepository(fullName);
         item.remove();
+      } catch (error) {
+        context.handleError(error);
       } finally {
         pin.disabled = false;
       }
@@ -100,7 +106,9 @@
     if (!loading) return;
 
     widget.dataset.ghrcWarmPins = "loading";
+    if (!context.active()) return;
     const stored = await chrome.storage.local.get({ [PINNED_STORAGE_KEY]: [] });
+    if (!context.active()) return;
     const pins = normalizedPins(stored[PINNED_STORAGE_KEY]);
     if (!pins.length || !widget.isConnected || !loading.isConnected) return;
 
@@ -185,12 +193,14 @@
   }
 
   function updateFastUi() {
+    if (!context.active()) return;
     const widget = document.getElementById(WIDGET_ID);
-    if (widget) void showWarmPins(widget);
+    if (widget) void context.run(() => showWarmPins(widget));
     scheduleSearchCategorization();
   }
 
   const observer = new MutationObserver(updateFastUi);
+  context.onStop(() => observer.disconnect());
   observer.observe(document.documentElement, { childList: true, subtree: true });
   updateFastUi();
 })();
