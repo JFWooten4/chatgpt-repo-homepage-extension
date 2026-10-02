@@ -66,7 +66,7 @@ To configure it on macOS:
 3. Run `python3 auth/install.py` to install the login service, which starts automatically at login. Run the installer again after changing the Keychain credential to restart it.
 4. Reload the extension and select Connect GitHub.
 
-The installed extension ID is `gbokjelbjnifepoeklddjcjoljnfaofk`. For another installation, run the service manually with `GITHUB_APP_EXTENSION_IDS` set to its ID. The server also accepts `GITHUB_APP_CLIENT_SECRET` from its environment for non-Keychain setups. Existing device-flow sessions can still refresh; new connections use browser authorization.
+The service defaults to extension ID `gbokjelbjnifepoeklddjcjoljnfaofk`. If Connect GitHub fails after moving or reinstalling the extension, find its ID in the browser's extensions page and run `python3 auth/install.py --extension-id YOUR_EXTENSION_ID`. Repeat `--extension-id` to allow multiple installations. For a manually started service, set `GITHUB_APP_EXTENSION_IDS` to a comma-separated list of IDs. The server also accepts `GITHUB_APP_CLIENT_SECRET` from its environment for non-Keychain setups. Existing device-flow sessions can still refresh; new connections use browser authorization.
 
 To stop and remove the local service, run `launchctl bootout gui/$(id -u)/com.flawless-chatgpt.auth` and delete `~/Library/LaunchAgents/com.flawless-chatgpt.auth.plist`. This retains the Keychain credential and browser session.
 
