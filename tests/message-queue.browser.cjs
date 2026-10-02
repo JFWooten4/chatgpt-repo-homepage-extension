@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const source = fs.readFileSync(path.join(__dirname, '../js/message-queue.js'), 'utf8');
+const clipboardSource = fs.readFileSync(path.join(__dirname, '../js/clipboard-send.js'), 'utf8');
 const queueCss = fs.readFileSync(path.join(__dirname, '../css/message-queue.css'), 'utf8');
 const hatCss = fs.readFileSync(path.join(__dirname, '../css/top-hat-send-button.css'), 'utf8');
 let browser;
@@ -17,7 +18,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function fixture({ active = false, voice = false, editable = true, stored = {}, route = '/c/test' } = {}) {
+async function fixture({ active = false, voice = false, editable = true, stored = {}, route = '/c/test', liveMarkup = false, clipboard = false, searches = false } = {}) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -28,12 +29,14 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     <button id="composer-submit-button" type="button"><svg viewBox="0 0 24 24"><rect width="10" height="10"/></svg></button>
     </form></div>` }));
   await page.goto(`https://queue.test${route}`);
-  await page.evaluate(({ active, voice, stored }) => {
+  await page.evaluate(({ active, voice, stored, liveMarkup, clipboard }) => {
+    window.liveMarkup = liveMarkup;
+    if (liveMarkup) document.documentElement.setAttribute('data-theme', 'dark');
     window.sent = [];
     window.rejectSend = false;
     window.stops = 0;
     window.deferStop = false;
-    window.storage = structuredClone(stored);
+    window.storage = { ...structuredClone(stored), showClipboardSendButton: clipboard };
     window.chrome = { storage: { local: {
       async get(defaults) { return { ...defaults, ...structuredClone(window.storage) }; },
       async set(values) {
@@ -60,6 +63,21 @@ async function fixture({ active = false, voice = false, editable = true, stored 
       else editor.innerHTML = '<p><br class="ProseMirror-trailingBreak"></p>';
     };
     window.addTurn = (role, complete = false) => {
+      if (window.liveMarkup) {
+        let group;
+        if (role === 'user') {
+          group = document.createElement('div');
+          group.className = 'group flex flex-col';
+          group.dataset.fixtureTurn = document.querySelectorAll('[data-fixture-turn]').length;
+          document.getElementById('turns').append(group);
+        } else group = document.querySelector('[data-fixture-turn]:last-child');
+        const content = document.createElement('div');
+        content.setAttribute('data-content-search-unit-key', `fallback-turn-${group.dataset.fixtureTurn}:${role === 'user' ? 0 : 1}:${role}`);
+        if (role === 'user') content.innerHTML = '<button aria-label="Copy message">Copy user</button>';
+        group.append(content);
+        if (complete) group.insertAdjacentHTML('beforeend', '<div class="turn-action-controls"><button aria-label="Copy">Copy assistant</button></div>');
+        return;
+      }
       const article = document.createElement('article');
       article.dataset.testid = `conversation-turn-${document.querySelectorAll('article').length}`;
       article.innerHTML = `<div data-message-author-role="${role}"></div>`;
@@ -72,10 +90,17 @@ async function fixture({ active = false, voice = false, editable = true, stored 
       button.dataset.testid = window.active ? 'stop-button' : (window.voice && !read().trim() ? 'voice-button' : 'send-button');
       button.setAttribute('aria-label', window.active ? 'Stop generating' : (window.voice && !read().trim() ? 'Start Voice' : 'Send prompt'));
       button.disabled = !window.active && !window.voice && !read().trim();
+      if (window.liveMarkup) {
+        button.removeAttribute('data-testid');
+        button.removeAttribute('id');
+        button.setAttribute('aria-label', window.active ? 'Stop' : (window.voice && !read().trim() ? 'Start Voice' : 'Send'));
+      }
     };
     window.finish = () => {
-      const assistants = document.querySelectorAll('[data-message-author-role="assistant"]');
-      assistants[assistants.length - 1]?.parentElement.insertAdjacentHTML('beforeend', '<button data-testid="copy-turn-action-button">Copy</button>');
+      const assistants = document.querySelectorAll('[data-message-author-role="assistant"], [data-content-search-unit-key$=":assistant"]');
+      assistants[assistants.length - 1]?.parentElement.insertAdjacentHTML('beforeend', window.liveMarkup
+        ? '<div class="turn-action-controls"><button aria-label="Copy">Copy assistant</button></div>'
+        : '<button data-testid="copy-turn-action-button">Copy</button>');
       window.active = false;
       update();
     };
@@ -89,9 +114,17 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     });
     if (active) { addTurn('user'); addTurn('assistant'); }
     update();
-  }, { active, voice, stored });
+  }, { active, voice, stored, liveMarkup, clipboard });
   await page.addStyleTag({ content: queueCss + hatCss });
+  if (searches) await page.evaluate(() => {
+    const search = document.createElement('button');
+    search.type = 'submit';
+    search.className = 'ghrc-wooten-link-submit';
+    search.setAttribute('aria-label', 'Search WootenLink');
+    document.querySelector('form').prepend(search);
+  });
   await page.addScriptTag({ content: source });
+  if (clipboard) await page.addScriptTag({ content: clipboardSource });
   await page.locator('#ghrc-message-queue-button').waitFor();
   page.errors = errors;
   return page;
@@ -350,5 +383,45 @@ test('interrupt cancels on navigation without submitting in another chat', async
   await p.evaluate(() => finish());
   await p.waitForTimeout(200);
   assert.deepEqual(await p.evaluate(() => sent), []);
+  await p.close();
+});
+
+
+test('live grouped markup, label-only Stop, clipboard integration, and dark theme work together', async () => {
+  const p = await fixture({ active: true, liveMarkup: true, clipboard: true });
+  await enqueue(p, 'Live queue', true);
+  assert.equal(await p.locator('#ghrc-message-queue').evaluate(e => getComputedStyle(e).backgroundColor), 'rgb(33, 33, 33)');
+  await p.evaluate(() => { window.active = false; update(); });
+  // User Copy message exists; the assistant toolbar has not arrived yet.
+  await p.waitForTimeout(1800);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  await p.evaluate(() => finish());
+  await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sent), ['Live queue']);
+  await p.locator('[data-composer-markdown]').fill('Interrupt draft');
+  await p.getByRole('button', { name: 'Interrupt and send', exact: true }).click();
+  await sentCount(p, 2);
+  assert.deepEqual(await p.evaluate(() => sent), ['Live queue', 'Interrupt draft']);
+  await p.evaluate(() => finish());
+  await p.locator('[data-composer-markdown]').fill('Keep draft');
+  await p.locator('#ghrc-clipboard-send-button').waitFor();
+  await p.waitForTimeout(300);
+  await p.evaluate(() => {
+    window.buttonMoves = 0;
+    new MutationObserver(rs => { window.buttonMoves += rs.length; }).observe(document.querySelector('form'), { childList: true, subtree: true });
+  });
+  await p.waitForTimeout(1000);
+  assert.equal(await p.evaluate(() => buttonMoves), 0);
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
+
+test('homepage queue anchors to Start Voice instead of embedded dashboard search buttons', async () => {
+  const p = await fixture({ voice: true, searches: true });
+  assert.equal(await p.locator('#ghrc-message-queue-button').evaluate(e => e.nextElementSibling.getAttribute('aria-label')), 'Start Voice');
+  await enqueue(p, 'Native send', true);
+  await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sent), ['Native send']);
   await p.close();
 });

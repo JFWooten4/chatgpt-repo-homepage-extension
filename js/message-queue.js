@@ -112,14 +112,15 @@
 
     const selectors = [
       'button[data-testid="stop-button"]',
+      'button[aria-label="Stop" i]',
       'button[data-testid="send-button"]',
       'button[aria-label*="Stop generating" i]',
       'button[aria-label*="Stop response" i]',
-      'button[aria-label^="Send" i]',
+      'button[aria-label^="Send" i]:not([id^="ghrc-"])',
       'button#composer-submit-button',
-      'button[type="submit"]',
       'button[aria-label="Start Voice" i]',
       'button[aria-label*="voice mode" i]',
+      'button[type="submit"]:not([id^="ghrc-"]):not([class*="ghrc-"]):not([aria-label*="Search" i])',
     ];
 
     for (const selector of selectors) {
@@ -135,7 +136,7 @@
 
     const selectors = [
       'button[data-testid="send-button"]',
-      'button[aria-label^="Send" i]',
+      'button[aria-label^="Send" i]:not([id^="ghrc-"])',
       'button#composer-submit-button:not([data-testid="stop-button"]):not([aria-label*="Stop" i]):not([aria-label*="voice" i])',
     ];
 
@@ -148,7 +149,9 @@
       .find((button) => (
         isVisible(button)
         && button.getAttribute("data-testid") !== "stop-button"
-        && !/stop/i.test(button.getAttribute("aria-label") || "")
+        && !button.id.startsWith("ghrc-")
+        && !button.className.includes("ghrc-")
+        && !/stop|voice|search/i.test(button.getAttribute("aria-label") || "")
       )) || null;
   }
 
@@ -267,7 +270,7 @@
 
   function roleTurns(role) {
     const roleNodes = [...document.querySelectorAll(
-      `[data-message-author-role="${role}"]`
+      `[data-message-author-role="${role}"], [data-content-search-unit-key$=":${role}"]`
     )];
     const turns = [];
     const seen = new Set();
@@ -275,6 +278,7 @@
     for (const node of roleNodes) {
       const turn = node.closest('[data-testid^="conversation-turn-"]')
         || node.closest("article")
+        || (node.hasAttribute("data-content-search-unit-key") ? node.closest(".group") : null)
         || node;
       if (!seen.has(turn)) {
         seen.add(turn);
@@ -287,6 +291,18 @@
   function latestAssistantIsComplete(assistantTurns) {
     const latest = assistantTurns[assistantTurns.length - 1];
     if (!latest) return false;
+
+    // Current ChatGPT groups user and assistant content in the same container.
+    // Its user "Copy message" action must not count as assistant completion.
+    if (latest.querySelector('[data-content-search-unit-key$=":assistant"]')
+      && !latest.querySelector('[data-message-author-role="assistant"]')) {
+      return Boolean(latest.querySelector(
+        '.turn-action-controls button[aria-label="Copy"], '
+        + '.turn-action-controls button[aria-label*="Good response" i], '
+        + '.turn-action-controls button[aria-label*="Bad response" i], '
+        + '.turn-action-controls button[aria-label*="Regenerate" i]'
+      ));
+    }
 
     const completionSelectors = [
       '[data-message-status="finished"]',
@@ -308,7 +324,7 @@
     const composer = findComposerInput();
     const userTurns = roleTurns("user");
     const assistantTurns = roleTurns("assistant");
-    const turnCount = document.querySelectorAll('[data-testid^="conversation-turn-"]').length;
+    const turnCount = document.querySelectorAll('[data-testid^="conversation-turn-"], [data-content-search-unit-key]').length;
     const roleStateKnown = turnCount === 0 || userTurns.length + assistantTurns.length > 0;
 
     return {

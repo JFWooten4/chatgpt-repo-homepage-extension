@@ -20,7 +20,7 @@
     if (!composer) return null;
     const selectors = [
       'button[data-testid="send-button"]',
-      'button[aria-label^="Send" i]',
+      'button[aria-label^="Send" i]:not([id^="ghrc-"])',
       'button#composer-submit-button:not([data-testid="stop-button"]):not([aria-label*="Stop" i]):not([aria-label*="voice" i])',
     ];
 
@@ -34,7 +34,10 @@
 
     const form = composer.closest("form");
     return [...(form?.querySelectorAll('button[type="submit"]') || [])]
-      .find((button) => isVisible(button) && button.getAttribute("data-testid") !== "stop-button") || null;
+      .find((button) => isVisible(button)
+        && button.getAttribute("data-testid") !== "stop-button"
+        && !button.id.startsWith("ghrc-") && !button.className.includes("ghrc-")
+        && !/stop|voice|search/i.test(button.getAttribute("aria-label") || "")) || null;
   }
 
   function replaceTextControlValue(control, text) {
@@ -212,8 +215,12 @@
 
     let button = document.getElementById(BUTTON_ID);
     if (!button) button = createButton();
-    if (button.parentElement !== sendButton.parentElement || button.nextElementSibling !== sendButton) {
-      sendButton.before(button);
+    // Keep a stable order with the queue controls; competing "before Send"
+    // observers otherwise move these buttons back and forth indefinitely.
+    const queueButton = document.getElementById("ghrc-message-queue-button");
+    const anchor = queueButton?.parentElement === sendButton.parentElement ? queueButton : sendButton;
+    if (button.parentElement !== anchor.parentElement || button.nextElementSibling !== anchor) {
+      anchor.before(button);
     }
     setButtonBusy(button, actionRunning);
   }

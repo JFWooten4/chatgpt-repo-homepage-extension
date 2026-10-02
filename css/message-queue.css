@@ -13,7 +13,8 @@
   width: min(48rem, 100%);
 }
 
-html.dark #ghrc-message-queue {
+html.dark #ghrc-message-queue,
+html[data-theme="dark"] #ghrc-message-queue {
   --ghrc-queue-bg: var(--main-surface-primary, #212121);
   --ghrc-queue-subtle: var(--main-surface-secondary, #2f2f2f);
 }
