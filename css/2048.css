@@ -52,6 +52,7 @@
 }
 
 .ghrc-2048-overlay {
+  box-sizing: border-box;
   align-items: center;
   background: rgba(0, 0, 0, 0.72);
   display: flex;
@@ -63,6 +64,7 @@
 }
 
 .ghrc-2048-dialog {
+  box-sizing: border-box;
   background: #0d1117;
   border: 1px solid #30363d;
   border-radius: 14px;
@@ -71,7 +73,7 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   max-width: 100%;
   padding: 18px;
-  width: 390px;
+  width: min(640px, calc(100dvh - 170px));
 }
 
 .ghrc-2048-header,
@@ -190,6 +192,7 @@
   background: #20262e;
   border-radius: 8px;
   contain: layout paint;
+  container-type: inline-size;
   display: grid;
   gap: 9px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -203,7 +206,7 @@
   align-items: center;
   border-radius: 5px;
   display: flex;
-  font-size: clamp(20px, 7vw, 32px);
+  font-size: clamp(16px, 8cqw, 48px);
   font-weight: 700;
   justify-content: center;
   line-height: 1;
@@ -248,37 +251,37 @@
 .ghrc-2048-tile-128 {
   background: #8f7429;
   color: #f9f6f2;
-  font-size: clamp(18px, 6vw, 28px);
+  font-size: clamp(14px, 7cqw, 42px);
 }
 
 .ghrc-2048-tile-256 {
   background: #92731f;
   color: #f9f6f2;
-  font-size: clamp(18px, 6vw, 28px);
+  font-size: clamp(14px, 7cqw, 42px);
 }
 
 .ghrc-2048-tile-512 {
   background: #956d16;
   color: #f9f6f2;
-  font-size: clamp(18px, 6vw, 28px);
+  font-size: clamp(14px, 7cqw, 42px);
 }
 
 .ghrc-2048-tile-1024 {
   background: #96640f;
   color: #f9f6f2;
-  font-size: clamp(15px, 5vw, 24px);
+  font-size: clamp(12px, 6cqw, 36px);
 }
 
 .ghrc-2048-tile-2048 {
   background: #985b08;
   color: #f9f6f2;
-  font-size: clamp(15px, 5vw, 24px);
+  font-size: clamp(12px, 6cqw, 36px);
 }
 
 .ghrc-2048-tile-super {
   background: #2b3139;
   color: #f9f6f2;
-  font-size: clamp(13px, 4.5vw, 21px);
+  font-size: clamp(10px, 5cqw, 30px);
 }
 
 .ghrc-2048-status {
@@ -296,7 +299,6 @@
 
   .ghrc-2048-dialog {
     padding: 14px;
-    width: min(390px, calc(100vw - 24px));
   }
 }
 
