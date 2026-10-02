@@ -5,9 +5,12 @@
   const EDGE_HOTSPOT_WIDTH = 64;
   const FALLBACK_SIDEBAR_WIDTH = 320;
   const COLLAPSE_DELAY_MS = 90;
+  const REVEAL_RETRY_MS = 750;
   let initialCollapseFinished = false;
   let hoverRevealEnabled = false;
   let collapseTimer = null;
+  let revealFrame = null;
+  let revealDeadline = 0;
   let pointer = { x: Number.POSITIVE_INFINITY, y: Number.POSITIVE_INFINITY, inside: false };
 
   function sidebarToggleState() {
@@ -46,6 +49,47 @@
     if (collapseTimer === null) return;
     clearTimeout(collapseTimer);
     collapseTimer = null;
+  }
+
+  function clearRevealRetry() {
+    if (revealFrame !== null) {
+      window.cancelAnimationFrame(revealFrame);
+      revealFrame = null;
+    }
+    revealDeadline = 0;
+  }
+
+  function scheduleReveal() {
+    if (revealFrame !== null) return;
+    revealDeadline = Date.now() + REVEAL_RETRY_MS;
+
+    const attemptReveal = () => {
+      revealFrame = null;
+
+      if (!hoverRevealEnabled || !pointer.inside || pointer.x > EDGE_HOTSPOT_WIDTH) {
+        revealDeadline = 0;
+        return;
+      }
+
+      const toggle = sidebarToggleState();
+      const disabled = toggle?.button.disabled
+        || toggle?.button.getAttribute("aria-disabled") === "true";
+
+      if (toggle?.state === "collapsed" && !disabled) {
+        revealDeadline = 0;
+        toggle.button.click();
+        return;
+      }
+
+      if (toggle?.state === "expanded" || Date.now() >= revealDeadline) {
+        revealDeadline = 0;
+        return;
+      }
+
+      revealFrame = window.requestAnimationFrame(attemptReveal);
+    };
+
+    revealFrame = window.requestAnimationFrame(attemptReveal);
   }
 
   function sidebarLike(element) {
@@ -101,17 +145,23 @@
   function reconcileHoverState() {
     if (!hoverRevealEnabled) return;
 
+    const overEdge = pointer.inside && pointer.x <= EDGE_HOTSPOT_WIDTH;
     const toggle = sidebarToggleState();
-    if (!toggle) return;
 
-    if (toggle.state === "collapsed") {
-      clearCollapseTimer();
-      if (pointer.inside && pointer.x <= EDGE_HOTSPOT_WIDTH) {
-        toggle.button.click();
-      }
+    if (!toggle) {
+      if (overEdge) scheduleReveal();
+      else clearRevealRetry();
       return;
     }
 
+    if (toggle.state === "collapsed") {
+      clearCollapseTimer();
+      if (overEdge) scheduleReveal();
+      else clearRevealRetry();
+      return;
+    }
+
+    clearRevealRetry();
     if (pointerOverSidebar(toggle)) clearCollapseTimer();
     else scheduleCollapse();
   }
@@ -119,6 +169,7 @@
   function setHoverRevealEnabled(nextEnabled) {
     hoverRevealEnabled = Boolean(nextEnabled);
     clearCollapseTimer();
+    clearRevealRetry();
 
     if (!hoverRevealEnabled || !initialCollapseFinished) return;
     const toggle = sidebarToggleState();
