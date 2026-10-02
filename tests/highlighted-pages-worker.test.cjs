@@ -9,9 +9,9 @@ const source = fs.readFileSync(
   "utf8",
 );
 
-function api() {
+function api(overrides = {}) {
   const helpers = {};
-  const context = { __GHRC_HIGHLIGHTED_PAGES_TEST__: helpers, URL, Set };
+  const context = { __GHRC_HIGHLIGHTED_PAGES_TEST__: helpers, URL, Set, TextDecoder, Uint8Array, btoa, ...overrides };
   vm.createContext(context);
   vm.runInContext(source, context);
   return helpers;
@@ -22,6 +22,68 @@ test("extracts Open Graph preview metadata regardless of attribute order", () =>
   const html = '<meta content="Example title" property="og:title"><meta name="description" content="A short description">';
   assert.equal(helpers.documentTitle(html), "Example title");
   assert.equal(helpers.metaContent(html, ["description"]), "A short description");
+});
+
+test("previews the SEC PDF without reading its body", async () => {
+  const url = "https://www.sec.gov/comments/sr-occ-2025-801/srocc2025801-598095-1737722.pdf";
+  let cancelled = false;
+  const helpers = api({ fetch: async (requested, options) => {
+    if (requested === url) {
+      assert.ok(options.headers.Accept.includes("application/pdf"));
+      return {
+        ok: true, url,
+        headers: new Headers({ "content-type": "application/pdf" }),
+        body: { cancel: async () => { cancelled = true; } },
+        arrayBuffer: () => { throw new Error("PDF body must not be read"); },
+      };
+    }
+    assert.equal(requested, "https://www.sec.gov/favicon.ico");
+    return new Response(new Uint8Array([1, 2, 3]), {
+      headers: { "content-type": "image/x-icon" },
+    });
+  } });
+  const preview = await helpers.loadPreview(url);
+  assert.equal(preview.url, url);
+  assert.equal(preview.title, "srocc2025801-598095-1737722.pdf");
+  assert.equal(preview.hostname, "sec.gov");
+  assert.equal(preview.description, "PDF document");
+  assert.equal(preview.faviconDataUrl, "data:image/x-icon;base64,AQID");
+  assert.equal(cancelled, true);
+});
+
+test("uses the redirected PDF filename and preserves page fragments without a favicon", async () => {
+  const helpers = api({ fetch: async (url) => {
+    if (url.endsWith("/favicon.ico")) throw new Error("No favicon");
+    return {
+      ok: true, url: "https://example.com/Annual%20Report.PDF",
+      headers: new Headers({ "content-type": "application/pdf; charset=binary" }),
+    };
+  } });
+  const preview = await helpers.loadPreview("https://example.com/download#page=3");
+  assert.equal(preview.title, "Annual Report.PDF");
+  assert.equal(preview.url, "https://example.com/Annual%20Report.PDF#page=3");
+  assert.equal(preview.faviconDataUrl, "");
+});
+
+test("keeps HTML previews working even when the URL ends in .pdf", async () => {
+  const helpers = api({ fetch: async (url) => {
+    if (url.endsWith("/favicon.ico")) return new Response("", { status: 404 });
+    return new Response("<title>HTML page</title>", {
+      headers: { "content-type": "text/html" },
+    });
+  } });
+  const preview = await helpers.loadPreview("https://example.com/report.pdf");
+  assert.equal(preview.title, "HTML page");
+  assert.equal(preview.description, "");
+});
+
+test("continues to reject unsupported content and HTTP errors", async () => {
+  const helpers = api({ fetch: async () => new Response("{}", {
+    headers: { "content-type": "application/json" },
+  }) });
+  await assert.rejects(helpers.loadPreview("https://example.com/report.pdf"), /HTML webpage or PDF/);
+  const denied = api({ fetch: async () => new Response("Denied", { status: 403 }) });
+  await assert.rejects(denied.loadPreview("https://example.com/report.pdf"), /HTTP 403/);
 });
 
 test("falls back to the document title and favicon", () => {

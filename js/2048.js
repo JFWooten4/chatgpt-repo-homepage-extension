@@ -205,16 +205,7 @@
     dialog.className = "ghrc-2048-dialog";
     dialog.setAttribute("role", "dialog");
     dialog.setAttribute("aria-modal", "true");
-    dialog.setAttribute("aria-labelledby", "ghrc-2048-title");
-
-    const header = document.createElement("header");
-    header.className = "ghrc-2048-header";
-
-    const heading = document.createElement("div");
-    const title = document.createElement("h2");
-    title.id = "ghrc-2048-title";
-    title.textContent = "2048";
-    heading.append(title);
+    dialog.setAttribute("aria-label", "2048");
 
     const close = document.createElement("button");
     close.type = "button";
@@ -222,7 +213,6 @@
     close.setAttribute("aria-label", "Close 2048");
     close.title = "Close 2048";
     close.append(jamJarIcon());
-    header.append(heading, close);
 
     const controls = document.createElement("div");
     controls.className = "ghrc-2048-controls";
@@ -243,7 +233,7 @@
     const restart = document.createElement("button");
     restart.type = "button";
     restart.textContent = "New";
-    actions.append(undo, restart);
+    actions.append(undo, restart, close);
     controls.append(score, actions);
 
     const boardElement = document.createElement("div");
@@ -262,7 +252,7 @@
     status.className = "ghrc-2048-status";
     status.setAttribute("aria-live", "polite");
 
-    dialog.append(header, controls, boardElement, status);
+    dialog.append(controls, boardElement, status);
     overlay.append(dialog);
     document.body.append(overlay);
 
@@ -363,8 +353,23 @@
       }
     };
 
+    const restoreGameFocus = () => {
+      if (!overlay.isConnected || document.visibilityState === "hidden") return;
+      if (!dialog.contains(document.activeElement)) close.focus({ preventScroll: true });
+    };
+    const onWindowBlur = () => {
+      // Focusing an iframe also blurs the parent window and redirects its keys.
+      requestAnimationFrame(() => {
+        if (document.hasFocus()) restoreGameFocus();
+      });
+    };
+
     function destroy() {
       window.removeEventListener("keydown", onKeyDown, true);
+      window.removeEventListener("focus", restoreGameFocus);
+      window.removeEventListener("blur", onWindowBlur);
+      document.removeEventListener("visibilitychange", restoreGameFocus);
+      document.removeEventListener("focusin", restoreGameFocus, true);
       document.removeEventListener("ghrc:2048-key", onKeyDown);
       boardElement.removeEventListener("touchstart", onTouchStart);
       boardElement.removeEventListener("touchend", onTouchEnd);
@@ -378,6 +383,10 @@
     undo.addEventListener("click", undoMove);
     restart.addEventListener("click", reset);
     window.addEventListener("keydown", onKeyDown, true);
+    window.addEventListener("focus", restoreGameFocus);
+    window.addEventListener("blur", onWindowBlur);
+    document.addEventListener("visibilitychange", restoreGameFocus);
+    document.addEventListener("focusin", restoreGameFocus, true);
     document.addEventListener("ghrc:2048-key", onKeyDown);
     boardElement.addEventListener("touchstart", onTouchStart, { passive: true });
     boardElement.addEventListener("touchend", onTouchEnd, { passive: true });

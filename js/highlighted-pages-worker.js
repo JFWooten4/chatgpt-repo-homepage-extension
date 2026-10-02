@@ -116,20 +116,41 @@
       credentials: "omit",
       redirect: "follow",
       cache: "no-store",
-      headers: { Accept: "text/html,application/xhtml+xml" },
+      headers: { Accept: "text/html,application/xhtml+xml,application/pdf" },
     });
     if (!response.ok) {
       throw new Error(`The webpage returned HTTP ${response.status}.`);
     }
 
     const contentType = response.headers.get("content-type") || "";
+    const finalUrl = response.url || requestedUrl.toString();
+    const final = new URL(finalUrl);
+    if (/^application\/(?:pdf|x-pdf)(?:\s*;|\s*$)/i.test(contentType)) {
+      // A link preview does not need to download or parse the PDF body.
+      await response.body?.cancel();
+      if (requestedUrl.hash) final.hash = requestedUrl.hash;
+      let filename = final.pathname.split("/").pop() || "PDF document";
+      try {
+        filename = decodeURIComponent(filename);
+      } catch {
+        // Keep the original filename when its URL encoding is malformed.
+      }
+      return {
+        url: final.toString(),
+        hostname: final.hostname.replace(/^www\./i, ""),
+        title: filename.slice(0, 180),
+        description: "PDF document",
+        siteName: "",
+        imageDataUrl: "",
+        faviconDataUrl: await cachedImage("/favicon.ico", finalUrl, MAX_FAVICON_BYTES),
+        fetchedAt: Date.now(),
+      };
+    }
     if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) {
-      throw new Error("That URL did not return an HTML webpage.");
+      throw new Error("That URL did not return an HTML webpage or PDF document.");
     }
 
     const html = await limitedText(response);
-    const finalUrl = response.url || requestedUrl.toString();
-    const final = new URL(finalUrl);
     const title = documentTitle(html) || final.hostname;
     const description = metaContent(html, ["og:description", "twitter:description", "description"]);
     const siteName = metaContent(html, ["og:site_name"]);
@@ -161,6 +182,7 @@
       iconHref,
       absoluteUrl,
       textValue,
+      loadPreview,
     });
     return;
   }
