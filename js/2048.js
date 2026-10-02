@@ -322,8 +322,8 @@
       ">": "up",
       u: "right",
       U: "right",
-      a: "left",
-      A: "left",
+      o: "left",
+      O: "left",
       e: "down",
       E: "down",
     };
