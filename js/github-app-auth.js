@@ -147,12 +147,20 @@
     });
   }
 
-  async function saveSession(session) {
-    await chrome.storage.local.set({
+  async function saveSession(
+    session,
+    { invalidateRepositories = true, notifyAuthChange = true } = {},
+  ) {
+    const updates = {
       [SESSION_STORAGE_KEY]: await encryptSession(session),
-      [AUTH_MARKER_KEY]: [{ githubApp: true, revision: crypto.randomUUID() }],
-    });
-    await chrome.storage.local.remove(REPOSITORY_CACHE_KEY);
+    };
+    if (notifyAuthChange) {
+      updates[AUTH_MARKER_KEY] = [{ githubApp: true, revision: crypto.randomUUID() }];
+    }
+    await chrome.storage.local.set(updates);
+    if (invalidateRepositories) {
+      await chrome.storage.local.remove(REPOSITORY_CACHE_KEY);
+    }
   }
 
   async function readStoredSession() {
@@ -230,7 +238,10 @@
 
     const refreshed = sessionFromTokenPayload(payload, clientId, session);
     refreshed.authMethod = session.authMethod;
-    await saveSession(refreshed);
+    await saveSession(refreshed, {
+      invalidateRepositories: false,
+      notifyAuthChange: false,
+    });
     return refreshed;
   }
 
@@ -507,12 +518,23 @@
     const patched = Object.freeze({
       ...globalThis.TokenVault,
       __githubAppPatched: true,
-      async loadTokens() {
+      async loadTokens({ refresh = true } = {}) {
         const stored = await chrome.storage.local.get({ [SESSION_STORAGE_KEY]: null });
         if (!stored[SESSION_STORAGE_KEY]) return legacyLoadTokens();
-        const token = await getAccessToken();
+        const session = await loadSession({ refresh });
+        const token = session?.accessToken || "";
         if (!token) throw new Error("GitHub App is connected but no usable access token is available.");
-        return [{ label: "GitHub App", token }];
+        return [{
+          label: "GitHub App",
+          token,
+          cacheKey: JSON.stringify([
+            "github-app",
+            session.clientId || "",
+            session.login || "",
+            session.authMethod || "",
+          ]),
+          refreshable: true,
+        }];
       },
     });
     globalThis.TokenVault = patched;
