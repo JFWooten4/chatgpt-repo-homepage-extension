@@ -69,10 +69,10 @@
       ],
       "js": [
         "js/extension-context.js",
+        "js/compact-header.js",
         "js/2048-keyboard.js",
         "js/collapse-sidebar.js",
         "js/dashboard-visibility.js",
-        "js/compact-header.js",
         "js/disable-work-mode.js",
         "js/chat-display.js",
         "js/composer-placeholder.js",

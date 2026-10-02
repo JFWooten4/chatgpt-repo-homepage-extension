@@ -44,7 +44,7 @@
   box-sizing: border-box;
   color: inherit;
   display: grid;
-  flex: 0 0 clamp(210px, 24vw, 276px);
+  flex: 0 0 clamp(180px, 20vw, 220px);
   grid-template-rows: 112px minmax(0, 1fr);
   min-width: 0;
   overflow: hidden;
@@ -72,7 +72,8 @@
 
 #ghrc-highlighted-pages .ghrc-highlighted-page-pdf .ghrc-highlighted-page-image {
   background: #ffffff;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center top;
 }
 
 #ghrc-highlighted-pages .ghrc-highlighted-page-fallback {
@@ -128,7 +129,7 @@
 
 @media (max-width: 680px) {
   #ghrc-highlighted-pages .ghrc-highlighted-page {
-    flex-basis: min(72vw, 250px);
+    flex-basis: min(62vw, 210px);
   }
 }
 

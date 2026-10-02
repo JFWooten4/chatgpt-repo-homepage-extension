@@ -38,10 +38,12 @@ test("cached dashboard controls and highlights mount before the host page finish
     });
   `);
   let stalledResponse;
+  let markupTimer;
   const server = http.createServer((request, response) => {
     if (request.url === "/slow.png") { stalledResponse = response; return; }
     response.writeHead(200, { "content-type": "text/html" });
-    response.end('<main><div class="group/home-composer-layout"><div class="home-composer-anchor">Welcome</div><form><div id="prompt-textarea" contenteditable="true"></div><button type="button">Send</button></form></div><img src="/slow.png"></main>');
+    response.write('<style>body{margin:0}.group\\/home-composer-layout{display:flex;flex-direction:column;min-height:100vh;justify-content:center}</style><main><div class="group/home-composer-layout"><div class="home-composer-anchor">Welcome</div><script>window.startupFrames=[];function sample(){const w=document.querySelector(".home-composer-anchor"),c=document.querySelector("form");if(w)startupFrames.push({welcomeVisible:!!w.getClientRects().length,top:c?.getBoundingClientRect().top});requestAnimationFrame(sample)}requestAnimationFrame(sample)</script>');
+    markupTimer = setTimeout(() => response.end('<form><div id="prompt-textarea" contenteditable="true"></div><button type="button">Send</button></form></div><img src="/slow.png"></main>'), 300);
   });
   let context;
   try {
@@ -75,9 +77,14 @@ test("cached dashboard controls and highlights mount before the host page finish
     assert.equal(state.styled, "flex");
     assert.ok(state.imageHeight > 0 && state.imageHeight < 50);
     assert.equal(state.launcher, true);
+    const frames = await page.evaluate(() => startupFrames);
+    assert.ok(frames.some(frame => frame.top === undefined), 'sample before React adds the composer');
+    assert.ok(frames.every(frame => !frame.welcomeVisible), JSON.stringify(frames));
+    assert.ok(frames.filter(frame => frame.top !== undefined).every(frame => frame.top < 100), JSON.stringify(frames));
     assert.deepEqual(errors, []);
   } finally {
     stalledResponse?.end();
+    clearTimeout(markupTimer);
     await context?.close();
     await new Promise(resolve => server.close(resolve));
     fs.rmSync(temporary, { recursive: true, force: true });

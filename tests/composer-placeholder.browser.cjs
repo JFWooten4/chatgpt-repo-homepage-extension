@@ -43,6 +43,7 @@ test("custom composer placeholders update live, survive editor replacement, and 
     });
     await page.evaluate(() => setPlaceholder("Dash"));
     await page.waitForFunction(() => getComputedStyle(document.querySelector("[data-placeholder]"), "::before").content === '"Dash"');
+    await page.waitForFunction(() => document.querySelector('textarea').placeholder === 'Dash');
     assert.equal(await page.locator("[data-placeholder]").getAttribute("data-placeholder"), "Ask ChatGPT");
     assert.equal(await page.locator("textarea").getAttribute("placeholder"), "Dash");
     assert.equal(await page.locator("[data-composer-markdown]").textContent(), "Partial draft");
@@ -64,10 +65,40 @@ test("custom composer placeholders update live, survive editor replacement, and 
     });
     await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.ghrcPlaceholderText === 'Write <anything> "here"');
     assert.equal(await page.locator("[data-composer-markdown]").textContent(), "Restored draft");
+    const replacementText = await page.evaluate(() => {
+      setPlaceholder('Dash');
+      document.querySelector('[data-composer-markdown]').innerHTML = '<p data-placeholder="New chat"><br></p>';
+      // Read the new paragraph before the mutation observer or animation frame runs.
+      return getComputedStyle(document.querySelector('[data-placeholder]'), '::before').content;
+    });
+    assert.equal(replacementText, '"Dash"');
     await page.evaluate(() => setPlaceholder(" "));
     await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.placeholder === "New chat");
     await page.waitForFunction(() => !document.querySelector("[data-ghrc-placeholder-text]"));
     assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+  }
+});
+
+test("a composer that becomes editable after hydration receives its saved placeholder", async () => {
+  const browser = await chromium.launch({ executablePath: "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser", headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent('<div data-composer-markdown contenteditable="false"><p class="placeholder" data-placeholder="Ask ChatGPT"><br></p></div>');
+    await page.evaluate(() => {
+      window.chrome = {runtime:{id:'fixture'}, storage:{local:{get:async defaults=>({...defaults,composerPlaceholder:'Dash'})},onChanged:{addListener(){}}}};
+    });
+    await page.addStyleTag({ content: read('css/chat-display.css') });
+    await page.addScriptTag({ content: read('js/extension-context.js') });
+    await page.addScriptTag({ content: read('js/composer-placeholder.js') });
+    await page.waitForTimeout(100);
+    assert.equal(await page.locator('[data-ghrc-placeholder-text]').count(), 0);
+    await page.evaluate(() => document.querySelector('[data-composer-markdown]').setAttribute('contenteditable', 'true'));
+    await page.waitForFunction(() => document.querySelector('[data-placeholder]').dataset.ghrcPlaceholderText === 'Dash');
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-placeholder]'), '::before').content === '"Dash"');
+    assert.equal(await page.locator('[data-placeholder]').getAttribute('data-placeholder'), 'Ask ChatGPT');
+    assert.equal(await page.locator('[data-composer-markdown]').textContent(), '');
   } finally {
     await browser.close();
   }

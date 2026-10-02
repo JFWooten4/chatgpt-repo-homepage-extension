@@ -1,14 +1,20 @@
 (() => {
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
   const WIDGET_ID = "github-repositories-for-chatgpt";
   const NEW_CHAT_ATTR = "data-ghrc-new-chat";
   const COMPACT_HEADER_ATTR = "data-ghrc-compact-header";
   const COMPACT_LAYOUT_READY_ATTR = "data-ghrc-compact-layout-ready";
   const COMPOSER_STACK_CLASS = "ghrc-compact-composer-stack";
   const WELCOME_REGION_CLASS = "ghrc-compact-welcome-region";
-  const SETTLE_DELAY_MS = 0;
-  let settleTimer = null;
   let activeStack = null;
   let activeWelcomeRegion = null;
+
+  // Establish homepage layout before settings, dashboard work, or the first paint.
+  if (location.pathname === "/") {
+    document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
+    document.documentElement.setAttribute(COMPACT_HEADER_ATTR, "true");
+  }
 
   function findComposer() {
     const prompt = document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
@@ -40,7 +46,7 @@
       ?.querySelector(".home-composer-anchor");
     if (homeWelcome && !homeWelcome.contains(composer)) return homeWelcome;
 
-    const existing = document.querySelector(".ghrc-hidden-welcome");
+    const existing = document.querySelector(`.${WELCOME_REGION_CLASS}, .ghrc-hidden-welcome`);
     if (existing) return existing;
 
     const main = composer.closest("main") || document.querySelector("main");
@@ -90,7 +96,7 @@
       welcomeRegion = welcomeRegion.parentElement;
     }
 
-    return welcomeRegion === heading ? null : welcomeRegion;
+    return welcomeRegion;
   }
 
   function setActiveStack(nextStack) {
@@ -115,6 +121,7 @@
   }
 
   function applyCompactLayout() {
+    if (!context.active()) return;
     if (!compactModeEnabled()) {
       clearCompactLayout();
       return;
@@ -154,14 +161,6 @@
     updateReadyState();
   }
 
-  function scheduleCompactLayout(delay = SETTLE_DELAY_MS) {
-    if (settleTimer !== null) return;
-    settleTimer = setTimeout(() => {
-      settleTimer = null;
-      requestAnimationFrame(applyCompactLayout);
-    }, delay);
-  }
-
   const pageObserver = new MutationObserver(() => {
     if (!compactModeEnabled()) return;
 
@@ -171,33 +170,45 @@
       && activeStack.contains(composer)
       && activeWelcomeRegion?.isConnected;
 
-    if (!targetsStillValid) scheduleCompactLayout();
+    // Mutation observers run before rendering; do not defer hiding a new heading.
+    if (!targetsStillValid) applyCompactLayout();
   });
   pageObserver.observe(document.documentElement, { childList: true, subtree: true });
 
   const preferenceObserver = new MutationObserver(() => {
     if (!compactModeEnabled()) {
-      if (settleTimer !== null) {
-        clearTimeout(settleTimer);
-        settleTimer = null;
-      }
       clearCompactLayout();
       return;
     }
 
-    scheduleCompactLayout(0);
+    applyCompactLayout();
   });
   preferenceObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: [NEW_CHAT_ATTR, COMPACT_HEADER_ATTR],
   });
 
-  scheduleCompactLayout();
-  void chrome.storage.local.get({ compactNewChatHeader: false }).then((settings) => {
+  function updateRoute() {
+    document.documentElement.toggleAttribute(NEW_CHAT_ATTR, location.pathname === "/");
+    applyCompactLayout();
+  }
+  window.addEventListener("ghrc:route-change", updateRoute);
+  window.addEventListener("popstate", updateRoute);
+  context.onStop(() => {
+    pageObserver.disconnect();
+    preferenceObserver.disconnect();
+    window.removeEventListener("ghrc:route-change", updateRoute);
+    window.removeEventListener("popstate", updateRoute);
+  });
+
+  applyCompactLayout();
+  void context.run(async () => {
+    const settings = await chrome.storage.local.get({ compactNewChatHeader: false });
+    if (!context.active()) return;
     document.documentElement.toggleAttribute(COMPACT_HEADER_ATTR, Boolean(settings.compactNewChatHeader));
     if (location.pathname === "/" && !document.querySelector('[data-message-author-role]')) {
       document.documentElement.setAttribute(NEW_CHAT_ATTR, "true");
     }
-    scheduleCompactLayout();
+    applyCompactLayout();
   });
 })();
