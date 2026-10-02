@@ -99,3 +99,44 @@ test('the lifecycle bootstrap runs before API-consuming content scripts', () => 
   const early = manifest.content_scripts.find(s => s.run_at === 'document_start' && s.world !== 'MAIN');
   assert.equal(early.js[0], 'js/extension-context.js');
 });
+
+for (const script of ['avatar-cache-ui', 'message-queue']) {
+  test(`${script} handles a pending request rejected during reload`, async () => {
+    const p = await fixture({ delayed: true });
+    if (script === 'avatar-cache-ui') await p.evaluate(() => {
+      document.body.insertAdjacentHTML('beforeend', '<section id="github-repositories-for-chatgpt"><img class="ghrc-owner-avatar" src="https://avatars.githubusercontent.com/u/1"></section>');
+    });
+    await p.addScriptTag({ content: read(`js/${script}.js`) });
+    assert.ok(await p.evaluate(() => pending.length > 0));
+    await p.evaluate(() => {
+      chrome.runtime = undefined; chrome.storage = undefined;
+      pending.forEach(p => p.reject(new Error('Extension context invalidated.')));
+      history.pushState({}, '', '/c/after-reload');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+      document.body.append(document.createElement('div'));
+    });
+    await p.waitForTimeout(100);
+    const calls = await p.evaluate(() => window.calls);
+    await p.waitForTimeout(300);
+    assert.equal(await p.evaluate(() => window.calls), calls);
+    assert.deepEqual(p.errors, []); assert.deepEqual(p.warnings, []);
+    assert.equal(await p.evaluate(() => __ghrcExtensionContext.active()), false);
+    await p.close();
+  });
+}
+test('queue navigation catches invalidation after its storage read starts', async () => {
+  const p = await fixture({ delayed: true });
+  await p.addScriptTag({ content: read('js/message-queue.js') });
+  await p.evaluate(() => { pending.forEach(p => p.resolve(p.defaults)); pending = []; });
+  await p.waitForTimeout(50);
+  await p.evaluate(() => {
+    history.pushState({}, '', '/c/new-conversation');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await p.waitForFunction(() => pending.length > 0);
+  await p.evaluate(() => pending.forEach(p => p.reject(new Error('Extension context invalidated.'))));
+  await p.waitForTimeout(100);
+  assert.deepEqual(p.errors, []); assert.deepEqual(p.warnings, []);
+  assert.equal(await p.evaluate(() => __ghrcExtensionContext.active()), false);
+  await p.close();
+});
