@@ -2,6 +2,7 @@
   const SETTING_KEY = "forceHighThinking";
   const CACHE_KEY = "forceHighThinkingConfirmedTargets";
   const SELECTOR_ATTR = "data-ghrc-high-thinking-selector";
+  const AUTO_MENU_ATTR = "data-ghrc-thinking-menu";
   const STYLE_ID = "ghrc-force-high-thinking-style";
   const SELECTOR_QUERY = 'button[aria-haspopup="menu"], button[aria-haspopup="listbox"], [role="button"][aria-haspopup], [role="combobox"]';
   const OPTION_QUERY = '[role="menuitem"], [role="menuitemradio"], [role="option"], [role="radio"]';
@@ -28,6 +29,10 @@
   }
 
   function controlCacheKey(control) {
+    if (control.hasAttribute("data-codex-intelligence-trigger")
+      || control.getAttribute("data-composer-navigation-target") === "reasoning") {
+      return "composer reasoning effort";
+    }
     const labelledBy = normalizedText(control.getAttribute("aria-labelledby"))
       .split(" ").map((id) => document.getElementById(id)?.textContent || "").join(" ");
     const semanticLabel = [
@@ -53,7 +58,11 @@
   }
 
   function effortLevel(control) {
-    const visible = normalizedText(control.innerText ?? control.textContent);
+    const selectedLevel = normalizedText(control.getAttribute("data-selected-reasoning-effort")).toLowerCase();
+    if (Object.hasOwn(LEVELS, selectedLevel)) return selectedLevel;
+    const labelContent = control.cloneNode?.(true);
+    labelContent?.querySelectorAll('[aria-hidden="true"]').forEach(node => node.remove());
+    const visible = normalizedText(labelContent?.textContent ?? control.innerText ?? control.textContent);
     const label = controlLabel(control);
     const combined = `${label} ${visible}`;
     if (!/\b(thinking|reasoning|effort)\b/i.test(combined)
@@ -65,6 +74,13 @@
 
   function isVisible(element) {
     if (!(element instanceof HTMLElement)) return false;
+    // Default-hidden native triggers still support programmatic selection.
+    if (element.hasAttribute("data-ghrc-model-control")
+      || element.matches?.('button[aria-label="Select ChatGPT model"], [data-codex-intelligence-trigger]')) {
+      let parent = element.parentElement;
+      while (parent && getComputedStyle(parent).display === "contents") parent = parent.parentElement;
+      return element.isConnected && Boolean(parent?.getClientRects().length);
+    }
     const style = getComputedStyle(element);
     return style.display !== "none" && style.visibility !== "hidden" && element.getClientRects().length > 0;
   }
@@ -77,15 +93,18 @@
       style.id = STYLE_ID;
       document.documentElement.append(style);
     }
-    const rule = `[${SELECTOR_ATTR}] { display: none !important; }`;
+    const rule = `[${SELECTOR_ATTR}] { display: none !important; }
+[${AUTO_MENU_ATTR}] { opacity: 0 !important; pointer-events: none !important; }`;
     if (style.textContent !== rule) style.textContent = rule;
   }
 
   function findMenu(selector) {
     const controlled = document.getElementById(selector.getAttribute("aria-controls"));
-    if (controlled && isVisible(controlled)) return controlled;
-    const menus = [...document.querySelectorAll('[role="menu"], [role="listbox"]')].filter(isVisible);
-    return menus.length === 1 ? menus[0] : null;
+    const menus = [...document.querySelectorAll('[role="menu"], [role="listbox"]')]
+      .filter(menu => isVisible(menu) && !pending?.menusBefore?.has(menu));
+    const menu = controlled && isVisible(controlled) ? controlled : (menus.length === 1 ? menus[0] : null);
+    if (menu && pending?.selector === selector) menu.setAttribute(AUTO_MENU_ATTR, "");
+    return menu;
   }
 
   function key(control, value) {
@@ -99,7 +118,7 @@
     state.target = target;
     pending = null;
     if (closeMenu) {
-      key(selector, "Escape");
+      key(menu || selector, "Escape");
       if (selector.getAttribute("aria-expanded") === "true") selector.click();
     }
     if (focusedComposer?.isConnected) {
@@ -142,7 +161,7 @@
     const { option, level } = options[0];
     const selected = option.getAttribute("aria-checked") === "true" || option.getAttribute("aria-selected") === "true";
     if (!selected) option.click();
-    finishSelection(level, selected);
+    finishSelection(level, true);
     return true;
   }
 
@@ -168,13 +187,15 @@
         continue;
       }
       selector.removeAttribute(SELECTOR_ATTR);
-      if (!isVisible(selector) || state.attempts >= MAX_SELECTION_ATTEMPTS) continue;
+      if (!isVisible(selector) || selector.getAttribute("aria-expanded") === "true"
+        || state.attempts >= MAX_SELECTION_ATTEMPTS) continue;
       state.attempts += 1;
       state.adjustments = 0;
       const activeElement = document.activeElement;
       const focusedComposer = activeElement?.matches('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')
         ? activeElement : null;
-      pending = { selector, state, initialLevel: level, focusedComposer };
+      pending = { selector, state, initialLevel: level, focusedComposer,
+        menusBefore: new Set(document.querySelectorAll('[role="menu"], [role="listbox"]')) };
       // Prefer the keyboard action, then click if this trigger ignores it.
       key(selector, "ArrowDown");
       const attempt = pending;
@@ -185,7 +206,7 @@
         scheduleScan();
       }, 50);
       window.setTimeout(() => {
-        if (pending === attempt) pending = null;
+        if (pending === attempt) finishSelection("", true);
         scheduleScan();
       }, 1000);
       return;
@@ -199,6 +220,7 @@
   }
 
   function setEnabled(nextEnabled) {
+    if (pending) finishSelection("", true);
     enabled = nextEnabled;
     pending = null;
     states = new WeakMap();
@@ -219,9 +241,25 @@
     }
     if (changes[SETTING_KEY]) setEnabled(Boolean(changes[SETTING_KEY].newValue));
   });
-  new MutationObserver(scheduleScan).observe(document, {
+  document.addEventListener("pointerdown", (event) => {
+    const trigger = event.target?.closest?.(SELECTOR_QUERY);
+    if (!event.isTrusted || !trigger || !effortLevel(trigger)) return;
+    if (pending) finishSelection("", true);
+    document.querySelectorAll(`[${AUTO_MENU_ATTR}]`).forEach(menu => menu.removeAttribute(AUTO_MENU_ATTR));
+  }, true);
+  document.addEventListener("keydown", (event) => {
+    const trigger = event.target?.closest?.(SELECTOR_QUERY);
+    if (!event.isTrusted || !trigger || !effortLevel(trigger)) return;
+    if (pending) finishSelection("", true);
+    document.querySelectorAll(`[${AUTO_MENU_ATTR}]`).forEach(menu => menu.removeAttribute(AUTO_MENU_ATTR));
+  }, true);
+  new MutationObserver(() => {
+    // Conceal portaled menus in the mutation microtask, before the next paint.
+    if (pending) findMenu(pending.selector);
+    scheduleScan();
+  }).observe(document, {
     childList: true, subtree: true, characterData: true, attributes: true,
-    attributeFilter: ["aria-label", "aria-selected", "aria-checked", "aria-valuenow", "data-state", "title"],
+    attributeFilter: ["aria-label", "aria-selected", "aria-checked", "aria-valuenow", "data-state", "data-selected-reasoning-effort", "title"],
   });
   void chrome.storage.local.get({ [SETTING_KEY]: false, [CACHE_KEY]: {} }).then((settings) => {
     const value = settings[CACHE_KEY];
