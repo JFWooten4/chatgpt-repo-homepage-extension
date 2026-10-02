@@ -43,7 +43,7 @@ test("normalizes persisted queue items and drops empty entries", () => {
   );
 });
 
-test("queues Enter only while a response or earlier queued message is pending", () => {
+test("Enter always queues, including an idle empty queue", () => {
   const helpers = api();
   const enter = {
     key: "Enter",
@@ -54,10 +54,11 @@ test("queues Enter only while a response or earlier queued message is pending", 
     isComposing: false,
   };
 
-  assert.equal(helpers.shouldQueueComposerEnter(enter, true, 0), true);
-  assert.equal(helpers.shouldQueueComposerEnter(enter, false, 1), true);
-  assert.equal(helpers.shouldQueueComposerEnter(enter, false, 0), false);
-  assert.equal(helpers.shouldQueueComposerEnter({ ...enter, shiftKey: true }, true, 0), false);
+  assert.equal(helpers.shouldQueueComposerEnter(enter), true);
+  for (const modifier of ["shiftKey", "altKey", "ctrlKey", "metaKey", "isComposing"]) {
+    assert.equal(helpers.shouldQueueComposerEnter({ ...enter, [modifier]: true }), false);
+  }
+
 });
 
 test("never advances while ChatGPT is still generating", () => {

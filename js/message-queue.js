@@ -5,6 +5,7 @@
   const PAUSED_STORAGE_KEY = "queuedChatMessagesPaused";
   const PANEL_ID = "ghrc-message-queue";
   const QUEUE_BUTTON_ID = "ghrc-message-queue-button";
+  const INTERRUPT_BUTTON_ID = "ghrc-message-interrupt-button";
   const COMPLETE_SETTLE_MS = 1_500;
   const PUMP_INTERVAL_MS = 250;
   const SUBMIT_TIMEOUT_MS = 5_000;
@@ -23,7 +24,7 @@
   let completionCandidateSince = null;
   let sendingItemId = null;
   let saveTimer = null;
-  let autoSubmitting = false;
+  let interruptRunning = false;
   let enqueueRunning = false;
   let queuePaused = false;
   let persistPending = Promise.resolve();
@@ -66,7 +67,7 @@
     return settledMs >= COMPLETE_SETTLE_MS;
   }
 
-  function shouldQueueComposerEnter(event, responseActive, queuedCount) {
+  function shouldQueueComposerEnter(event) {
     return Boolean(
       event
       && event.key === "Enter"
@@ -75,7 +76,6 @@
       && !event.ctrlKey
       && !event.metaKey
       && !event.isComposing
-      && (responseActive || queuedCount > 0)
     );
   }
 
@@ -591,6 +591,7 @@
     const actionButton = findActionButton(composer);
     if (!composer || !actionButton?.parentElement) {
       document.getElementById(QUEUE_BUTTON_ID)?.remove();
+      document.getElementById(INTERRUPT_BUTTON_ID)?.remove();
       return;
     }
 
@@ -606,8 +607,28 @@
       : "Queue current message";
     if (button.title !== title) button.title = title;
 
-    if (button.parentElement !== actionButton.parentElement || button.nextElementSibling !== actionButton) {
-      actionButton.before(button);
+    let interruptButton = document.getElementById(INTERRUPT_BUTTON_ID);
+    if (responseIsActive(composer) && composerText(composer).trim()) {
+      if (!interruptButton) {
+        interruptButton = document.createElement("button");
+        interruptButton.id = INTERRUPT_BUTTON_ID;
+        interruptButton.type = "button";
+        interruptButton.title = "Interrupt response and send now";
+        interruptButton.setAttribute("aria-label", "Interrupt and send");
+        interruptButton.addEventListener("click", () => void interruptAndSend());
+      }
+      interruptButton.disabled = interruptRunning || Boolean(sendingItemId) || enqueueRunning;
+      if (interruptButton.parentElement !== actionButton.parentElement
+        || interruptButton.nextElementSibling !== actionButton) {
+        actionButton.before(interruptButton);
+      }
+    } else {
+      interruptButton?.remove();
+      interruptButton = null;
+    }
+    const nextButton = interruptButton || actionButton;
+    if (button.parentElement !== actionButton.parentElement || button.nextElementSibling !== nextButton) {
+      nextButton.before(button);
     }
 
     if (queue.length) {
@@ -629,8 +650,47 @@
     requestAnimationFrame(mountQueueUi);
   }
 
+  async function interruptAndSend() {
+    if (interruptRunning || sendingItemId || enqueueRunning || routeSyncRunning) return;
+    const composer = findComposerInput();
+    const text = composerText(composer);
+    const key = activeKey;
+    if (!composer || !text.trim()) return;
+
+    interruptRunning = true;
+    completionCandidateSince = null;
+    scheduleMount();
+    try {
+      if (responseIsActive(composer)) {
+        const stop = findActionButton(composer);
+        if (!stop || stop.disabled) return;
+        stop.click();
+      }
+      const deadline = Date.now() + SUBMIT_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        if (key !== activeKey || conversationKey() !== key || routeSyncRunning
+          || composer !== findComposerInput() || !composer.isConnected
+          || !textMatchesComposer(composer, text)) return;
+
+        const sendButton = findSendButton(composer);
+        if (!responseIsActive(composer) && sendButton && !sendButton.disabled
+          && sendButton.getAttribute("aria-disabled") !== "true") {
+          const beforeUserTurns = roleTurns("user").length;
+          sendButton.click();
+          await waitForSubmission(composer, text, beforeUserTurns);
+          return;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 80));
+      }
+    } finally {
+      interruptRunning = false;
+      scheduleMount();
+      schedulePump();
+    }
+  }
+
   async function enqueueComposerMessage() {
-    if (enqueueRunning || sendingItemId || routeSyncRunning) return false;
+    if (enqueueRunning || sendingItemId || routeSyncRunning || interruptRunning) return false;
     enqueueRunning = true;
     try {
       const composer = findComposerInput();
@@ -713,9 +773,7 @@
 
       if (queuePaused || key !== activeKey || routeSyncRunning || responseIsActive()
         || !textMatchesComposer(composer, item.text)) return;
-      autoSubmitting = true;
       sendButton.click();
-      autoSubmitting = false;
 
       if (!await waitForSubmission(composer, item.text, beforeUserTurns)) return;
 
@@ -738,7 +796,6 @@
         queuePaused = true;
         await persistQueue();
       }
-      autoSubmitting = false;
       sendingItemId = null;
       renderQueue();
       scheduleMount();
@@ -748,7 +805,7 @@
 
   function evaluatePump() {
     pumpScheduled = false;
-    if (!queue.length || sendingItemId || queuePaused || routeSyncRunning || enqueueRunning) {
+    if (!queue.length || sendingItemId || queuePaused || routeSyncRunning || enqueueRunning || interruptRunning) {
       completionCandidateSince = null;
       return;
     }
@@ -785,19 +842,7 @@
   document.addEventListener("keydown", (event) => {
     const composer = event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!composer || composer !== findComposerInput()) return;
-    if (!shouldQueueComposerEnter(event, responseIsActive(composer), queue.length)) return;
-
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    void enqueueComposerMessage();
-  }, true);
-
-  document.addEventListener("click", (event) => {
-    if (autoSubmitting || !queue.length) return;
-    const sendButton = event.target?.closest?.(
-      'button'
-    );
-    if (!sendButton || sendButton !== findSendButton()) return;
+    if (!shouldQueueComposerEnter(event)) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();

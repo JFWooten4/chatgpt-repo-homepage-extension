@@ -31,6 +31,8 @@ async function fixture({ active = false, voice = false, editable = true, stored 
   await page.evaluate(({ active, voice, stored }) => {
     window.sent = [];
     window.rejectSend = false;
+    window.stops = 0;
+    window.deferStop = false;
     window.storage = structuredClone(stored);
     window.chrome = { storage: { local: {
       async get(defaults) { return { ...defaults, ...structuredClone(window.storage) }; },
@@ -79,7 +81,7 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     };
     editor.addEventListener('input', update);
     button.addEventListener('click', () => {
-      if (window.active) { window.finish(); return; }
+      if (window.active) { window.stops++; if (!window.deferStop) window.finish(); return; }
       if (window.rejectSend || !read().trim()) return;
       sent.push(read().trim());
       addTurn('user'); addTurn('assistant');
@@ -146,7 +148,7 @@ test('Stop queue preserves messages across reload; Resume sends them', async () 
   await p.close(); await restored.close();
 });
 
-test('edit, reorder, remove, and send-click enqueue preserve FIFO', async () => {
+test('edit, reorder, and remove preserve FIFO while Send bypasses the queue', async () => {
   const p = await fixture({ active: true });
   await enqueue(p, 'First'); await enqueue(p, 'Second'); await enqueue(p, 'Remove');
   await p.locator('.ghrc-message-queue-editor').nth(1).fill('Edited');
@@ -155,10 +157,12 @@ test('edit, reorder, remove, and send-click enqueue preserve FIFO', async () => 
   await p.evaluate(() => finish());
   await p.locator('[data-composer-markdown]').fill('Third');
   await p.locator('#composer-submit-button').click();
-  await p.waitForFunction(() => document.querySelectorAll('.ghrc-message-queue-editor').length === 3);
-  assert.deepEqual(await p.locator('.ghrc-message-queue-editor').evaluateAll(es => es.map(e => e.value)), ['Edited', 'First', 'Third']);
   await sentCount(p, 1);
-  assert.deepEqual(await p.evaluate(() => sent), ['Edited']);
+  assert.deepEqual(await p.evaluate(() => sent), ['Third']);
+  assert.deepEqual(await p.locator('.ghrc-message-queue-editor').evaluateAll(es => es.map(e => e.value)), ['Edited', 'First']);
+  await p.evaluate(() => finish());
+  await sentCount(p, 2);
+  assert.deepEqual(await p.evaluate(() => sent), ['Third', 'Edited']);
   await p.close();
 });
 
@@ -269,5 +273,82 @@ test('stopping during the completion settle period prevents the next send on a n
   assert.deepEqual(await p.evaluate(() => sent), []);
   assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Stay queued');
   await p.screenshot({ path: '/tmp/flawless-queue-stopped-mobile.png' });
+  await p.close();
+});
+
+
+test('Enter in an idle chat queues rather than immediately submitting', async () => {
+  const p = await fixture();
+  await enqueue(p, 'Enter queues', true);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Enter queues');
+  await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sent), ['Enter queues']);
+  await p.close();
+});
+
+test('clicking the hat interrupts and sends immediately ahead of queued messages', async () => {
+  const p = await fixture({ active: true });
+  await enqueue(p, 'Queued earlier', true);
+  await p.locator('[data-composer-markdown]').fill('Send now');
+  const hat = p.getByRole('button', { name: 'Interrupt and send', exact: true });
+  await hat.waitFor();
+  const transform = await hat.evaluate(el => getComputedStyle(el, '::before').transform);
+  assert.match(transform, /0\.984808/);
+  await hat.click();
+  await sentCount(p, 1);
+  assert.equal(await p.evaluate(() => stops), 1);
+  assert.deepEqual(await p.evaluate(() => sent), ['Send now']);
+  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Queued earlier');
+  await p.evaluate(() => finish());
+  await sentCount(p, 2);
+  assert.deepEqual(await p.evaluate(() => sent), ['Send now', 'Queued earlier']);
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
+test('native Stop only stops, and the idle hat sends a draft immediately', async () => {
+  const p = await fixture({ active: true });
+  await p.locator('[data-composer-markdown]').fill('Draft');
+  await p.getByRole('button', { name: 'Interrupt and send', exact: true }).waitFor();
+  await p.locator('[data-testid="stop-button"]').click();
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  assert.equal(await p.evaluate(() => read()), 'Draft');
+  await p.locator('#composer-submit-button').click();
+  await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sent), ['Draft']);
+  assert.equal(await p.locator('.ghrc-message-queue-editor').count(), 0);
+  await p.close();
+});
+
+test('interrupt waits for Stop to finish and cancels if the draft changes', async () => {
+  const p = await fixture({ active: true });
+  await p.evaluate(() => { window.deferStop = true; });
+  await p.locator('[data-composer-markdown]').fill('Original');
+  await p.getByRole('button', { name: 'Interrupt and send', exact: true }).click();
+  assert.equal(await p.evaluate(() => stops), 1);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  await p.locator('[data-composer-markdown]').fill('Updated draft');
+  await p.waitForTimeout(200);
+  await p.evaluate(() => finish());
+  await p.waitForTimeout(200);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  assert.equal(await p.evaluate(() => read()), 'Updated draft');
+  await p.close();
+});
+
+test('interrupt cancels on navigation without submitting in another chat', async () => {
+  const p = await fixture({ active: true });
+  await p.evaluate(() => { window.deferStop = true; });
+  await p.locator('[data-composer-markdown]').fill('Original chat');
+  await p.getByRole('button', { name: 'Interrupt and send', exact: true }).click();
+  await p.evaluate(() => {
+    history.pushState({}, '', '/c/different');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await p.waitForTimeout(200);
+  await p.evaluate(() => finish());
+  await p.waitForTimeout(200);
+  assert.deepEqual(await p.evaluate(() => sent), []);
   await p.close();
 });
