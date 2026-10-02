@@ -33,6 +33,11 @@
   let queuePaused = false;
   let showQueueButton = false;
   let persistPending = Promise.resolve();
+  let queueStateRequest = null;
+  let enterPending = 0;
+  let enterChain = Promise.resolve();
+  const pendingEnterTexts = new Set();
+  let nativeSubmission = null;
 
   function conversationIdFromPath(pathname = location.pathname) {
     return String(pathname || "").match(/\/c\/([^/?#]+)(?:[/?#]|$)/i)?.[1] || "";
@@ -81,6 +86,7 @@
       && !event.ctrlKey
       && !event.metaKey
       && !event.isComposing
+      && event.keyCode !== 229
     );
   }
 
@@ -660,6 +666,7 @@
     let button = document.getElementById(QUEUE_BUTTON_ID);
     if (showQueueButton) {
       if (!button) button = createQueueButton();
+      button.disabled = !stateLoaded || steeringBusy || Boolean(enterPending);
 
       const badge = button.querySelector(".ghrc-message-queue-badge");
       const badgeText = queue.length ? String(queue.length) : "";
@@ -769,11 +776,19 @@
     if (!stateLoaded || routeSyncRunning || conversationKey() !== activeKey) return false;
     text = normalizedText(text);
     if (!text.trim()) return false;
-    queue.push({ id: itemId(), text, createdAt: Date.now() });
+    const item = { id: itemId(), text, createdAt: Date.now() };
+    queue.push(item);
     completionCandidateSince = null;
     renderQueue();
     scheduleMount();
-    await persistQueue();
+    try {
+      await persistQueue();
+    } catch (error) {
+      queue = queue.filter(entry => entry.id !== item.id);
+      renderQueue();
+      scheduleMount();
+      throw error;
+    }
     if (!context.active()) return false;
     schedulePump();
     return true;
@@ -787,14 +802,17 @@
     if (!context.active()) return false;
     if (!stateLoaded || enqueueRunning || sendingItemId || routeSyncRunning || interruptRunning) return false;
     enqueueRunning = true;
+    scheduleMount();
     try {
       const composer = findComposerInput();
       const text = normalizedText(composerText(composer));
       if (!composer || !text.trim()) return false;
-      if (!await replaceComposerText(composer, "")) return false;
       const queued = await enqueueText(text);
-      if (!queued && !composerText(composer).trim()) await replaceComposerText(composer, text);
-      composer.focus({ preventScroll: true });
+      // Keep the draft until storage accepts it, and preserve edits made while saving.
+      if (queued && composer === findComposerInput() && textMatchesComposer(composer, text)) {
+        await replaceComposerText(composer, "");
+        composer.focus({ preventScroll: true });
+      }
       return queued;
     } finally {
       enqueueRunning = false;
@@ -924,13 +942,13 @@
   function evaluatePump() {
     if (!context.active()) return;
     pumpScheduled = false;
-    if (!stateLoaded || !queue.length || sendingItemId || queuePaused || routeSyncRunning || enqueueRunning || interruptRunning) {
+    if (!stateLoaded || !queue.length || sendingItemId || queuePaused || routeSyncRunning || enqueueRunning || enterPending || interruptRunning) {
       completionCandidateSince = null;
       return;
     }
 
     const composer = findComposerInput();
-    if (!composer) {
+    if (!composer || nativeSubmissionPending(composer)) {
       completionCandidateSince = null;
       return;
     }
@@ -983,27 +1001,74 @@
     schedulePump();
   }
 
-  document.addEventListener("keydown", (event) => {
+  async function queueComposerEnter(composer, text, key) {
+    enterPending++;
+    pendingEnterTexts.add(text);
+    const request = enterChain.catch(() => {}).then(async () => {
+      await queueStateRequest;
+      const deadline = Date.now() + SUBMIT_TIMEOUT_MS;
+      while (context.active() && routeSyncRunning && Date.now() < deadline) {
+        await new Promise(resolve => window.setTimeout(resolve, 20));
+      }
+      if (!context.active() || !stateLoaded || routeSyncRunning
+        || conversationKey() !== key || composer !== findComposerInput()) return;
+      if (activeKey !== key) await syncConversationKey();
+      if (context.active() && activeKey === key && composer === findComposerInput()) {
+        const queued = await enqueueText(text);
+        if (queued && composer === findComposerInput() && textMatchesComposer(composer, text)) {
+          await replaceComposerText(composer, "");
+          composer.focus({ preventScroll: true });
+        }
+      }
+    });
+    enterChain = request;
+    try {
+      await request;
+    } finally {
+      enterPending--;
+      pendingEnterTexts.delete(text);
+      scheduleMount();
+      schedulePump();
+    }
+  }
+
+  function nativeSubmissionPending(composer) {
+    if (!nativeSubmission) return false;
+    if (nativeSubmission.composer !== composer || Date.now() >= nativeSubmission.deadline
+      || roleTurns("user").length > nativeSubmission.userTurns || responseIsActive(composer)) {
+      nativeSubmission = null;
+      return false;
+    }
+    return true;
+  }
+
+  function handleComposerEnter(event) {
     if (!context.active()) return;
     const composer = event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!composer || composer !== findComposerInput()) return;
     if (!shouldQueueComposerEnter(event)) return;
-    // The overview creates a conversation through ChatGPT's native first send.
-    // Do not wait for queue storage or conversation lifecycle detection here.
-    if (location.pathname === "/") return;
-    if (sendingItemId) {
+    const text = normalizedText(composerText(composer));
+    if (event.repeat || sendingItemId || pendingEnterTexts.has(text) || enqueueRunning || interruptRunning) {
       event.preventDefault();
       event.stopImmediatePropagation();
       return;
     }
-    // Let ChatGPT handle idle sends synchronously, including the first chat.
-    if (stateLoaded && !queue.length && !enqueueRunning && !interruptRunning
-      && !routeSyncRunning && queueCanAdvance(lifecycleSnapshot(), COMPLETE_SETTLE_MS)) return;
+    const snapshot = lifecycleSnapshot();
+    const overviewReady = location.pathname === "/" && !stateLoaded;
+    if (text.trim() && !nativeSubmissionPending(composer) && (stateLoaded || overviewReady)
+      && activeKey === conversationKey() && !queue.length && !enterPending && !routeSyncRunning
+      && queueCanAdvance(snapshot, COMPLETE_SETTLE_MS)) {
+      // Mark the gap before ChatGPT paints Stop or the next user turn.
+      nativeSubmission = { composer, userTurns: snapshot.userTurns, deadline: Date.now() + SUBMIT_TIMEOUT_MS };
+      return;
+    }
 
     event.preventDefault();
     event.stopImmediatePropagation();
-    void context.run(() => enqueueComposerMessage());
-  }, true);
+    if (text.trim()) void context.run(() => queueComposerEnter(composer, text, conversationKey()));
+  }
+  // Capture before React's document/composer handlers can turn Enter into Stop.
+  window.addEventListener("keydown", handleComposerEnter, true);
 
   document.addEventListener("input", (event) => {
     if (event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')) scheduleMount();
@@ -1053,6 +1118,7 @@
   const pumpInterval = window.setInterval(schedulePump, PUMP_INTERVAL_MS);
   document.addEventListener("visibilitychange", reschedulePumpForVisibility);
   context.onStop(() => {
+    window.removeEventListener("keydown", handleComposerEnter, true);
     observer.disconnect();
     clearInterval(pumpInterval);
     clearScheduledPump();
@@ -1067,5 +1133,5 @@
     schedulePump();
   });
 
-  void context.run(() => loadQueueState());
+  queueStateRequest = context.run(() => loadQueueState());
 })();
