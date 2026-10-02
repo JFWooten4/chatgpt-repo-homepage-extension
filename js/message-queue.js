@@ -2,8 +2,10 @@
   "use strict";
 
   const STORAGE_KEY = "queuedChatMessages";
+  const PAUSED_STORAGE_KEY = "queuedChatMessagesPaused";
   const PANEL_ID = "ghrc-message-queue";
   const QUEUE_BUTTON_ID = "ghrc-message-queue-button";
+  const INTERRUPT_BUTTON_ID = "ghrc-message-interrupt-button";
   const COMPLETE_SETTLE_MS = 1_500;
   const PUMP_INTERVAL_MS = 250;
   const SUBMIT_TIMEOUT_MS = 5_000;
@@ -22,10 +24,13 @@
   let completionCandidateSince = null;
   let sendingItemId = null;
   let saveTimer = null;
-  let autoSubmitting = false;
+  let interruptRunning = false;
+  let enqueueRunning = false;
+  let queuePaused = false;
+  let persistPending = Promise.resolve();
 
   function conversationIdFromPath(pathname = location.pathname) {
-    return String(pathname || "").match(/^\/c\/([^/?#]+)/i)?.[1] || "";
+    return String(pathname || "").match(/\/c\/([^/?#]+)(?:[/?#]|$)/i)?.[1] || "";
   }
 
   function conversationKey(pathname = location.pathname) {
@@ -56,13 +61,13 @@
 
   function queueCanAdvance(snapshot, settledMs) {
     if (!snapshot?.roleStateKnown) return false;
-    if (snapshot.responseActive || !snapshot.sendReady) return false;
+    if (snapshot.responseActive || !snapshot.composerReady) return false;
     if (snapshot.userTurns > snapshot.assistantTurns) return false;
     if (snapshot.userTurns > 0 && !snapshot.latestAssistantComplete) return false;
     return settledMs >= COMPLETE_SETTLE_MS;
   }
 
-  function shouldQueueComposerEnter(event, responseActive, queuedCount) {
+  function shouldQueueComposerEnter(event) {
     return Boolean(
       event
       && event.key === "Enter"
@@ -71,7 +76,6 @@
       && !event.ctrlKey
       && !event.metaKey
       && !event.isComposing
-      && (responseActive || queuedCount > 0)
     );
   }
 
@@ -108,12 +112,15 @@
 
     const selectors = [
       'button[data-testid="stop-button"]',
+      'button[aria-label="Stop" i]',
       'button[data-testid="send-button"]',
       'button[aria-label*="Stop generating" i]',
       'button[aria-label*="Stop response" i]',
-      'button[aria-label^="Send" i]',
+      'button[aria-label^="Send" i]:not([id^="ghrc-"])',
       'button#composer-submit-button',
-      'button[type="submit"]',
+      'button[aria-label="Start Voice" i]',
+      'button[aria-label*="voice mode" i]',
+      'button[type="submit"]:not([id^="ghrc-"]):not([class*="ghrc-"]):not([aria-label*="Search" i])',
     ];
 
     for (const selector of selectors) {
@@ -129,7 +136,7 @@
 
     const selectors = [
       'button[data-testid="send-button"]',
-      'button[aria-label^="Send" i]',
+      'button[aria-label^="Send" i]:not([id^="ghrc-"])',
       'button#composer-submit-button:not([data-testid="stop-button"]):not([aria-label*="Stop" i]):not([aria-label*="voice" i])',
     ];
 
@@ -142,7 +149,9 @@
       .find((button) => (
         isVisible(button)
         && button.getAttribute("data-testid") !== "stop-button"
-        && !/stop/i.test(button.getAttribute("aria-label") || "")
+        && !button.id.startsWith("ghrc-")
+        && !button.className.includes("ghrc-")
+        && !/stop|voice|search/i.test(button.getAttribute("aria-label") || "")
       )) || null;
   }
 
@@ -261,7 +270,7 @@
 
   function roleTurns(role) {
     const roleNodes = [...document.querySelectorAll(
-      `[data-message-author-role="${role}"]`
+      `[data-message-author-role="${role}"], [data-content-search-unit-key$=":${role}"]`
     )];
     const turns = [];
     const seen = new Set();
@@ -269,6 +278,7 @@
     for (const node of roleNodes) {
       const turn = node.closest('[data-testid^="conversation-turn-"]')
         || node.closest("article")
+        || (node.hasAttribute("data-content-search-unit-key") ? node.closest(".group") : null)
         || node;
       if (!seen.has(turn)) {
         seen.add(turn);
@@ -281,6 +291,18 @@
   function latestAssistantIsComplete(assistantTurns) {
     const latest = assistantTurns[assistantTurns.length - 1];
     if (!latest) return false;
+
+    // Current ChatGPT groups user and assistant content in the same container.
+    // Its user "Copy message" action must not count as assistant completion.
+    if (latest.querySelector('[data-content-search-unit-key$=":assistant"]')
+      && !latest.querySelector('[data-message-author-role="assistant"]')) {
+      return Boolean(latest.querySelector(
+        '.turn-action-controls button[aria-label="Copy"], '
+        + '.turn-action-controls button[aria-label*="Good response" i], '
+        + '.turn-action-controls button[aria-label*="Bad response" i], '
+        + '.turn-action-controls button[aria-label*="Regenerate" i]'
+      ));
+    }
 
     const completionSelectors = [
       '[data-message-status="finished"]',
@@ -300,19 +322,15 @@
 
   function lifecycleSnapshot() {
     const composer = findComposerInput();
-    const sendButton = findSendButton(composer);
     const userTurns = roleTurns("user");
     const assistantTurns = roleTurns("assistant");
-    const turnCount = document.querySelectorAll('[data-testid^="conversation-turn-"]').length;
+    const turnCount = document.querySelectorAll('[data-testid^="conversation-turn-"], [data-content-search-unit-key]').length;
     const roleStateKnown = turnCount === 0 || userTurns.length + assistantTurns.length > 0;
 
     return {
       responseActive: responseIsActive(composer),
-      sendReady: Boolean(
-        sendButton
-        && !sendButton.disabled
-        && sendButton.getAttribute("aria-disabled") !== "true"
-      ),
+      composerReady: Boolean(composer && isVisible(composer) && !composer.disabled
+        && composer.getAttribute("aria-disabled") !== "true"),
       userTurns: userTurns.length,
       assistantTurns: assistantTurns.length,
       latestAssistantComplete: latestAssistantIsComplete(assistantTurns),
@@ -329,22 +347,30 @@
     return queue.map(({ id, text, createdAt }) => ({ id, text, createdAt }));
   }
 
-  async function persistQueue() {
+  function persistQueue() {
     if (saveTimer !== null) {
       clearTimeout(saveTimer);
       saveTimer = null;
     }
-
-    const stored = await chrome.storage.local.get({ [STORAGE_KEY]: {} });
-    const next = stored[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object"
-      ? { ...stored[STORAGE_KEY] }
-      : {};
-
-    if (queue.length) next[activeKey] = storageCopy();
-    else delete next[activeKey];
-
-    storageState = next;
-    await chrome.storage.local.set({ [STORAGE_KEY]: next });
+    // Capture the conversation before asynchronous storage reads or navigation.
+    const key = activeKey;
+    const items = storageCopy();
+    const paused = queuePaused;
+    persistPending = persistPending.catch(() => {}).then(async () => {
+      const stored = await chrome.storage.local.get({
+        [STORAGE_KEY]: {}, [PAUSED_STORAGE_KEY]: {},
+      });
+      const next = { ...stored[STORAGE_KEY] };
+      const pausedState = { ...stored[PAUSED_STORAGE_KEY] };
+      if (items.length) next[key] = items;
+      else delete next[key];
+      if (paused) pausedState[key] = true;
+      else delete pausedState[key];
+      await chrome.storage.local.set({
+        [STORAGE_KEY]: next, [PAUSED_STORAGE_KEY]: pausedState,
+      });
+    });
+    return persistPending;
   }
 
   function schedulePersist() {
@@ -356,10 +382,11 @@
   }
 
   async function loadQueueState() {
-    const stored = await chrome.storage.local.get({ [STORAGE_KEY]: {} });
+    const stored = await chrome.storage.local.get({ [STORAGE_KEY]: {}, [PAUSED_STORAGE_KEY]: {} });
     storageState = stored[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object"
       ? stored[STORAGE_KEY]
       : {};
+    queuePaused = Boolean(stored[PAUSED_STORAGE_KEY]?.[activeKey]);
     queue = normalizeQueueItems(storageState[activeKey]);
     renderQueue();
     scheduleMount();
@@ -379,8 +406,9 @@
         await persistQueue();
       }
 
+      await persistPending;
       const previousKey = activeKey;
-      const stored = await chrome.storage.local.get({ [STORAGE_KEY]: {} });
+      const stored = await chrome.storage.local.get({ [STORAGE_KEY]: {}, [PAUSED_STORAGE_KEY]: {} });
       const nextState = stored[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object"
         ? { ...stored[STORAGE_KEY] }
         : {};
@@ -394,10 +422,15 @@
       ) {
         nextState[nextKey] = [...previousItems, ...nextItems];
         delete nextState[previousKey];
-        await chrome.storage.local.set({ [STORAGE_KEY]: nextState });
+        const pausedState = { ...stored[PAUSED_STORAGE_KEY] };
+        if (pausedState[previousKey]) pausedState[nextKey] = true;
+        delete pausedState[previousKey];
+        stored[PAUSED_STORAGE_KEY] = pausedState;
+        await chrome.storage.local.set({ [STORAGE_KEY]: nextState, [PAUSED_STORAGE_KEY]: pausedState });
       }
 
       activeKey = nextKey;
+      queuePaused = Boolean(stored[PAUSED_STORAGE_KEY]?.[nextKey]);
       storageState = nextState;
       queue = normalizeQueueItems(nextState[nextKey]);
       completionCandidateSince = null;
@@ -504,7 +537,17 @@
     status.className = "ghrc-message-queue-status";
     status.textContent = "Sends after the current response fully completes";
 
-    header.append(title, status);
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "ghrc-message-queue-toggle";
+    toggle.addEventListener("click", () => {
+      queuePaused = !queuePaused;
+      completionCandidateSince = null;
+      void persistQueue();
+      renderQueue();
+      schedulePump();
+    });
+    header.append(title, status, toggle);
 
     const list = document.createElement("div");
     list.className = "ghrc-message-queue-list";
@@ -523,6 +566,12 @@
     const title = panel.querySelector(".ghrc-message-queue-title");
     const list = panel.querySelector(".ghrc-message-queue-list");
     title.textContent = `Queued · ${queue.length}`;
+    panel.querySelector(".ghrc-message-queue-status").textContent = queuePaused
+      ? "Queue stopped; messages are saved"
+      : "Sends after the current response fully completes";
+    const toggle = panel.querySelector(".ghrc-message-queue-toggle");
+    toggle.textContent = queuePaused ? "Resume queue" : "Stop queue";
+    toggle.setAttribute("aria-label", toggle.textContent);
     list.replaceChildren(...queue.map(createItemRow));
 
     const form = findComposerForm();
@@ -558,6 +607,7 @@
     const actionButton = findActionButton(composer);
     if (!composer || !actionButton?.parentElement) {
       document.getElementById(QUEUE_BUTTON_ID)?.remove();
+      document.getElementById(INTERRUPT_BUTTON_ID)?.remove();
       return;
     }
 
@@ -565,14 +615,36 @@
     if (!button) button = createQueueButton();
 
     const badge = button.querySelector(".ghrc-message-queue-badge");
-    badge.textContent = queue.length ? String(queue.length) : "";
-    badge.hidden = queue.length === 0;
-    button.title = queue.length
+    const badgeText = queue.length ? String(queue.length) : "";
+    if (badge.textContent !== badgeText) badge.textContent = badgeText;
+    if (badge.hidden !== (queue.length === 0)) badge.hidden = queue.length === 0;
+    const title = queue.length
       ? `Queue current message (${queue.length} waiting)`
       : "Queue current message";
+    if (button.title !== title) button.title = title;
 
-    if (button.parentElement !== actionButton.parentElement || button.nextElementSibling !== actionButton) {
-      actionButton.before(button);
+    let interruptButton = document.getElementById(INTERRUPT_BUTTON_ID);
+    if (responseIsActive(composer) && composerText(composer).trim()) {
+      if (!interruptButton) {
+        interruptButton = document.createElement("button");
+        interruptButton.id = INTERRUPT_BUTTON_ID;
+        interruptButton.type = "button";
+        interruptButton.title = "Interrupt response and send now";
+        interruptButton.setAttribute("aria-label", "Interrupt and send");
+        interruptButton.addEventListener("click", () => void interruptAndSend());
+      }
+      interruptButton.disabled = interruptRunning || Boolean(sendingItemId) || enqueueRunning;
+      if (interruptButton.parentElement !== actionButton.parentElement
+        || interruptButton.nextElementSibling !== actionButton) {
+        actionButton.before(interruptButton);
+      }
+    } else {
+      interruptButton?.remove();
+      interruptButton = null;
+    }
+    const nextButton = interruptButton || actionButton;
+    if (button.parentElement !== actionButton.parentElement || button.nextElementSibling !== nextButton) {
+      nextButton.before(button);
     }
 
     if (queue.length) {
@@ -594,24 +666,69 @@
     requestAnimationFrame(mountQueueUi);
   }
 
-  async function enqueueComposerMessage() {
+  async function interruptAndSend() {
+    if (interruptRunning || sendingItemId || enqueueRunning || routeSyncRunning) return;
     const composer = findComposerInput();
-    const text = normalizedText(composerText(composer));
-    if (!composer || !text.trim()) return false;
+    const text = composerText(composer);
+    const key = activeKey;
+    if (!composer || !text.trim()) return;
 
-    if (!await replaceComposerText(composer, "")) return false;
-
-    queue.push({
-      id: itemId(),
-      text,
-      createdAt: Date.now(),
-    });
+    interruptRunning = true;
     completionCandidateSince = null;
-    await persistQueue();
-    renderQueue();
-    schedulePump();
-    composer.focus({ preventScroll: true });
-    return true;
+    scheduleMount();
+    try {
+      if (responseIsActive(composer)) {
+        const stop = findActionButton(composer);
+        if (!stop || stop.disabled) return;
+        stop.click();
+      }
+      const deadline = Date.now() + SUBMIT_TIMEOUT_MS;
+      while (Date.now() < deadline) {
+        if (key !== activeKey || conversationKey() !== key || routeSyncRunning
+          || composer !== findComposerInput() || !composer.isConnected
+          || !textMatchesComposer(composer, text)) return;
+
+        const sendButton = findSendButton(composer);
+        if (!responseIsActive(composer) && sendButton && !sendButton.disabled
+          && sendButton.getAttribute("aria-disabled") !== "true") {
+          const beforeUserTurns = roleTurns("user").length;
+          sendButton.click();
+          await waitForSubmission(composer, text, beforeUserTurns);
+          return;
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 80));
+      }
+    } finally {
+      interruptRunning = false;
+      scheduleMount();
+      schedulePump();
+    }
+  }
+
+  async function enqueueComposerMessage() {
+    if (enqueueRunning || sendingItemId || routeSyncRunning || interruptRunning) return false;
+    enqueueRunning = true;
+    try {
+      const composer = findComposerInput();
+      const text = normalizedText(composerText(composer));
+      if (!composer || !text.trim()) return false;
+
+      if (!await replaceComposerText(composer, "")) return false;
+
+      queue.push({
+        id: itemId(),
+        text,
+        createdAt: Date.now(),
+      });
+      completionCandidateSince = null;
+      await persistQueue();
+      renderQueue();
+      schedulePump();
+      composer.focus({ preventScroll: true });
+      return true;
+    } finally {
+      enqueueRunning = false;
+    }
   }
 
   async function waitForSubmission(composer, originalText, beforeUserTurns) {
@@ -626,8 +743,9 @@
   }
 
   async function sendQueueHead() {
-    if (sendingItemId || !queue.length) return;
+    if (sendingItemId || !queue.length || queuePaused || routeSyncRunning) return;
 
+    const key = activeKey;
     const item = queue[0];
     if (!item.text.trim()) {
       queue.shift();
@@ -669,18 +787,31 @@
         return;
       }
 
-      autoSubmitting = true;
+      if (queuePaused || key !== activeKey || routeSyncRunning || responseIsActive()
+        || !textMatchesComposer(composer, item.text)) return;
       sendButton.click();
-      autoSubmitting = false;
 
       if (!await waitForSubmission(composer, item.text, beforeUserTurns)) return;
 
+      // A first send can create a conversation while submission is pending.
+      // Only acknowledge the same item if it migrated with that new chat.
+      if (key !== activeKey && !(key.startsWith("new:")
+        && activeKey.startsWith("conversation:")
+        && queue.some((candidate) => candidate.id === item.id))) return;
       if (queue[0]?.id === item.id) queue.shift();
       else queue = queue.filter((candidate) => candidate.id !== item.id);
       completionCandidateSince = null;
       await persistQueue();
     } finally {
-      autoSubmitting = false;
+      if (key === activeKey && queue.some((candidate) => candidate.id === item.id)) {
+        // An unconfirmed send must require a deliberate retry, even if the
+        // site cleared the composer. Preserve any draft typed in the meantime.
+        if (textMatchesComposer(composer, item.text) && !responseIsActive()) {
+          await replaceComposerText(composer, "");
+        }
+        queuePaused = true;
+        await persistQueue();
+      }
       sendingItemId = null;
       renderQueue();
       scheduleMount();
@@ -690,7 +821,7 @@
 
   function evaluatePump() {
     pumpScheduled = false;
-    if (!queue.length || sendingItemId) {
+    if (!queue.length || sendingItemId || queuePaused || routeSyncRunning || enqueueRunning || interruptRunning) {
       completionCandidateSince = null;
       return;
     }
@@ -727,19 +858,7 @@
   document.addEventListener("keydown", (event) => {
     const composer = event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!composer || composer !== findComposerInput()) return;
-    if (!shouldQueueComposerEnter(event, responseIsActive(composer), queue.length)) return;
-
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    void enqueueComposerMessage();
-  }, true);
-
-  document.addEventListener("click", (event) => {
-    if (autoSubmitting || !queue.length) return;
-    const sendButton = event.target?.closest?.(
-      'button[data-testid="send-button"], button[aria-label^="Send" i]'
-    );
-    if (!sendButton || sendButton !== findSendButton()) return;
+    if (!shouldQueueComposerEnter(event)) return;
 
     event.preventDefault();
     event.stopImmediatePropagation();
@@ -751,8 +870,14 @@
   }, true);
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local" || !changes[STORAGE_KEY]) return;
-
+    if (areaName !== "local") return;
+    if (changes[PAUSED_STORAGE_KEY]) {
+      queuePaused = Boolean(changes[PAUSED_STORAGE_KEY].newValue?.[activeKey]);
+      completionCandidateSince = null;
+      renderQueue();
+      schedulePump();
+    }
+    if (!changes[STORAGE_KEY]) return;
     const nextState = changes[STORAGE_KEY].newValue;
     if (!nextState || typeof nextState !== "object") return;
     const nextQueue = normalizeQueueItems(nextState[activeKey]);

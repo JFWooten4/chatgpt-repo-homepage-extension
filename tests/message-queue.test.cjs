@@ -43,7 +43,7 @@ test("normalizes persisted queue items and drops empty entries", () => {
   );
 });
 
-test("queues Enter only while a response or earlier queued message is pending", () => {
+test("Enter always queues, including an idle empty queue", () => {
   const helpers = api();
   const enter = {
     key: "Enter",
@@ -54,10 +54,11 @@ test("queues Enter only while a response or earlier queued message is pending", 
     isComposing: false,
   };
 
-  assert.equal(helpers.shouldQueueComposerEnter(enter, true, 0), true);
-  assert.equal(helpers.shouldQueueComposerEnter(enter, false, 1), true);
-  assert.equal(helpers.shouldQueueComposerEnter(enter, false, 0), false);
-  assert.equal(helpers.shouldQueueComposerEnter({ ...enter, shiftKey: true }, true, 0), false);
+  assert.equal(helpers.shouldQueueComposerEnter(enter), true);
+  for (const modifier of ["shiftKey", "altKey", "ctrlKey", "metaKey", "isComposing"]) {
+    assert.equal(helpers.shouldQueueComposerEnter({ ...enter, [modifier]: true }), false);
+  }
+
 });
 
 test("never advances while ChatGPT is still generating", () => {
@@ -65,7 +66,7 @@ test("never advances while ChatGPT is still generating", () => {
   assert.equal(
     helpers.queueCanAdvance({
       responseActive: true,
-      sendReady: false,
+      composerReady: false,
       userTurns: 2,
       assistantTurns: 1,
       latestAssistantComplete: false,
@@ -80,7 +81,7 @@ test("does not treat the thinking-to-answer gap as response completion", () => {
   assert.equal(
     helpers.queueCanAdvance({
       responseActive: false,
-      sendReady: true,
+      composerReady: true,
       userTurns: 2,
       assistantTurns: 2,
       latestAssistantComplete: false,
@@ -94,7 +95,7 @@ test("requires the response-complete state to remain settled", () => {
   const helpers = api();
   const complete = {
     responseActive: false,
-    sendReady: true,
+    composerReady: true,
     userTurns: 2,
     assistantTurns: 2,
     latestAssistantComplete: true,
@@ -116,7 +117,7 @@ test("can start a queued message in an otherwise empty new chat", () => {
   assert.equal(
     helpers.queueCanAdvance({
       responseActive: false,
-      sendReady: true,
+      composerReady: true,
       userTurns: 0,
       assistantTurns: 0,
       latestAssistantComplete: false,
@@ -124,4 +125,8 @@ test("can start a queued message in an otherwise empty new chat", () => {
     }, helpers.COMPLETE_SETTLE_MS),
     true,
   );
+});
+
+test("recognizes conversations inside custom GPT routes", () => {
+  assert.equal(api().conversationIdFromPath("/g/g-example/c/abc-123"), "abc-123");
 });
