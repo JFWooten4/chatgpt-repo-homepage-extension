@@ -71,6 +71,51 @@ test('modified shortcuts remain available to the host while playing', async () =
   await p.close();
 });
 
+for (const returnEvent of ['focus', 'visibilitychange']) {
+  test(`returning through ${returnEvent} restores game focus and preserves undo`, async () => {
+    const p = await fixture();
+    await p.getByRole('button', { name: 'Play 2048' }).click();
+    const initial = await p.locator('.ghrc-2048-tile').allTextContents();
+    await p.keyboard.press('ArrowLeft');
+    const moved = await p.locator('.ghrc-2048-tile').allTextContents();
+    await p.evaluate(type => {
+      document.activeElement.blur();
+      (type === 'focus' ? window : document).dispatchEvent(new Event(type));
+    }, returnEvent);
+    assert.equal(await p.getByRole('button', { name: 'Close 2048' }).evaluate(e => e === document.activeElement), true);
+    assert.deepEqual(await p.locator('.ghrc-2048-tile').allTextContents(), moved);
+    await p.keyboard.press('ArrowDown');
+    assert.notDeepEqual(await p.locator('.ghrc-2048-tile').allTextContents(), moved);
+    await p.getByRole('button', { name: 'Undo' }).click();
+    assert.deepEqual(await p.locator('.ghrc-2048-tile').allTextContents(), moved);
+    await p.getByRole('button', { name: 'Undo' }).click();
+    assert.deepEqual(await p.locator('.ghrc-2048-tile').allTextContents(), initial);
+    assert.deepEqual(await p.evaluate(() => hostKeys), []);
+    await p.close();
+  });
+}
+
+test('host inputs and frames cannot take game focus, and focus is released on close', async () => {
+  const p = await fixture();
+  await p.getByRole('button', { name: 'Play 2048' }).click();
+  await p.locator('#prompt-textarea').focus();
+  assert.equal(await p.getByRole('button', { name: 'Close 2048' }).evaluate(e => e === document.activeElement), true);
+  await p.evaluate(() => {
+    const frame = document.createElement('iframe');
+    document.body.append(frame);
+    frame.contentWindow.focus();
+  });
+  await p.waitForFunction(() => document.activeElement?.matches('.ghrc-2048-close'));
+  assert.equal(await p.getByRole('button', { name: 'Close 2048' }).evaluate(e => e === document.activeElement), true);
+  await p.keyboard.press('ArrowLeft');
+  assert.equal(await p.getByRole('button', { name: 'Undo' }).isEnabled(), true);
+  await p.keyboard.press('Escape');
+  await p.locator('#prompt-textarea').focus();
+  await p.evaluate(() => window.dispatchEvent(new Event('focus')));
+  assert.equal(await p.locator('#prompt-textarea').evaluate(e => e === document.activeElement), true);
+  await p.close();
+});
+
 test('the keyboard bridge is installed at document_start', () => {
   const manifest = JSON.parse(read('manifest.json'));
   const script = manifest.content_scripts.find(c => c.js?.includes('js/2048-keyboard.js'));
