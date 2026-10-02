@@ -70,6 +70,14 @@ The installed extension ID is `gbokjelbjnifepoeklddjcjoljnfaofk`. For another in
 
 To stop and remove the local service, run `launchctl bootout gui/$(id -u)/com.flawless-chatgpt.auth` and delete `~/Library/LaunchAgents/com.flawless-chatgpt.auth.plist`. This retains the Keychain credential and browser session.
 
+### ChatGPT / Codex personalization
+
+Flawless ChatGPT can keep a browser-local copy of the Custom Instructions text you use on ChatGPT web and mirror the same managed block into `~/.codex/AGENTS.md` for the Codex VS Code extension. The "Sync from ChatGPT web" button reads only the clipboard after you click it.
+
+The Codex Web co-author toggle adds the managed instruction requiring `Co-authored-by: Codex Web <noreply@openai.com>` for commits created through web or GitHub tools. The optional PGP field sends the secret only to the local native bridge; the bridge imports it into GnuPG through stdin, stores only the public fingerprint in Git configuration, and clears the browser field after import.
+
+Use "Set up local bridge" in extension settings to install the native bridge without linking a research repository. The settings-only installer preserves an existing research-publisher repository configuration.
+
 ### Token storage
 
 GitHub token values are encrypted with AES-GCM before being written to
