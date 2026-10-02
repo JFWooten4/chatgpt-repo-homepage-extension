@@ -114,7 +114,7 @@
         "js/message-queue.js",
         "js/highlighted-pages.js"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     },
     {
       "matches": [
