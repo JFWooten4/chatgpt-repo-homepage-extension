@@ -23,6 +23,8 @@
   let lastHref = location.href;
   let mountScheduled = false;
   let pumpScheduled = false;
+  let pumpScheduleHandle = null;
+  let pumpScheduleMode = null;
   let completionCandidateSince = null;
   let sendingItemId = null;
   let saveTimer = null;
@@ -82,10 +84,15 @@
     );
   }
 
+  function pumpSchedulingMode(hidden) {
+    return hidden ? "timeout" : "frame";
+  }
+
   const testApi = {
     COMPLETE_SETTLE_MS,
     conversationIdFromPath,
     normalizeQueueItems,
+    pumpSchedulingMode,
     queueCanAdvance,
     shouldQueueComposerEnter,
   };
@@ -935,11 +942,35 @@
     void context.run(() => sendQueueHead());
   }
 
+  function clearScheduledPump() {
+    if (pumpScheduleHandle === null) return;
+    if (pumpScheduleMode === "frame") cancelAnimationFrame(pumpScheduleHandle);
+    else window.clearTimeout(pumpScheduleHandle);
+    pumpScheduleHandle = null;
+    pumpScheduleMode = null;
+    pumpScheduled = false;
+  }
+
+  function runScheduledPump() {
+    pumpScheduleHandle = null;
+    pumpScheduleMode = null;
+    evaluatePump();
+  }
+
   function schedulePump() {
     if (!context.active()) return;
     if (pumpScheduled) return;
     pumpScheduled = true;
-    requestAnimationFrame(evaluatePump);
+    pumpScheduleMode = pumpSchedulingMode(document.hidden);
+    pumpScheduleHandle = pumpScheduleMode === "frame"
+      ? requestAnimationFrame(runScheduledPump)
+      : window.setTimeout(runScheduledPump, 0);
+  }
+
+  function reschedulePumpForVisibility() {
+    if (!context.active()) return;
+    clearScheduledPump();
+    schedulePump();
   }
 
   document.addEventListener("keydown", (event) => {
@@ -1010,9 +1041,12 @@
   });
 
   const pumpInterval = window.setInterval(schedulePump, PUMP_INTERVAL_MS);
+  document.addEventListener("visibilitychange", reschedulePumpForVisibility);
   context.onStop(() => {
     observer.disconnect();
     clearInterval(pumpInterval);
+    clearScheduledPump();
+    document.removeEventListener("visibilitychange", reschedulePumpForVisibility);
     if (saveTimer !== null) clearTimeout(saveTimer);
   });
   window.addEventListener("popstate", () => void context.run(syncConversationKey));
