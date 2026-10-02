@@ -172,7 +172,7 @@ test('empty disabled send button does not deadlock; FIFO waits for complete resp
 test('Stop queue preserves messages across reload; Resume sends them', async () => {
   const p = await fixture({ active: true });
   await enqueue(p, 'Saved');
-  await p.getByRole('button', { name: 'Stop queue', exact: true }).click();
+  await p.getByRole('button', { name: 'Stop', exact: true }).click();
   await p.evaluate(() => finish());
   await p.waitForTimeout(1800);
   assert.deepEqual(await p.evaluate(() => sent), []);
@@ -255,7 +255,7 @@ test('failed submission pauses and keeps the message for retry', async () => {
 test('conversation navigation isolates queues and migrates a new-chat queue', async () => {
   const p = await fixture({ active: true, route: '/' });
   await enqueue(p, 'New chat queue');
-  await p.getByRole('button', { name: 'Stop queue', exact: true }).click();
+  await p.getByRole('button', { name: 'Stop', exact: true }).click();
   await p.evaluate(() => { history.pushState({}, '', '/g/g-example/c/created'); window.dispatchEvent(new PopStateEvent('popstate')); });
   await p.waitForFunction(() => storage.queuedChatMessages?.['conversation:created']?.length === 1);
   assert.equal(await p.evaluate(() => storage.queuedChatMessagesPaused['conversation:created']), true);
@@ -308,7 +308,7 @@ test('stopping during the completion settle period prevents the next send on a n
   await enqueue(p, 'Stay queued');
   await p.evaluate(() => finish());
   await p.waitForTimeout(500);
-  const stop = p.getByRole('button', { name: 'Stop queue', exact: true });
+  const stop = p.getByRole('button', { name: 'Stop', exact: true });
   const box = await stop.boundingBox();
   assert.ok(box && box.x >= 0 && box.x + box.width <= 390);
   await stop.click();
@@ -489,5 +489,86 @@ test('failed queued send restores a partial draft and preserves the queue for re
   await sentCount(p, 1);
   await p.waitForFunction(() => read() === 'Unfinished draft');
   assert.deepEqual(await p.evaluate(() => sent), ['Queued prompt']);
+  await p.close();
+});
+
+for (const paused of [false, true]) {
+  test(`Steer sends a selected queued item and preserves the remaining FIFO and draft (paused=${paused})`, async () => {
+    const p = await fixture({ active: true });
+    await enqueue(p, 'First'); await enqueue(p, 'Selected'); await enqueue(p, 'Last');
+    if (paused) await p.getByRole('button', { name: 'Stop', exact: true }).click();
+    await p.locator('[data-composer-markdown]').fill('Partial draft');
+    await p.getByRole('button', { name: 'Steer queued message', exact: true }).nth(1).click();
+    await sentCount(p, 1);
+    await p.waitForFunction(() => read() === 'Partial draft' && document.querySelectorAll('.ghrc-message-queue-editor').length === 2);
+    assert.equal(await p.evaluate(() => stops), 1);
+    assert.deepEqual(await p.evaluate(() => sent), ['Selected']);
+    assert.deepEqual(await p.locator('.ghrc-message-queue-editor').evaluateAll(es => es.map(e => e.value)), ['First', 'Last']);
+    if (paused) {
+      await p.evaluate(() => finish());
+      await p.waitForTimeout(1800);
+      assert.deepEqual(await p.evaluate(() => sent), ['Selected']);
+      await p.getByRole('button', { name: 'Resume queue', exact: true }).click();
+    } else await p.evaluate(() => finish());
+    await sentCount(p, 2);
+    await p.waitForFunction(() => read() === 'Partial draft');
+    assert.deepEqual(await p.evaluate(() => sent), ['Selected', 'First']);
+    await p.evaluate(() => finish());
+    await sentCount(p, 3);
+    await p.waitForFunction(() => read() === 'Partial draft' && !document.getElementById('ghrc-message-queue'));
+    assert.deepEqual(await p.evaluate(() => sent), ['Selected', 'First', 'Last']);
+    assert.deepEqual(p.errors, []);
+    await p.close();
+  });
+}
+
+test('failed Steer retains every queued message in order and restores the draft', async () => {
+  const p = await fixture({ active: true, editable: false });
+  await enqueue(p, 'First'); await enqueue(p, 'Selected'); await enqueue(p, 'Last');
+  await p.locator('#prompt-textarea').fill('Keep draft');
+  await p.evaluate(() => { window.rejectSend = true; });
+  await p.getByRole('button', { name: 'Steer queued message', exact: true }).nth(1).click();
+  await p.getByRole('button', { name: 'Resume queue', exact: true }).waitFor({ timeout: 10000 });
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  assert.equal(await p.evaluate(() => read()), 'Keep draft');
+  assert.deepEqual(await p.locator('.ghrc-message-queue-editor').evaluateAll(es => es.map(e => e.value)), ['First', 'Selected', 'Last']);
+  await p.evaluate(() => { window.rejectSend = false; });
+  await p.getByRole('button', { name: 'Steer queued message', exact: true }).nth(1).click();
+  await sentCount(p, 1);
+  await p.waitForFunction(() => read() === 'Keep draft' && document.querySelectorAll('.ghrc-message-queue-editor').length === 2);
+  assert.deepEqual(await p.evaluate(() => sent), ['Selected']);
+  assert.deepEqual(await p.locator('.ghrc-message-queue-editor').evaluateAll(es => es.map(e => e.value)), ['First', 'Last']);
+  await p.close();
+});
+
+test('Steer cancels on navigation while waiting for Stop without sending in another chat', async () => {
+  const p = await fixture({ active: true });
+  await enqueue(p, 'First'); await enqueue(p, 'Selected');
+  await p.evaluate(() => { window.deferStop = true; });
+  await p.getByRole('button', { name: 'Steer queued message', exact: true }).nth(1).click();
+  await p.evaluate(() => {
+    history.pushState({}, '', '/c/other');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await p.waitForTimeout(200);
+  await p.evaluate(() => finish());
+  await p.waitForTimeout(200);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  assert.deepEqual(await p.evaluate(() => storage.queuedChatMessages['conversation:test'].map(i => i.text)), ['First', 'Selected']);
+  await p.close();
+});
+
+test('Steer preserves draft edits made while waiting for the response to stop', async () => {
+  const p = await fixture({ active: true });
+  await enqueue(p, 'Selected');
+  await p.locator('[data-composer-markdown]').fill('Original draft');
+  await p.evaluate(() => { window.deferStop = true; });
+  await p.getByRole('button', { name: 'Steer queued message', exact: true }).click();
+  await p.locator('[data-composer-markdown]').fill('Updated draft');
+  await p.evaluate(() => finish());
+  await sentCount(p, 1);
+  await p.waitForFunction(() => read() === 'Updated draft' && !document.getElementById('ghrc-message-queue'));
+  assert.deepEqual(await p.evaluate(() => sent), ['Selected']);
+  assert.equal(await p.evaluate(() => stops), 1);
   await p.close();
 });

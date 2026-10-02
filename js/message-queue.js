@@ -519,7 +519,16 @@
     remove.disabled = item.id === sendingItemId;
     remove.addEventListener("click", () => removeItem(item.id));
 
-    controls.append(up, down, remove);
+    const steer = document.createElement("button");
+    steer.type = "button";
+    steer.className = "ghrc-message-queue-steer";
+    steer.textContent = "Steer";
+    steer.title = "Interrupt and send this queued message";
+    steer.setAttribute("aria-label", "Steer queued message");
+    steer.disabled = Boolean(sendingItemId) || interruptRunning || enqueueRunning || routeSyncRunning;
+    steer.addEventListener("click", () => void sendQueueHead(item.id, true));
+
+    controls.append(steer, up, down, remove);
     row.append(ordinal, textarea, controls);
     return row;
   }
@@ -572,7 +581,7 @@
     status.hidden = !queuePaused;
     status.textContent = queuePaused ? "Queue stopped; messages are saved" : "";
     const toggle = panel.querySelector(".ghrc-message-queue-toggle");
-    toggle.textContent = queuePaused ? "Resume queue" : "Stop queue";
+    toggle.textContent = queuePaused ? "Resume queue" : "Stop";
     toggle.setAttribute("aria-label", toggle.textContent);
     list.replaceChildren(...queue.map(createItemRow));
 
@@ -605,6 +614,10 @@
 
   function mountQueueUi() {
     mountScheduled = false;
+    const steeringBusy = Boolean(sendingItemId) || interruptRunning || enqueueRunning || routeSyncRunning;
+    for (const steer of document.querySelectorAll(".ghrc-message-queue-steer")) {
+      if (steer.disabled !== steeringBusy) steer.disabled = steeringBusy;
+    }
     const composer = findComposerInput();
     const actionButton = findActionButton(composer);
     if (!composer || !actionButton?.parentElement) {
@@ -738,6 +751,7 @@
       return queued;
     } finally {
       enqueueRunning = false;
+      scheduleMount();
       schedulePump();
     }
   }
@@ -753,13 +767,15 @@
     return false;
   }
 
-  async function sendQueueHead() {
-    if (sendingItemId || !queue.length || queuePaused || routeSyncRunning) return;
+  async function sendQueueHead(id = queue[0]?.id, steer = false) {
+    if (!stateLoaded || sendingItemId || enqueueRunning || interruptRunning
+      || routeSyncRunning || conversationKey() !== activeKey || (queuePaused && !steer)) return;
 
     const key = activeKey;
-    const item = queue[0];
+    const item = queue.find(candidate => candidate.id === id);
+    if (!item) return;
     if (!item.text.trim()) {
-      queue.shift();
+      queue = queue.filter(candidate => candidate.id !== item.id);
       await persistQueue();
       renderQueue();
       schedulePump();
@@ -768,13 +784,31 @@
 
     const composer = findComposerInput();
     if (!composer) return;
-    const draft = composerText(composer);
+    let draft = composerText(composer);
+    let composerReplaced = false;
     const focused = document.activeElement;
     sendingItemId = item.id;
     renderQueue();
 
     try {
+      if (steer && responseIsActive(composer)) {
+        const stop = findActionButton(composer);
+        if (!stop || stop.disabled || stop.getAttribute("aria-disabled") === "true") return;
+        stop.click();
+        const stopDeadline = Date.now() + SUBMIT_TIMEOUT_MS;
+        while (responseIsActive(composer) && Date.now() < stopDeadline) {
+          if (key !== activeKey || conversationKey() !== key || routeSyncRunning
+            || composer !== findComposerInput() || !composer.isConnected) return;
+          await new Promise(resolve => window.setTimeout(resolve, 80));
+        }
+        if (responseIsActive(composer)) return;
+      }
+      if (key !== activeKey || conversationKey() !== key || routeSyncRunning
+        || composer !== findComposerInput() || !composer.isConnected
+        || !queue.some(candidate => candidate.id === item.id)) return;
+      draft = composerText(composer);
       const beforeUserTurns = roleTurns("user").length;
+      composerReplaced = true;
       if (!await replaceComposerText(composer, item.text)) return;
 
       const deadline = Date.now() + SUBMIT_TIMEOUT_MS;
@@ -799,7 +833,8 @@
         return;
       }
 
-      if (queuePaused || key !== activeKey || routeSyncRunning || responseIsActive()
+      if ((queuePaused && !steer) || key !== activeKey || conversationKey() !== key
+        || routeSyncRunning || responseIsActive()
         || !textMatchesComposer(composer, item.text)) return;
       sendButton.click();
 
@@ -817,7 +852,8 @@
     } finally {
       const sameConversation = key === activeKey || (key.startsWith("new:")
         && activeKey.startsWith("conversation:") && conversationKey() === activeKey);
-      if (sameConversation && conversationKey() === activeKey && composer === findComposerInput()) {
+      if (composerReplaced && sameConversation && conversationKey() === activeKey
+        && composer === findComposerInput()) {
         const current = composerText(composer);
         const restored = !current.trim() || textMatchesComposer(composer, item.text)
           ? draft : (draft ? `${draft}\n${current}` : current);
