@@ -7,10 +7,6 @@
   min-width: 0;
 }
 
-#github-repositories-for-chatgpt .ghrc-2048-footer-left .ghrc-pagination {
-  grid-column: auto;
-}
-
 #github-repositories-for-chatgpt .ghrc-2048-launcher {
   align-items: center;
   background: var(--ghrc-canvas-subtle);

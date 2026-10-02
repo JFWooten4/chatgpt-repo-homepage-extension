@@ -183,8 +183,6 @@
     if (!left) {
       left = document.createElement("div");
       left.className = "ghrc-2048-footer-left";
-      const pagination = footer.querySelector(":scope > .ghrc-pagination");
-      if (pagination) left.append(pagination);
       footer.prepend(left);
     }
     left.prepend(createLauncher());

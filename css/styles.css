@@ -100,7 +100,6 @@ html.dark #github-repositories-for-chatgpt {
   font-family: inherit;
 }
 
-#github-repositories-for-chatgpt .ghrc-settings,
 #github-repositories-for-chatgpt .ghrc-wooten-link-submit,
 #github-repositories-for-chatgpt .ghrc-state button,
 #github-repositories-for-chatgpt .ghrc-pagination button {
@@ -114,11 +113,6 @@ html.dark #github-repositories-for-chatgpt {
   padding: 6px 10px;
 }
 
-#github-repositories-for-chatgpt .ghrc-settings {
-  font-weight: 400;
-}
-
-#github-repositories-for-chatgpt .ghrc-settings:hover,
 #github-repositories-for-chatgpt .ghrc-wooten-link-submit:hover,
 #github-repositories-for-chatgpt .ghrc-state button:hover,
 #github-repositories-for-chatgpt .ghrc-pagination button:hover:not(:disabled) {
@@ -126,7 +120,6 @@ html.dark #github-repositories-for-chatgpt {
   background: color-mix(in srgb, var(--ghrc-canvas-subtle) 85%, var(--ghrc-fg) 15%);
 }
 
-#github-repositories-for-chatgpt .ghrc-settings:focus-visible,
 #github-repositories-for-chatgpt .ghrc-wooten-link-submit:focus-visible,
 #github-repositories-for-chatgpt .ghrc-wooten-link-search input:focus-visible,
 #github-repositories-for-chatgpt .ghrc-state button:focus-visible,
@@ -393,7 +386,7 @@ html.dark #github-repositories-for-chatgpt {
   align-items: center;
   border-top: 1px solid var(--ghrc-border);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-columns: 32px minmax(0, 1fr) 50px;
   min-height: 50px;
   padding: 8px 16px;
 }
@@ -522,6 +515,7 @@ html.dark #github-repositories-for-chatgpt {
   border-top: 0;
   gap: 2px;
   grid-column: 3;
+  align-self: end;
   justify-self: end;
   min-height: 0;
   padding: 0;
@@ -608,6 +602,7 @@ html.dark #github-repositories-for-chatgpt {
 
   #github-repositories-for-chatgpt .ghrc-dashboard-footer .ghrc-pagination {
     grid-column: 2;
+    grid-row: 3;
     justify-self: end;
   }
 
@@ -632,7 +627,7 @@ html.dark #github-repositories-for-chatgpt {
 
   #github-repositories-for-chatgpt .ghrc-dashboard-footer .ghrc-pagination {
     grid-column: 1;
-    grid-row: auto;
+    grid-row: 3;
     justify-self: end;
   }
 }
