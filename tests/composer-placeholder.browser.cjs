@@ -65,6 +65,13 @@ test("custom composer placeholders update live, survive editor replacement, and 
     });
     await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.ghrcPlaceholderText === 'Write <anything> "here"');
     assert.equal(await page.locator("[data-composer-markdown]").textContent(), "Restored draft");
+    const replacementText = await page.evaluate(() => {
+      setPlaceholder('Dash');
+      document.querySelector('[data-composer-markdown]').innerHTML = '<p data-placeholder="New chat"><br></p>';
+      // Read the new paragraph before the mutation observer or animation frame runs.
+      return getComputedStyle(document.querySelector('[data-placeholder]'), '::before').content;
+    });
+    assert.equal(replacementText, '"Dash"');
     await page.evaluate(() => setPlaceholder(" "));
     await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.placeholder === "New chat");
     await page.waitForFunction(() => !document.querySelector("[data-ghrc-placeholder-text]"));
@@ -88,6 +95,7 @@ test("a composer that becomes editable after hydration receives its saved placeh
     await page.waitForTimeout(100);
     assert.equal(await page.locator('[data-ghrc-placeholder-text]').count(), 0);
     await page.evaluate(() => document.querySelector('[data-composer-markdown]').setAttribute('contenteditable', 'true'));
+    await page.waitForFunction(() => document.querySelector('[data-placeholder]').dataset.ghrcPlaceholderText === 'Dash');
     await page.waitForFunction(() => getComputedStyle(document.querySelector('[data-placeholder]'), '::before').content === '"Dash"');
     assert.equal(await page.locator('[data-placeholder]').getAttribute('data-placeholder'), 'Ask ChatGPT');
     assert.equal(await page.locator('[data-composer-markdown]').textContent(), '');
