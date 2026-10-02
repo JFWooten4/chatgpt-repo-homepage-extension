@@ -382,3 +382,118 @@ button.secondary {
     grid-column: auto;
   }
 }
+
+
+.highlighted-page-add {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.highlighted-page-add input {
+  min-width: 0;
+}
+
+.highlighted-pages-status {
+  min-height: 18px;
+}
+
+.highlighted-pages-status[data-state="error"] {
+  color: light-dark(#cf222e, #f85149);
+}
+
+.highlighted-pages-status[data-state="success"] {
+  color: light-dark(#1a7f37, #3fb950);
+}
+
+.highlighted-pages-settings-list {
+  display: grid;
+  gap: 8px;
+}
+
+.highlighted-page-setting {
+  align-items: center;
+  background: light-dark(#f6f8fa, #161b22);
+  border: 1px solid light-dark(#d0d7de, #3d444d);
+  border-radius: 7px;
+  cursor: grab;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto 44px minmax(0, 1fr);
+  padding: 8px;
+}
+
+.highlighted-page-setting.dragging {
+  cursor: grabbing;
+  opacity: 0.55;
+}
+
+.highlighted-page-setting-preview {
+  background: light-dark(#ffffff, #0d1117);
+  background-position: center;
+  background-size: cover;
+  border: 1px solid light-dark(#d0d7de, #3d444d);
+  border-radius: 6px;
+  height: 38px;
+  width: 42px;
+}
+
+.highlighted-page-setting-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.highlighted-page-setting-copy strong,
+.highlighted-page-setting-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.highlighted-page-setting-copy small {
+  color: light-dark(#656d76, #9198a1);
+}
+
+.highlighted-page-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  grid-column: 3;
+}
+
+.highlighted-page-controls button {
+  padding: 4px 7px;
+}
+
+.highlighted-page-controls button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.highlighted-pages-settings-empty {
+  border: 1px dashed light-dark(#d0d7de, #3d444d);
+  border-radius: 6px;
+  color: light-dark(#656d76, #9198a1);
+  font-size: 13px;
+  margin: 0;
+  padding: 12px;
+  text-align: center;
+}
+
+@media (min-width: 600px) {
+  .highlighted-page-setting {
+    grid-template-columns: auto 50px minmax(0, 1fr) auto;
+  }
+
+  .highlighted-page-setting-preview {
+    height: 42px;
+    width: 48px;
+  }
+
+  .highlighted-page-controls {
+    grid-column: auto;
+    flex-wrap: nowrap;
+  }
+}
