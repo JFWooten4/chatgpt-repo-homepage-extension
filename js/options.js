@@ -1,4 +1,5 @@
 const DEFAULT_OWNER_ORDER = [];
+const DEFAULT_HIDDEN_OWNERS = [];
 const DEFAULT_OWNER_GROUPS_PER_PAGE = 6;
 const form = document.getElementById("settings-form");
 const tokenSettings = document.getElementById("token-settings");
@@ -6,7 +7,8 @@ const tokenSummary = document.getElementById("token-summary");
 const tokenList = document.getElementById("github-tokens");
 const tokenRowTemplate = document.getElementById("token-row-template");
 const addTokenButton = document.getElementById("add-token");
-const ownerOrderInput = document.getElementById("owner-order");
+const githubAccountList = document.getElementById("github-accounts");
+const githubAccountTemplate = document.getElementById("github-account-template");
 const ownerGroupsPerPageInput = document.getElementById("owner-groups-per-page");
 const showRepositorySearchInput = document.getElementById("show-repository-search");
 const showRepositoryTotalInput = document.getElementById("show-repository-total");
@@ -31,6 +33,7 @@ const status = document.getElementById("status");
 let saveQueue = Promise.resolve();
 let tokenStateLoaded = false;
 let tokenInputsDirty = false;
+let ownerListDirty = false;
 
 function normalizedOwnerOrder(owners) {
   const seen = new Set();
@@ -44,9 +47,104 @@ function normalizedOwnerOrder(owners) {
     });
 }
 
-function ownerOrderFromInput() {
-  return normalizedOwnerOrder(ownerOrderInput.value.split("\n"));
+function normalizedHiddenOwners(owners) {
+  return normalizedOwnerOrder(owners);
 }
+
+function githubAccountOrderFromList() {
+  return [...githubAccountList.querySelectorAll(".github-account")]
+    .map((row) => row.dataset.owner)
+    .filter(Boolean);
+}
+
+function hiddenOwnersFromList() {
+  return [...githubAccountList.querySelectorAll(".github-account")]
+    .filter((row) => !row.querySelector(".github-account-visible")?.checked)
+    .map((row) => row.dataset.owner)
+    .filter(Boolean);
+}
+
+function updateGithubAccountControls() {
+  const rows = [...githubAccountList.querySelectorAll(".github-account")];
+  rows.forEach((row, index) => {
+    row.querySelector(".move-account-up").disabled = index === 0;
+    row.querySelector(".move-account-down").disabled = index === rows.length - 1;
+  });
+}
+
+function moveGithubAccount(row, direction) {
+  const sibling = direction < 0 ? row.previousElementSibling : row.nextElementSibling;
+  if (!sibling?.classList.contains("github-account")) return;
+  if (direction < 0) githubAccountList.insertBefore(row, sibling);
+  else githubAccountList.insertBefore(sibling, row);
+  ownerListDirty = true;
+  updateGithubAccountControls();
+  row.querySelector(direction < 0 ? ".move-account-up" : ".move-account-down").focus();
+  void queueSettingsSave();
+}
+
+function createGithubAccountRow(owner, hiddenOwnerKeys) {
+  const row = githubAccountTemplate.content.firstElementChild.cloneNode(true);
+  row.dataset.owner = owner;
+  row.querySelector("code").textContent = owner;
+  row.querySelector(".github-account-visible").checked = !hiddenOwnerKeys.has(owner.toLowerCase());
+  row.querySelector(".move-account-up").addEventListener("click", () => moveGithubAccount(row, -1));
+  row.querySelector(".move-account-down").addEventListener("click", () => moveGithubAccount(row, 1));
+  return row;
+}
+
+function renderGithubAccounts(ownerOrder, hiddenOwners = []) {
+  const owners = normalizedOwnerOrder(ownerOrder);
+  if (!owners.length) {
+    const empty = document.createElement("p");
+    empty.className = "github-accounts-empty";
+    empty.textContent = "No GitHub accounts discovered yet.";
+    githubAccountList.replaceChildren(empty);
+    return;
+  }
+
+  const hiddenOwnerKeys = new Set(
+    normalizedHiddenOwners(hiddenOwners).map((owner) => owner.toLowerCase()),
+  );
+  githubAccountList.replaceChildren(
+    ...owners.map((owner) => createGithubAccountRow(owner, hiddenOwnerKeys)),
+  );
+  updateGithubAccountControls();
+}
+
+let draggedGithubAccount = null;
+githubAccountList.addEventListener("dragstart", (event) => {
+  const row = event.target.closest(".github-account");
+  if (!row) return;
+  draggedGithubAccount = row;
+  row.classList.add("dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", row.dataset.owner);
+});
+githubAccountList.addEventListener("dragover", (event) => {
+  const target = event.target.closest(".github-account");
+  if (!draggedGithubAccount || !target || target === draggedGithubAccount) return;
+  event.preventDefault();
+  const bounds = target.getBoundingClientRect();
+  const insertAfter = event.clientY > bounds.top + (bounds.height / 2);
+  githubAccountList.insertBefore(
+    draggedGithubAccount,
+    insertAfter ? target.nextSibling : target,
+  );
+});
+githubAccountList.addEventListener("drop", (event) => {
+  if (!draggedGithubAccount) return;
+  event.preventDefault();
+  ownerListDirty = true;
+  updateGithubAccountControls();
+});
+githubAccountList.addEventListener("dragend", () => {
+  draggedGithubAccount?.classList.remove("dragging");
+  draggedGithubAccount = null;
+  ownerListDirty = true;
+  updateGithubAccountControls();
+  void queueSettingsSave();
+});
 
 function normalizedOwnerGroupsPerPage(value) {
   const parsed = Number.parseInt(value, 10);
@@ -198,6 +296,7 @@ pinnedRepositoryList.addEventListener("dragend", () => {
 async function loadSettings() {
   const settings = await chrome.storage.local.get({
     ownerOrder: DEFAULT_OWNER_ORDER,
+    hiddenOwners: DEFAULT_HIDDEN_OWNERS,
     ownerGroupsPerPage: DEFAULT_OWNER_GROUPS_PER_PAGE,
     showRepositorySearch: true,
     showRepositoryTotal: true,
@@ -231,7 +330,7 @@ async function loadSettings() {
   tokenInputsDirty = false;
   tokenSettings.open = configuredTokens.length === 0;
   renderPinnedRepositories(settings.pinnedRepositories);
-  ownerOrderInput.value = storedOwnerOrder.join("\n");
+  renderGithubAccounts(storedOwnerOrder, settings.hiddenOwners);
   ownerGroupsPerPageInput.value = normalizedOwnerGroupsPerPage(settings.ownerGroupsPerPage);
   showRepositorySearchInput.checked = Boolean(settings.showRepositorySearch);
   showRepositoryTotalInput.checked = Boolean(settings.showRepositoryTotal);
@@ -250,15 +349,18 @@ async function loadSettings() {
   hideChatgptDisclaimerInput.checked = !Boolean(settings.showChatgptDisclaimer);
   hideCookiePreferencesInput.checked = Boolean(settings.hideCookiePreferences);
 
-  const initialOwnerOrderValue = ownerOrderInput.value;
   try {
     const payload = await chrome.runtime.sendMessage({ type: "load-repositories" });
-    if (
-      payload?.ok
-      && Array.isArray(payload.ownerOrder)
-      && ownerOrderInput.value === initialOwnerOrderValue
-    ) {
-      ownerOrderInput.value = normalizedOwnerOrder(payload.ownerOrder).join("\n");
+    if (payload?.ok && !ownerListDirty) {
+      const discoveredOwners = Array.isArray(payload.repositories)
+        ? payload.repositories.map((repository) => repository?.owner?.login)
+        : [];
+      const mergedOwnerOrder = normalizedOwnerOrder([
+        ...githubAccountOrderFromList(),
+        ...(Array.isArray(payload.ownerOrder) ? payload.ownerOrder : []),
+        ...discoveredOwners,
+      ]);
+      renderGithubAccounts(mergedOwnerOrder, hiddenOwnersFromList());
     }
   } catch {
     // Keep the already-rendered settings if repository discovery is unavailable.
@@ -279,7 +381,8 @@ tokenList.addEventListener("input", () => {
 });
 
 async function saveSettings() {
-  const enteredOwnerOrder = ownerOrderFromInput();
+  const enteredOwnerOrder = githubAccountOrderFromList();
+  const hiddenOwners = hiddenOwnersFromList();
   const ownerGroupsPerPage = normalizedOwnerGroupsPerPage(ownerGroupsPerPageInput.value);
   let githubTokens = null;
   let shouldSaveTokens = false;
@@ -306,6 +409,7 @@ async function saveSettings() {
     }
     await chrome.storage.local.set({
       ownerOrder: enteredOwnerOrder,
+      hiddenOwners,
       ownerGroupsPerPage,
       showRepositorySearch: showRepositorySearchInput.checked,
       showRepositoryTotal: showRepositoryTotalInput.checked,
@@ -325,7 +429,7 @@ async function saveSettings() {
       hideHomeSuggestions: hideHomeSuggestionsInput.checked,
       hideModelControls: hideModelControlsInput.checked,
     });
-    ownerOrderInput.value = enteredOwnerOrder.join("\n");
+    ownerListDirty = false;
     ownerGroupsPerPageInput.value = ownerGroupsPerPage;
     updateTokenSummary();
     showStatus(
@@ -351,6 +455,7 @@ form.addEventListener("submit", (event) => {
 
 form.addEventListener("change", (event) => {
   if (event.target.closest(".token-row")) tokenInputsDirty = true;
+  if (event.target.closest(".github-account")) ownerListDirty = true;
   void queueSettingsSave();
 });
 
