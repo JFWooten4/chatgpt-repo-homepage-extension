@@ -50,17 +50,15 @@
     return icon;
   }
 
-  function isNewChatPage() {
-    if (!document.querySelector('#prompt-textarea, [data-composer-markdown][contenteditable="true"]')) return false;
-
-    const hasConversation = document.querySelector(
-      '[data-message-author-role="user"], [data-message-author-role="assistant"]',
-    );
-    return !hasConversation;
-  }
-
   function isDashboardPage() {
     return location.pathname === "/";
+  }
+
+  function isNewChatPage() {
+    return isDashboardPage()
+      && Boolean(document.querySelector(
+        '#prompt-textarea, [data-composer-markdown][contenteditable="true"]',
+      ));
   }
 
   function findComposer() {
@@ -527,17 +525,6 @@
     }
   }
 
-  function createSettingsButton(mode) {
-    const settings = document.createElement("button");
-    settings.type = "button";
-    settings.className = "ghrc-settings";
-    settings.textContent = mode === "authenticated" ? "Settings" : "Connect GitHub";
-    settings.addEventListener("click", () => {
-      requestOptionsPage(mode !== "authenticated");
-    });
-    return settings;
-  }
-
   function normalizeWootenLinkText(value) {
     return String(value || "")
       .replace(/https?:\/\/\S+/g, " ")
@@ -844,12 +831,11 @@
     return form;
   }
 
-  function createDashboardFooter(mode, pagination = null, showWootenLinkSearch = false) {
+  function createDashboardFooter(pagination = null, showWootenLinkSearch = false) {
     const footer = document.createElement("footer");
     footer.className = "ghrc-dashboard-footer";
     if (showWootenLinkSearch) footer.append(createWootenLinkSearch());
     if (pagination) footer.append(pagination);
-    footer.append(createSettingsButton(mode));
     return footer;
   }
 
@@ -860,20 +846,22 @@
 
     const previous = document.createElement("button");
     previous.type = "button";
-    previous.textContent = "Previous";
-
-    const status = document.createElement("span");
-    status.setAttribute("aria-live", "polite");
+    previous.setAttribute("aria-label", "Previous page");
+    previous.textContent = "←";
 
     const next = document.createElement("button");
     next.type = "button";
-    next.textContent = "Next";
+    next.setAttribute("aria-label", "Next page");
+    next.textContent = "→";
 
     let pageIndex = 0;
     const update = () => {
       previous.disabled = pageIndex === 0;
       next.disabled = pageIndex === pageCount - 1;
-      status.textContent = `Page ${pageIndex + 1} of ${pageCount}`;
+      pagination.setAttribute(
+        "aria-label",
+        `GitHub account pages, page ${pageIndex + 1} of ${pageCount}`,
+      );
       onPageChange(pageIndex);
     };
 
@@ -889,7 +877,7 @@
       update();
     });
 
-    pagination.append(previous, status, next);
+    pagination.append(previous, next);
     update();
     return pagination;
   }
@@ -937,7 +925,7 @@
       columns.append(empty);
       widget.append(
         columns,
-        createDashboardFooter(payload.mode, null, showWootenLinkSearch),
+        createDashboardFooter(null, showWootenLinkSearch),
       );
       return;
     }
@@ -960,7 +948,7 @@
     } else {
       renderPage(0);
     }
-    widget.append(createDashboardFooter(payload.mode, pagination, showWootenLinkSearch));
+    widget.append(createDashboardFooter(pagination, showWootenLinkSearch));
   }
 
   function renderError(widget, message) {
@@ -982,11 +970,15 @@
     widget.append(state);
   }
 
+  function requestRepositories() {
+    repositoryRequest ||= chrome.runtime.sendMessage({ type: "load-repositories" });
+    return repositoryRequest;
+  }
+
   async function loadRepositories(widget) {
     try {
-      repositoryRequest ||= chrome.runtime.sendMessage({ type: "load-repositories" });
       const [payload, stored] = await Promise.all([
-        repositoryRequest,
+        requestRepositories(),
         chrome.storage.local.get({
           [USAGE_STORAGE_KEY]: {},
           [PINNED_STORAGE_KEY]: [],
@@ -1090,6 +1082,8 @@
   });
 
   window.addEventListener("resize", scheduleMount);
+  window.addEventListener("ghrc:route-change", scheduleMount);
+  window.addEventListener("popstate", scheduleMount);
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
@@ -1116,6 +1110,13 @@
       document.getElementById(WIDGET_ID)?.remove();
       scheduleMount();
     }
+  });
+
+  // Warm repository data as soon as the content script starts. On a cache hit this
+  // resolves while ChatGPT is still building the page, so the dashboard can paint
+  // with data on its first mount instead of visibly arriving afterward.
+  void requestRepositories().catch(() => {
+    repositoryRequest = null;
   });
 
   void loadDisplayPreferences();
