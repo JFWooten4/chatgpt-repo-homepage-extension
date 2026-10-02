@@ -65,7 +65,7 @@ test("never advances while ChatGPT is still generating", () => {
   assert.equal(
     helpers.queueCanAdvance({
       responseActive: true,
-      sendReady: false,
+      composerReady: false,
       userTurns: 2,
       assistantTurns: 1,
       latestAssistantComplete: false,
@@ -80,7 +80,7 @@ test("does not treat the thinking-to-answer gap as response completion", () => {
   assert.equal(
     helpers.queueCanAdvance({
       responseActive: false,
-      sendReady: true,
+      composerReady: true,
       userTurns: 2,
       assistantTurns: 2,
       latestAssistantComplete: false,
@@ -94,7 +94,7 @@ test("requires the response-complete state to remain settled", () => {
   const helpers = api();
   const complete = {
     responseActive: false,
-    sendReady: true,
+    composerReady: true,
     userTurns: 2,
     assistantTurns: 2,
     latestAssistantComplete: true,
@@ -116,7 +116,7 @@ test("can start a queued message in an otherwise empty new chat", () => {
   assert.equal(
     helpers.queueCanAdvance({
       responseActive: false,
-      sendReady: true,
+      composerReady: true,
       userTurns: 0,
       assistantTurns: 0,
       latestAssistantComplete: false,
@@ -124,4 +124,8 @@ test("can start a queued message in an otherwise empty new chat", () => {
     }, helpers.COMPLETE_SETTLE_MS),
     true,
   );
+});
+
+test("recognizes conversations inside custom GPT routes", () => {
+  assert.equal(api().conversationIdFromPath("/g/g-example/c/abc-123"), "abc-123");
 });

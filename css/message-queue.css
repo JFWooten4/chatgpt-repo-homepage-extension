@@ -199,3 +199,20 @@ html.dark #ghrc-message-queue {
     justify-self: end;
   }
 }
+
+.ghrc-message-queue-toggle {
+  background: transparent;
+  border: 1px solid var(--ghrc-queue-border);
+  border-radius: 6px;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.ghrc-message-queue-toggle:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
