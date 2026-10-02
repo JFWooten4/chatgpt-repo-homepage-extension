@@ -75,6 +75,7 @@
         "js/compact-header.js",
         "js/disable-work-mode.js",
         "js/chat-display.js",
+        "js/composer-placeholder.js",
         "js/force-high-thinking.js",
         "js/autofocus-composer.js",
         "js/preserve-scroll-on-send.js",
