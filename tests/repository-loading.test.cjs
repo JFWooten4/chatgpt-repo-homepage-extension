@@ -92,6 +92,8 @@ function createWorker({ storage = {}, loadTokens, fetchImpl }) {
   };
   context.globalThis = context;
   vm.runInNewContext(source, context);
+  // Ignore the service worker's intentional startup token-migration read.
+  tokenCalls.length = 0;
 
   async function send(message) {
     return new Promise((resolve, reject) => {
