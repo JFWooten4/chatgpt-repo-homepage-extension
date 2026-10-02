@@ -111,3 +111,24 @@ test("invalid PDFs fail visibly and are not added to the cached shelf", async ()
   assert.equal(await page.locator("#add-highlighted-page").isEnabled(), true);
   assert.equal(await page.evaluate(async () => (await chrome.storage.local.get("highlightedPages")).highlightedPages.length), 1);
 });
+
+test("custom highlight names survive refresh and reload, and can be cancelled or reset", async () => {
+  page.once("dialog", dialog => dialog.accept("  My report  "));
+  await page.locator(".rename-highlight").click();
+  await page.waitForFunction(() => document.querySelector(".ghrc-highlighted-page-copy strong").textContent === "My report");
+  assert.equal(await page.locator(".highlighted-page-setting-copy strong").textContent(), "My report");
+  await page.locator(".refresh-highlight").click();
+  await page.waitForFunction(() => document.querySelector("#highlighted-pages-status").textContent === "Cached preview refreshed.");
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector(".ghrc-highlighted-page-copy strong")?.textContent === "My report");
+  page.once("dialog", dialog => dialog.dismiss());
+  await page.locator(".rename-highlight").click();
+  assert.equal(await page.locator(".highlighted-page-setting-copy strong").textContent(), "My report");
+  const saved = await page.evaluate(async () => (await chrome.storage.local.get("highlightedPages")).highlightedPages[0]);
+  assert.equal(saved.customTitle, "My report");
+  assert.equal(saved.title, "report.pdf");
+  assert.equal(saved.url, `${origin}/report.pdf#page=2`);
+  page.once("dialog", dialog => dialog.accept(" "));
+  await page.locator(".rename-highlight").click();
+  await page.waitForFunction(() => document.querySelector(".ghrc-highlighted-page-copy strong").textContent === "report.pdf");
+});

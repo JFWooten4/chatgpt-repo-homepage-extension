@@ -53,7 +53,7 @@
     const copy = document.createElement("span");
     copy.className = "ghrc-highlighted-page-copy";
     const title = document.createElement("strong");
-    title.textContent = page.title || page.url;
+    title.textContent = page.customTitle || page.title || page.url;
     const host = document.createElement("small");
     host.textContent = page.siteName || page.hostname || new URL(page.url).hostname;
     copy.append(title, host);

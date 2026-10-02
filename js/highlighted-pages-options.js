@@ -107,11 +107,11 @@
     busy = true;
     const button = row.querySelector(".refresh-highlight");
     button.disabled = true;
-    showStatus(`Refreshing ${page.title || page.url}…`);
+    showStatus(`Refreshing ${page.customTitle || page.title || page.url}…`);
     try {
       const preview = await fetchPreview(page.url);
       const index = pages.findIndex((entry) => entry.id === page.id);
-      if (index >= 0) pages[index] = { ...preview, id: page.id };
+      if (index >= 0) pages[index] = { ...preview, id: page.id, customTitle: pages[index].customTitle || "" };
       await save();
       render();
       showStatus("Cached preview refreshed.", "success");
@@ -131,11 +131,27 @@
     if (image) {
       row.querySelector(".highlighted-page-setting-preview").style.backgroundImage = `url("${image}")`;
     }
-    row.querySelector(".highlighted-page-setting-copy strong").textContent = page.title || page.url;
+    row.querySelector(".highlighted-page-setting-copy strong").textContent = page.customTitle || page.title || page.url;
     row.querySelector(".highlighted-page-setting-copy small").textContent =
       page.hostname || new URL(page.url).hostname;
     row.querySelector(".move-highlight-up").addEventListener("click", () => moveRow(row, -1));
     row.querySelector(".move-highlight-down").addEventListener("click", () => moveRow(row, 1));
+    row.querySelector(".rename-highlight").addEventListener("click", async () => {
+      const name = window.prompt("Highlight name (leave blank to use the original title):", page.customTitle || page.title || "");
+      if (name === null) return;
+      const current = pages.find((entry) => entry.id === page.id);
+      if (!current) return;
+      const previous = current.customTitle;
+      current.customTitle = name.trim();
+      try {
+        await save();
+        render();
+        showStatus(current.customTitle ? "Highlight renamed." : "Original highlight title restored.", "success");
+      } catch (error) {
+        current.customTitle = previous;
+        showStatus(error.message, "error");
+      }
+    });
     row.querySelector(".refresh-highlight").addEventListener("click", () => void refreshPage(page, row));
     row.querySelector(".remove-highlight").addEventListener("click", async () => {
       pages = pages.filter((entry) => entry.id !== page.id);
