@@ -79,7 +79,8 @@ test('hidden sizing text does not obscure the displayed effort level', () => {
 test('hiding CSS matches the empty marker attribute', () => {
   const f = fixture();
   f.api.ensureStyle();
-  assert.equal(f.elements.get('ghrc-force-high-thinking-style').textContent, '[data-ghrc-high-thinking-selector] { display: none !important; }');
+  assert.match(f.elements.get('ghrc-force-high-thinking-style').textContent, /\[data-ghrc-high-thinking-selector\] \{ display: none !important; \}/);
+  assert.match(f.elements.get('ghrc-force-high-thinking-style').textContent, /\[data-ghrc-thinking-menu\] \{ opacity: 0 !important; pointer-events: none !important; \}/);
 });
 
 test('confirmed visible level is cached when the control is hidden', () => {
@@ -211,4 +212,25 @@ test('power slider is raised to its reported maximum before confirmation', () =>
   assert.equal(slider.getAttribute('aria-valuenow'), '2');
   f.api.selectMaximum();
   assert.equal(f.state.target, 'high');
+});
+
+test('hidden unified reasoning trigger reads its explicit level and reuses the confirmed target', () => {
+  const f = fixture();
+  const selector = new Element('Thinking effortHigh', {
+    'aria-label': 'Select ChatGPT model',
+    'data-codex-intelligence-trigger': 'true',
+    'data-composer-navigation-target': 'reasoning',
+    'data-selected-reasoning-effort': 'high',
+  });
+  assert.equal(f.api.effortLevel(selector), 'high');
+  assert.equal(f.api.controlCacheKey(selector), 'composer reasoning effort');
+  const keys = [];
+  selector.dispatchEvent = event => { keys.push(event.key); return true; };
+  f.api.clearPending();
+  f.api.setEnabledForTest(true);
+  f.api.setConfirmedTargets({ 'composer reasoning effort': 'high' });
+  f.setControls([selector]);
+  f.api.scanControls();
+  assert.equal(selector.hasAttribute('data-ghrc-high-thinking-selector'), true);
+  assert.deepEqual(keys, []);
 });

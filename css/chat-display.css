@@ -1,0 +1,12 @@
+/* Apply the default before asynchronous preferences and React hydration. */
+html:not([data-ghrc-show-home-suggestions]) [class~="group/home-suggestions"],
+html:not([data-ghrc-show-home-suggestions]) [class~="group/home-suggestion-list-item"],
+html:not([data-ghrc-show-home-suggestions]) div:has(> [class~="group/home-suggestions"]:only-child) {
+  display: none !important;
+}
+
+html:not([data-ghrc-show-model-controls]) button[aria-label="Select ChatGPT model"],
+html:not([data-ghrc-show-model-controls]) [data-codex-intelligence-trigger],
+html:not([data-ghrc-show-model-controls]) [data-ghrc-model-control] {
+  display: none !important;
+}

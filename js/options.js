@@ -21,6 +21,8 @@ const showSpellcheckGptLauncherInput = document.getElementById("show-spellcheck-
 const stripUtmTrackingInput = document.getElementById("strip-utm-tracking");
 const skipExternalSiteWarningInput = document.getElementById("skip-external-site-warning");
 const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
+const hideHomeSuggestionsInput = document.getElementById("hide-home-suggestions");
+const hideModelControlsInput = document.getElementById("hide-model-controls");
 const showChatgptDisclaimerInput = document.getElementById("show-chatgpt-disclaimer");
 const hideCookiePreferencesInput = document.getElementById("hide-cookie-preferences");
 const clearTokensButton = document.getElementById("clear-tokens");
@@ -210,6 +212,8 @@ async function loadSettings() {
     dismissHistoryRateLimitModal: true,
     hideCookiePreferences: false,
     showChatgptDisclaimer: false,
+    hideHomeSuggestions: true,
+    hideModelControls: true,
   });
   const storedOwnerOrder = normalizedOwnerOrder(settings.ownerOrder);
   let configuredTokens = [];
@@ -238,6 +242,8 @@ async function loadSettings() {
   stripUtmTrackingInput.checked = Boolean(settings.stripUtmTracking);
   skipExternalSiteWarningInput.checked = Boolean(settings.skipExternalSiteWarning);
   dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
+  hideHomeSuggestionsInput.checked = settings.hideHomeSuggestions !== false;
+  hideModelControlsInput.checked = settings.hideModelControls !== false;
   showChatgptDisclaimerInput.checked = Boolean(settings.showChatgptDisclaimer);
   hideCookiePreferencesInput.checked = Boolean(settings.hideCookiePreferences);
 
@@ -312,6 +318,8 @@ async function saveSettings() {
       dismissHistoryRateLimitModal: dismissHistoryRateLimitModalInput.checked,
       hideCookiePreferences: hideCookiePreferencesInput.checked,
       showChatgptDisclaimer: showChatgptDisclaimerInput.checked,
+      hideHomeSuggestions: hideHomeSuggestionsInput.checked,
+      hideModelControls: hideModelControlsInput.checked,
     });
     ownerOrderInput.value = enteredOwnerOrder.join("\n");
     ownerGroupsPerPageInput.value = ownerGroupsPerPage;

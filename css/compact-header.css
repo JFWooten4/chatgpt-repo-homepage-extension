@@ -24,4 +24,5 @@ html[data-ghrc-new-chat][data-ghrc-compact-header]
 html[data-ghrc-new-chat][data-ghrc-compact-header]
   .ghrc-compact-composer-stack > [data-type="unified-composer"] {
   margin-top: 0 !important;
+  margin-inline: auto !important;
 }
