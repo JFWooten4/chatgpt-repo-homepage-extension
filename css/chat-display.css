@@ -10,3 +10,7 @@ html:not([data-ghrc-show-model-controls]) [data-codex-intelligence-trigger],
 html:not([data-ghrc-show-model-controls]) [data-ghrc-model-control] {
   display: none !important;
 }
+
+html[data-ghrc-hide-conversation-feedback-prompt] [data-ghrc-conversation-feedback-prompt] {
+  display: none !important;
+}
