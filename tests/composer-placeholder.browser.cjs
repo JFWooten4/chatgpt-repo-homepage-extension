@@ -25,29 +25,48 @@ test("custom composer placeholders update live, survive editor replacement, and 
       };
     });
     await page.addScriptTag({ content: read("js/extension-context.js") });
+    await page.addStyleTag({ content: read("css/chat-display.css") });
     await page.addScriptTag({ content: read("js/composer-placeholder.js") });
     assert.equal(await page.locator("[data-placeholder]").getAttribute("data-placeholder"), "Ask ChatGPT");
+    await page.evaluate(() => {
+      // Simulate the host editor restoring the placeholder it owns after a mutation.
+      window.hostPlaceholderUpdates = 0;
+      window.hostObserver = new MutationObserver(records => {
+        for (const record of records) {
+          hostPlaceholderUpdates++;
+          if (record.target.getAttribute("data-placeholder") !== "Ask ChatGPT") {
+            record.target.setAttribute("data-placeholder", "Ask ChatGPT");
+          }
+        }
+      });
+      hostObserver.observe(document.querySelector("[data-placeholder]"), { attributes: true, attributeFilter: ["data-placeholder"] });
+    });
     await page.evaluate(() => setPlaceholder("Dash"));
-    await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.placeholder === "Dash");
+    await page.waitForFunction(() => getComputedStyle(document.querySelector("[data-placeholder]"), "::before").content === '"Dash"');
+    assert.equal(await page.locator("[data-placeholder]").getAttribute("data-placeholder"), "Ask ChatGPT");
     assert.equal(await page.locator("textarea").getAttribute("placeholder"), "Dash");
     assert.equal(await page.locator("[data-composer-markdown]").textContent(), "Partial draft");
     assert.equal(await page.locator("textarea").inputValue(), "Another draft");
     assert.equal(await page.locator("#other").getAttribute("placeholder"), "Search");
+    assert.equal(await page.evaluate(() => hostPlaceholderUpdates), 0);
+    await page.evaluate(() => hostObserver.disconnect());
     await page.evaluate(() => {
       document.querySelector("[data-placeholder]").setAttribute("data-placeholder", "Ask a follow-up");
     });
-    await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.placeholder === "Dash");
+    await page.waitForFunction(() => getComputedStyle(document.querySelector("[data-placeholder]"), "::before").content === '"Dash"');
     await page.evaluate(() => setPlaceholder(""));
     await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.placeholder === "Ask a follow-up");
+    await page.waitForFunction(() => !document.querySelector("[data-ghrc-placeholder-text]"));
     assert.equal(await page.locator("textarea").getAttribute("placeholder"), "Ask anything");
     await page.evaluate(() => {
       setPlaceholder('Write <anything> "here"');
       document.querySelector("[data-composer-markdown]").innerHTML = '<p data-placeholder="New chat">Restored draft</p>';
     });
-    await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.placeholder === 'Write <anything> "here"');
+    await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.ghrcPlaceholderText === 'Write <anything> "here"');
     assert.equal(await page.locator("[data-composer-markdown]").textContent(), "Restored draft");
     await page.evaluate(() => setPlaceholder(" "));
     await page.waitForFunction(() => document.querySelector("[data-placeholder]").dataset.placeholder === "New chat");
+    await page.waitForFunction(() => !document.querySelector("[data-ghrc-placeholder-text]"));
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

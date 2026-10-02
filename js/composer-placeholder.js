@@ -28,8 +28,8 @@
     for (const composer of composers) {
       const elements = [composer, ...composer.querySelectorAll("[data-placeholder]")];
       for (const element of elements) {
-        const attribute = element.tagName === "TEXTAREA" ? "placeholder" : "data-placeholder";
-        if (attribute === "data-placeholder" && !element.hasAttribute(attribute)) continue;
+        const attribute = element.tagName === "TEXTAREA" ? "placeholder" : "data-ghrc-placeholder-text";
+        if (attribute === "data-ghrc-placeholder-text" && !element.hasAttribute("data-placeholder")) continue;
         const attributes = originals.get(element) || new Map();
         if (!attributes.has(attribute)) attributes.set(attribute, element.getAttribute(attribute));
         originals.set(element, attributes);
@@ -41,7 +41,7 @@
   function schedule() {
     if (!context.active() || scheduled) return;
     scheduled = true;
-    queueMicrotask(applyPlaceholder);
+    requestAnimationFrame(applyPlaceholder);
   }
 
   const observer = new MutationObserver(mutations => {

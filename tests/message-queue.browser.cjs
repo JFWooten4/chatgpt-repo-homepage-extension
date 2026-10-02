@@ -419,6 +419,29 @@ test('native Stop only stops, and the idle hat sends a draft immediately', async
   await p.close();
 });
 
+test('an empty disabled hat remains visible with voice hidden and yields to native Send', async () => {
+  const p = await fixture({ voice: true, liveMarkup: true, queueButton: false });
+  await p.addStyleTag({ content: fs.readFileSync(path.join(__dirname, '../css/hide-dictation.css'), 'utf8') });
+  await p.evaluate(() => document.documentElement.setAttribute('data-ghrc-hide-dictation', ''));
+  const hat = p.getByRole('button', { name: 'Send message', exact: true });
+  await hat.waitFor();
+  assert.equal(await hat.isDisabled(), true);
+  assert.equal(await p.getByRole('button', { name: 'Start Voice', includeHidden: true }).isVisible(), false);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  await p.locator('[data-composer-markdown]').fill('Hello');
+  await p.waitForFunction(() => !document.getElementById('ghrc-message-interrupt-button'));
+  await p.getByRole('button', { name: 'Send', exact: true }).click();
+  await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sent), ['Hello']);
+  await p.evaluate(() => finish());
+  await hat.waitFor();
+  await p.evaluate(() => document.documentElement.removeAttribute('data-ghrc-hide-dictation'));
+  await p.waitForFunction(() => !document.getElementById('ghrc-message-interrupt-button'));
+  assert.equal(await p.getByRole('button', { name: 'Start Voice', exact: true }).isVisible(), true);
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
 test('interrupt waits for Stop to finish and cancels if the draft changes', async () => {
   const p = await fixture({ active: true });
   await p.evaluate(() => { window.deferStop = true; });

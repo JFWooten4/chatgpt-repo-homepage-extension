@@ -10,3 +10,9 @@ html:not([data-ghrc-show-model-controls]) [data-codex-intelligence-trigger],
 html:not([data-ghrc-show-model-controls]) [data-ghrc-model-control] {
   display: none !important;
 }
+#prompt-textarea [data-ghrc-placeholder-text]::before,
+[data-composer-markdown][contenteditable="true"] [data-ghrc-placeholder-text]::before,
+#prompt-textarea[data-ghrc-placeholder-text]::before,
+[data-composer-markdown][contenteditable="true"][data-ghrc-placeholder-text]::before {
+  content: attr(data-ghrc-placeholder-text) !important;
+}
