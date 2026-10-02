@@ -110,3 +110,20 @@ test('2048 launcher uses Button Mash D-pad styling and a darker tile palette', (
   assert.match(styles, /\.ghrc-2048-tile-empty \{\s*background: #303844;/);
   assert.match(styles, /\.ghrc-2048-tile-2 \{\s*background: #34404a;/);
 });
+
+
+test('2048 launcher is disabled by default and controlled by the display preference', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'js', '2048.js'), 'utf8');
+  const options = fs.readFileSync(path.join(__dirname, '..', 'options.html'), 'utf8');
+  const settings = fs.readFileSync(path.join(__dirname, '..', 'js', 'options.js'), 'utf8');
+
+  assert.match(options, /id="show-2048-launcher" type="checkbox"/);
+  assert.doesNotMatch(options, /id="show-2048-launcher"[^>]*checked/);
+  assert.match(settings, /show2048Launcher: false/);
+  assert.match(settings, /show2048Launcher: show2048LauncherInput\.checked/);
+  assert.match(source, /const STORAGE_KEY = "show2048Launcher";/);
+  assert.match(source, /storage\.get\(\{ \[STORAGE_KEY\]: false \}\)/);
+  assert.match(source, /chrome\.storage\.onChanged\.addListener/);
+});
