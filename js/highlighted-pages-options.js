@@ -82,7 +82,8 @@
 
   async function fetchPreview(urlValue) {
     const url = normalizedUrl(urlValue);
-    const granted = await chrome.permissions.request({ origins: [originPattern(url)] });
+    const access = { origins: [originPattern(url)] };
+    const granted = await chrome.permissions.contains(access) || await chrome.permissions.request(access);
     if (!granted) {
       throw new Error("Page access was not granted, so the preview could not be cached.");
     }
@@ -96,6 +97,7 @@
     }
     const preview = response.preview;
     if (preview.documentType === "pdf") {
+      showStatus("Rendering PDF first page…");
       const { renderPdfPreview } = await import("./pdf-preview.mjs");
       preview.imageDataUrl = await renderPdfPreview(preview.url);
     }

@@ -94,10 +94,23 @@ test("adding and refreshing a PDF caches the complete first page, preserves link
     const highlightBounds = highlights.getBoundingClientRect();
     return { separate: widget.nextElementSibling === highlights, below: highlightBounds.top > repositoryBounds.bottom, sameWidth: repositoryBounds.width === highlightBounds.width, title: highlights.querySelector("h2").textContent };
   });
-  assert.deepEqual(layout, { separate: true, below: true, sameWidth: true, title: "Highlighted webpages" });
+  assert.deepEqual(layout, { separate: true, below: true, sameWidth: true, title: "Highlights" });
+  const centered = await page.evaluate(() => {
+    const heading = document.querySelector("#ghrc-highlighted-pages h2");
+    const row = document.querySelector(".ghrc-highlighted-pages-row");
+    const card = row.firstElementChild;
+    const bounds = row.getBoundingClientRect();
+    const cardBounds = card.getBoundingClientRect();
+    return { heading: getComputedStyle(heading).textAlign, gap: parseFloat(getComputedStyle(heading).marginBottom), card: getComputedStyle(card).textAlign, offset: Math.abs(bounds.left + bounds.width / 2 - cardBounds.left - cardBounds.width / 2) };
+  });
+  assert.equal(centered.heading, "center");
+  assert.equal(centered.card, "center");
+  assert.ok(centered.gap >= 20);
+  assert.ok(centered.offset < 1);
   assert.equal(await page.locator(".ghrc-highlighted-page-pdf img").evaluate(image => getComputedStyle(image).objectFit), "contain");
   assert.equal(await page.locator(".highlighted-page-setting-preview").evaluate(image => getComputedStyle(image).backgroundSize), "contain");
-  await page.locator(".refresh-highlight").click();
+  // Refresh must reuse existing access rather than request another user gesture.
+  await page.evaluate(() => document.querySelector(".refresh-highlight").click());
   await page.waitForFunction(() => document.querySelector("#highlighted-pages-status").textContent === "Cached preview refreshed.");
   assert.equal(await page.evaluate(async () => (await chrome.storage.local.get("highlightedPages")).highlightedPages[0].id), saved.id);
   assert.deepEqual(errors, []);

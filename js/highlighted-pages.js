@@ -85,10 +85,10 @@
     const section = document.createElement("section");
     section.id = SECTION_ID;
     section.className = "ghrc-highlighted-pages";
-    section.setAttribute("aria-label", "Highlighted webpages");
+    section.setAttribute("aria-label", "Highlights");
 
     const heading = document.createElement("h2");
-    heading.textContent = "Highlighted webpages";
+    heading.textContent = "Highlights";
     const row = document.createElement("div");
     row.className = "ghrc-highlighted-pages-row";
     row.append(...pages.map(createCard));

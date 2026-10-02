@@ -20,12 +20,14 @@
   font-size: 13px;
   font-weight: 600;
   line-height: 1.3;
-  margin: 0 0 8px;
+  margin: 0 0 20px;
+  text-align: center;
 }
 
 #ghrc-highlighted-pages .ghrc-highlighted-pages-row {
   display: flex;
   gap: 10px;
+  justify-content: safe center;
   max-width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
@@ -48,6 +50,7 @@
   overflow: hidden;
   scroll-snap-align: start;
   text-decoration: none;
+  text-align: center;
 }
 
 #ghrc-highlighted-pages .ghrc-highlighted-page:hover {
