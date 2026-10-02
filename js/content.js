@@ -1072,7 +1072,8 @@
       existingWidget?.remove();
       layoutObserver?.disconnect();
       observedLayoutContainer = null;
-      clearPageAdjustments();
+      // Keep the early homepage layout while React is still adding the composer.
+      if (!isDashboardPage()) clearPageAdjustments();
       return;
     }
 

@@ -62,7 +62,7 @@ test('normal warm pins render and unpin', async () => {
 });
 test('pending settings reject safely in display, clipboard, dashboard and spellcheck scripts', async () => {
   const p = await fixture({ delayed: true });
-  for (const script of ['chat-display', 'clipboard-send', 'content', 'spellcheck-launcher', 'force-high-thinking', 'owner-grid']) {
+  for (const script of ['compact-header', 'chat-display', 'clipboard-send', 'content', 'spellcheck-launcher', 'force-high-thinking', 'owner-grid']) {
     await p.addScriptTag({ content: read(`js/${script}.js`) });
   }
   await p.evaluate(() => {

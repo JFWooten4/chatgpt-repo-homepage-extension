@@ -3,6 +3,8 @@
   const context = globalThis.__ghrcExtensionContext;
   if (!context?.active()) return;
   const SETTING_KEY = "composerPlaceholder";
+  const CUSTOM_ATTR = "data-ghrc-composer-placeholder";
+  const TEXT_PROPERTY = "--ghrc-composer-placeholder";
   const originals = new Map();
   let customText = "";
   let scheduled = false;
@@ -56,16 +58,23 @@
     schedule();
   });
   observer.observe(document.documentElement, {
-    childList: true, subtree: true, attributes: true, attributeFilter: ["placeholder", "data-placeholder"],
+    childList: true, subtree: true, attributes: true,
+    attributeFilter: ["placeholder", "data-placeholder", "contenteditable", "data-composer-markdown"],
   });
   context.onStop(() => {
     observer.disconnect();
+    document.documentElement.removeAttribute(CUSTOM_ATTR);
+    document.documentElement.style.removeProperty(TEXT_PROPERTY);
     for (const [element, attributes] of originals) restore(element, attributes);
     originals.clear();
   });
 
   function update(value) {
     customText = typeof value === "string" ? value.trim() : "";
+    // Let CSS cover new empty paragraphs immediately, before a DOM scan runs.
+    document.documentElement.toggleAttribute(CUSTOM_ATTR, Boolean(customText));
+    if (customText) document.documentElement.style.setProperty(TEXT_PROPERTY, JSON.stringify(customText));
+    else document.documentElement.style.removeProperty(TEXT_PROPERTY);
     schedule();
   }
   chrome.storage.onChanged.addListener((changes, area) => {
