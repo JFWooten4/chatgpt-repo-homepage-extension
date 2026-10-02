@@ -18,7 +18,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function fixture({ active = false, voice = false, editable = true, stored = {}, route = '/c/test', liveMarkup = false, clipboard = false, searches = false } = {}) {
+async function fixture({ active = false, voice = false, editable = true, stored = {}, route = '/c/test', liveMarkup = false, clipboard = false, searches = false, delayQueueStorage = false } = {}) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -29,7 +29,7 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     <button id="composer-submit-button" type="button"><svg viewBox="0 0 24 24"><rect width="10" height="10"/></svg></button>
     </form></div>` }));
   await page.goto(`https://queue.test${route}`);
-  await page.evaluate(({ active, voice, stored, liveMarkup, clipboard }) => {
+  await page.evaluate(({ active, voice, stored, liveMarkup, clipboard, delayQueueStorage }) => {
     window.liveMarkup = liveMarkup;
     if (liveMarkup) document.documentElement.setAttribute('data-theme', 'dark');
     window.sent = [];
@@ -38,7 +38,10 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     window.deferStop = false;
     window.storage = { ...structuredClone(stored), showClipboardSendButton: clipboard };
     window.chrome = { runtime: { id: "fixture" }, storage: { local: {
-      async get(defaults) { return { ...defaults, ...structuredClone(window.storage) }; },
+      async get(defaults) {
+        if (delayQueueStorage && "queuedChatMessages" in defaults) await new Promise(resolve => { window.resolveQueueStorage = resolve; });
+        return { ...defaults, ...structuredClone(window.storage) };
+      },
       async set(values) {
         const changes = {};
         for (const [key, value] of Object.entries(values)) {
@@ -120,7 +123,7 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     });
     if (active) { addTurn('user'); addTurn('assistant'); }
     update();
-  }, { active, voice, stored, liveMarkup, clipboard });
+  }, { active, voice, stored, liveMarkup, clipboard, delayQueueStorage });
   await page.addStyleTag({ content: queueCss + hatCss });
   if (searches) await page.evaluate(() => {
     const search = document.createElement('button');
@@ -132,7 +135,7 @@ async function fixture({ active = false, voice = false, editable = true, stored 
   await page.addScriptTag({ content: fs.readFileSync(path.join(__dirname, "../js/extension-context.js"), "utf8") });
   if (clipboard) await page.addScriptTag({ content: clipboardSource });
   await page.addScriptTag({ content: source });
-  await page.locator('#ghrc-message-queue-button').waitFor();
+  if (!delayQueueStorage) await page.locator('#ghrc-message-queue-button').waitFor();
   page.errors = errors;
   return page;
 }
@@ -331,6 +334,44 @@ for (const route of ['/', '/c/test']) {
     await p.close();
   });
 }
+
+
+for (const route of ['/', '/?temporary-chat=true']) {
+  test(`overview Enter sends the first message before queue storage loads on ${route}`, async () => {
+    const p = await fixture({ route, delayQueueStorage: true });
+    await p.locator('[data-composer-markdown]').fill('First message');
+    await p.locator('[data-composer-markdown]').press('Enter');
+    assert.deepEqual(await p.evaluate(() => sent), ['First message']);
+    assert.equal(await p.locator('#ghrc-message-queue').count(), 0);
+    await p.evaluate(() => resolveQueueStorage());
+    await p.waitForTimeout(200);
+    assert.deepEqual(await p.evaluate(() => sent), ['First message']);
+    assert.equal(await p.locator('#ghrc-message-queue').count(), 0);
+    assert.deepEqual(p.errors, []);
+    await p.close();
+  });
+}
+
+test('after the overview creates a chat, Enter queues behind its active response', async () => {
+  const p = await fixture({ route: '/' });
+  await p.evaluate(() => {
+    button.addEventListener('click', () => {
+      if (sent.length === 1 && location.pathname === '/') {
+        history.pushState({}, '', '/c/native-first-send');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    });
+  });
+  await p.locator('[data-composer-markdown]').fill('First message');
+  await p.locator('[data-composer-markdown]').press('Enter');
+  assert.deepEqual(await p.evaluate(() => sent), ['First message']);
+  await p.waitForTimeout(100);
+  await enqueue(p, 'Second message', true);
+  assert.deepEqual(await p.evaluate(() => sent), ['First message']);
+  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Second message');
+  assert.equal(await p.evaluate(() => stops), 0);
+  await p.close();
+});
 
 test('clicking the hat interrupts and sends immediately ahead of queued messages', async () => {
   const p = await fixture({ active: true });

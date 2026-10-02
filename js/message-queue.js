@@ -913,6 +913,9 @@
     const composer = event.target?.closest?.('#prompt-textarea, [data-composer-markdown][contenteditable="true"]');
     if (!composer || composer !== findComposerInput()) return;
     if (!shouldQueueComposerEnter(event)) return;
+    // The overview creates a conversation through ChatGPT's native first send.
+    // Do not wait for queue storage or conversation lifecycle detection here.
+    if (location.pathname === "/") return;
     if (sendingItemId) {
       event.preventDefault();
       event.stopImmediatePropagation();
