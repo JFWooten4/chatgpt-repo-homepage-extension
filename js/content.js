@@ -1,4 +1,6 @@
 (() => {
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
   const WIDGET_ID = "github-repositories-for-chatgpt";
   const NEW_CHAT_ATTR = "data-ghrc-new-chat";
   const HIDE_DICTATION_ATTR = "data-ghrc-hide-dictation";
@@ -168,6 +170,7 @@
       hideDictationButton: false,
       compactNewChatHeader: false,
     });
+    if (!context.active()) return;
     document.documentElement.toggleAttribute(
       HIDE_DICTATION_ATTR,
       Boolean(preferences.hideDictationButton),
@@ -329,7 +332,7 @@
     link.className = "ghrc-repository-link";
     link.href = repository.url;
     link.addEventListener("click", () => {
-      void recordRepositoryUse(repository.fullName);
+      void context.run(() => recordRepositoryUse(repository.fullName));
     });
 
     const titleRow = document.createElement("span");
@@ -363,6 +366,8 @@
       pin.disabled = true;
       try {
         await toggleRepositoryPin(repository.fullName);
+      } catch (error) {
+        context.handleError(error);
       } finally {
         pin.disabled = false;
       }
@@ -766,7 +771,7 @@
           option.append(key, href);
           option.addEventListener("pointermove", () => setActiveEntry(index));
           option.addEventListener("click", () => {
-            void openEntry(entry);
+            void context.run(() => openEntry(entry));
           });
           results.append(option);
         });
@@ -797,7 +802,7 @@
         setActiveEntry(nextIndex);
       } else if (event.key === "Enter" && activeIndex >= 0) {
         event.preventDefault();
-        void openEntry(visibleEntries[activeIndex]);
+        void context.run(() => openEntry(visibleEntries[activeIndex]));
       }
     });
     form.addEventListener("focusout", () => {
@@ -989,6 +994,7 @@
         }),
       ]);
 
+      if (!context.active()) return;
       if (!payload.ok) {
         throw new Error(payload.error);
       }
@@ -1006,6 +1012,10 @@
         );
       }
     } catch (error) {
+      if (/extension context invalidated/i.test(error?.message || "") || !context.active()) {
+        context.handleError(error);
+        return;
+      }
       repositoryRequest = null;
       if (widget.isConnected) {
         renderError(widget, error.message);
@@ -1027,6 +1037,7 @@
   }
 
   function mountWidget() {
+    if (!context.active()) return;
     const existingWidget = document.getElementById(WIDGET_ID);
 
     if (!isNewChatPage()) {
@@ -1062,6 +1073,7 @@
   }
 
   function scheduleMount() {
+    if (!context.active()) return;
     if (mountScheduled) return;
     mountScheduled = true;
 
@@ -1089,7 +1101,7 @@
     if (areaName !== "local") return;
 
     if (changes.hideDictationButton || changes.compactNewChatHeader) {
-      void loadDisplayPreferences();
+      void context.run(loadDisplayPreferences);
     }
 
     if (
@@ -1115,13 +1127,22 @@
   // Warm repository data as soon as the content script starts. On a cache hit this
   // resolves while ChatGPT is still building the page, so the dashboard can paint
   // with data on its first mount instead of visibly arriving afterward.
-  void requestRepositories().catch(() => {
+  void context.run(requestRepositories).then(() => {
+    if (!context.active()) repositoryRequest = null;
+  }).catch(() => {
     repositoryRequest = null;
   });
 
-  void loadDisplayPreferences();
+  void context.run(loadDisplayPreferences);
   scheduleMount();
   const observer = new MutationObserver(scheduleMount);
+  context.onStop(() => {
+    observer.disconnect();
+    layoutObserver?.disconnect();
+    window.removeEventListener("resize", scheduleMount);
+    window.removeEventListener("ghrc:route-change", scheduleMount);
+    window.removeEventListener("popstate", scheduleMount);
+  });
   observer.observe(document.documentElement, {
     childList: true,
     subtree: true,

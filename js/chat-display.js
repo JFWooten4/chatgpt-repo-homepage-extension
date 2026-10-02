@@ -1,10 +1,13 @@
 (() => {
   "use strict";
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
   const MODEL_MARKER = "data-ghrc-model-control";
   const CONTROL_QUERY = 'button[aria-haspopup], [role="combobox"], [data-codex-intelligence-trigger]';
   let scheduled = false;
 
   function scan() {
+    if (!context.active()) return;
     scheduled = false;
     for (const control of document.querySelectorAll(CONTROL_QUERY)) {
       const label = [control.getAttribute("aria-label"), control.getAttribute("title"), control.textContent]
@@ -18,6 +21,7 @@
   }
 
   function scheduleScan() {
+    if (!context.active()) return;
     if (scheduled) return;
     scheduled = true;
     requestAnimationFrame(scan);
@@ -37,11 +41,15 @@
     }
     apply(settings);
   });
-  new MutationObserver(scheduleScan).observe(document, {
+  const observer = new MutationObserver(scheduleScan);
+  context.onStop(() => observer.disconnect());
+  observer.observe(document, {
     childList: true, subtree: true, characterData: true, attributes: true,
     attributeFilter: ["aria-label", "title", "data-codex-intelligence-trigger"],
   });
-  void chrome.storage.local.get(settings).then(stored => {
+  void context.run(async () => {
+    const stored = await chrome.storage.local.get(settings);
+    if (!context.active()) return;
     settings = { hideHomeSuggestions: stored.hideHomeSuggestions !== false, hideModelControls: stored.hideModelControls !== false };
     apply(settings);
   });

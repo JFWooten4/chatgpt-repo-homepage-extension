@@ -37,7 +37,7 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     window.stops = 0;
     window.deferStop = false;
     window.storage = { ...structuredClone(stored), showClipboardSendButton: clipboard };
-    window.chrome = { storage: { local: {
+    window.chrome = { runtime: { id: "fixture" }, storage: { local: {
       async get(defaults) { return { ...defaults, ...structuredClone(window.storage) }; },
       async set(values) {
         const changes = {};
@@ -129,6 +129,7 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     search.setAttribute('aria-label', 'Search WootenLink');
     document.querySelector('form').prepend(search);
   });
+  await page.addScriptTag({ content: fs.readFileSync(path.join(__dirname, "../js/extension-context.js"), "utf8") });
   if (clipboard) await page.addScriptTag({ content: clipboardSource });
   await page.addScriptTag({ content: source });
   await page.locator('#ghrc-message-queue-button').waitFor();

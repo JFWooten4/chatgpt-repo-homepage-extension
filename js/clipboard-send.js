@@ -1,4 +1,6 @@
 (() => {
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
   const ENABLED_KEY = "showClipboardSendButton";
   const BUTTON_ID = "ghrc-clipboard-send-button";
 
@@ -22,15 +24,20 @@
 
     try {
       const text = await navigator.clipboard.readText();
+      if (!context.active()) return;
       const queued = await globalThis.__ghrcMessageQueue?.enqueueText(text);
-      if (!queued) button.title = "Clipboard message could not be queued; try again";
+      button.title = queued ? "Queue clipboard as prompt" : "Clipboard message could not be queued; try again";
+    } catch (error) {
+      if (["NotAllowedError", "SecurityError", "NotFoundError"].includes(error?.name)) {
+        button.title = "Clipboard access unavailable; paste into the composer to queue your message";
+      } else {
+        context.handleError(error);
+        button.title = "Clipboard message could not be queued; try again";
+      }
+    } finally {
       actionRunning = false;
       setButtonBusy(button, false);
       scheduleMount();
-    } catch (error) {
-      console.warn("Clipboard prompt button could not read the system clipboard:", error);
-      actionRunning = false;
-      setButtonBusy(button, false);
     }
   }
 
@@ -54,6 +61,7 @@
   }
 
   function mountButton() {
+    if (!context.active()) return;
     mountScheduled = false;
     if (!enabled) {
       removeButton();
@@ -80,6 +88,7 @@
   }
 
   function scheduleMount() {
+    if (!context.active()) return;
     if (mountScheduled) return;
     mountScheduled = true;
     requestAnimationFrame(mountButton);
@@ -96,11 +105,15 @@
     setEnabled(Boolean(changes[ENABLED_KEY].newValue));
   });
 
-  void chrome.storage.local.get({ [ENABLED_KEY]: false }).then((settings) => {
+  void context.run(async () => {
+    const settings = await chrome.storage.local.get({ [ENABLED_KEY]: false });
+    if (!context.active()) return;
     setEnabled(Boolean(settings[ENABLED_KEY]));
   });
 
-  new MutationObserver(scheduleMount).observe(document.documentElement, {
+  const observer = new MutationObserver(scheduleMount);
+  context.onStop(() => { observer.disconnect(); removeButton(); });
+  observer.observe(document.documentElement, {
     childList: true,
     subtree: true,
   });

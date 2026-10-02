@@ -29,7 +29,7 @@ async function fixture({ stored = {}, maximize = false, slider = false, unresolv
   await p.evaluate(({ stored, slider, unresolved, delayed, delayStorage }) => {
     window.settings = structuredClone(stored);
     window.listeners = [];
-    window.chrome = { storage: { local: {
+    window.chrome = { runtime: { id: "fixture" }, storage: { local: {
       async get(defaults) {
         if (delayStorage) await new Promise(resolve => { window.resolveStorage = resolve; });
         return { ...defaults, ...window.settings };
@@ -97,6 +97,7 @@ async function fixture({ stored = {}, maximize = false, slider = false, unresolv
     requestAnimationFrame(frame);
   }, { stored, slider, unresolved, delayed, delayStorage });
   await p.addStyleTag({ content: displayCss + compactCss });
+  await p.addScriptTag({ content: read("js/extension-context.js") });
   await p.addScriptTag({ content: displaySource });
   if (maximize) await p.addScriptTag({ content: thinkingSource });
   return p;

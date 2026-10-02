@@ -65,6 +65,7 @@
         "css/repository-fast-ui.css"
       ],
       "js": [
+        "js/extension-context.js",
         "js/2048-keyboard.js",
         "js/collapse-sidebar.js",
         "js/dashboard-visibility.js",
