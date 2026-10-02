@@ -72,15 +72,9 @@
         </details>
 
         <hr class="section-divider" />
-        <label for="owner-order">GitHub accounts</label>
-        <p class="help">Enter one GitHub username or organization name per line. The line order is the dashboard order. Additional accounts discovered through your GitHub tokens are appended automatically so every visible group can be placed exactly where you want it.</p>
-        <textarea
-          id="owner-order"
-          name="owner-order"
-          rows="6"
-          spellcheck="false"
-          placeholder="your-github-username&#10;your-organization"
-        ></textarea>
+        <label>GitHub accounts</label>
+        <p class="help">Drag accounts to set their dashboard order. Turn off “Show on dashboard” to hide an account without disconnecting it; hidden accounts remain available to repository search.</p>
+        <div id="github-accounts" class="github-accounts"></div>
 
         <hr class="section-divider" />
         <fieldset>
@@ -340,6 +334,20 @@
           placeholder="github_pat_…"
         />
         <button class="secondary remove-token" type="button" aria-label="Remove GitHub token">Remove</button>
+      </div>
+    </template>
+    <template id="github-account-template">
+      <div class="github-account" draggable="true">
+        <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+        <code></code>
+        <label class="github-account-visibility">
+          <input class="github-account-visible" type="checkbox" checked />
+          <span>Show on dashboard</span>
+        </label>
+        <div class="github-account-controls">
+          <button class="secondary move-account-up" type="button" aria-label="Move account up">↑</button>
+          <button class="secondary move-account-down" type="button" aria-label="Move account down">↓</button>
+        </div>
       </div>
     </template>
     <template id="pinned-repository-template">
