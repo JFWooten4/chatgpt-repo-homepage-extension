@@ -140,6 +140,18 @@
         </fieldset>
 
         <hr class="section-divider" />
+        <fieldset id="highlighted-pages-settings">
+          <legend>Highlighted webpages</legend>
+          <p class="help">Add webpages to a single horizontal shelf beneath the repository dashboard. Preview details are cached locally and only refreshed when you ask.</p>
+          <div class="highlighted-page-add">
+            <input id="highlighted-page-url" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://example.com/page" aria-label="Webpage URL" />
+            <button id="add-highlighted-page" class="secondary" type="button">Add</button>
+          </div>
+          <p id="highlighted-pages-status" class="help highlighted-pages-status" role="status" aria-live="polite"></p>
+          <div id="highlighted-pages-list" class="highlighted-pages-settings-list"></div>
+        </fieldset>
+
+        <hr class="section-divider" />
         <fieldset>
           <legend>ChatGPT display</legend>
           <label class="preference">
@@ -267,8 +279,25 @@
         </div>
       </div>
     </template>
+    <template id="highlighted-page-template">
+      <div class="highlighted-page-setting" draggable="true">
+        <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+        <div class="highlighted-page-setting-preview" aria-hidden="true"></div>
+        <div class="highlighted-page-setting-copy">
+          <strong></strong>
+          <small></small>
+        </div>
+        <div class="highlighted-page-controls">
+          <button class="secondary move-highlight-up" type="button" aria-label="Move highlighted webpage up">↑</button>
+          <button class="secondary move-highlight-down" type="button" aria-label="Move highlighted webpage down">↓</button>
+          <button class="secondary refresh-highlight" type="button">Refresh</button>
+          <button class="secondary remove-highlight" type="button">Remove</button>
+        </div>
+      </div>
+    </template>
     <script src="js/token-vault.js"></script>
     <script src="js/options.js"></script>
+    <script src="js/highlighted-pages-options.js"></script>
     <script src="js/research-publisher-options.js"></script>
     <script src="js/owner-grid-options.js"></script>
     <script src="js/options-page.js"></script>

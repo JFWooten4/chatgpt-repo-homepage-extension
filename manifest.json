@@ -21,6 +21,10 @@
     "https://github.com/*",
     "http://127.0.0.1/*"
   ],
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
   "background": {
     "service_worker": "js/background.js"
   },
@@ -85,7 +89,8 @@
         "css/clipboard-send.css",
         "css/top-hat-send-button.css",
         "css/message-queue.css",
-        "css/repository-fast-ui.css"
+        "css/repository-fast-ui.css",
+        "css/highlighted-pages.css"
       ],
       "js": [
         "js/avatar-cache-ui.js",
@@ -97,7 +102,8 @@
         "js/spellcheck-launcher.js",
         "js/2048.js",
         "js/clipboard-send.js",
-        "js/message-queue.js"
+        "js/message-queue.js",
+        "js/highlighted-pages.js"
       ],
       "run_at": "document_idle"
     },
