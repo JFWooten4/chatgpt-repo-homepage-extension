@@ -5,16 +5,18 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const http = require("node:http");
 const { createAuthServer, CLIENT_ID } = require("../auth/server.cjs");
+const { localExtensionId } = require("../auth/extension-identity.cjs");
 const EXTENSION = "gbokjelbjnifepoeklddjcjoljnfaofk";
 const ORIGIN = `chrome-extension://${EXTENSION}`;
 const verifier = "a".repeat(43);
 const hash = (value) => createHash("sha256").update(value).digest("base64url");
 
-async function fixture(t) {
+async function fixture(t, { detectIdentity = false } = {}) {
   let clock = 1000;
   const exchanges = [];
   const server = createAuthServer({
     clientSecret: "test-only-secret",
+    extensionIds: detectIdentity ? undefined : [EXTENSION],
     now: () => clock,
     fetchImpl: async (_url, options) => {
       exchanges.push(new URLSearchParams(options.body));
@@ -47,6 +49,18 @@ async function fixture(t) {
   };
   return { request, post, login, exchanges, advance: (ms) => { clock += ms; } };
 }
+
+test("default service accepts this checkout automatically and rejects other extensions", async (t) => {
+  const f = await fixture(t, { detectIdentity: true });
+  const id = localExtensionId();
+  const params = new URLSearchParams({ extension_id: id, state: "b".repeat(43), code_challenge: hash(verifier) });
+  assert.equal((await f.request(`/login?${params}`)).status, 302);
+  assert.equal((await f.request("/health", { headers: { Origin: `chrome-extension://${id}` } })).status, 200);
+  const foreignId = id === "a".repeat(32) ? "b".repeat(32) : "a".repeat(32);
+  params.set("extension_id", foreignId);
+  assert.equal((await f.request(`/login?${params}`)).status, 400);
+  assert.equal((await f.request("/health", { headers: { Origin: `chrome-extension://${foreignId}` } })).status, 403);
+});
 
 test("browser authorization uses PKCE and exchanges a one-time ticket without tokens in redirects", async (t) => {
   const f = await fixture(t);

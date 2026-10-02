@@ -1,6 +1,7 @@
 const http = require("node:http");
 const { randomBytes, createHash, timingSafeEqual } = require("node:crypto");
 const { execFileSync } = require("node:child_process");
+const { localExtensionId } = require("./extension-identity.cjs");
 
 const CLIENT_ID = "Iv23liukJaqMAIiIIfOz";
 const APP_SLUG = "flawless-chatgpt";
@@ -13,7 +14,7 @@ function createAuthServer({
   clientSecret = "",
   clientId = CLIENT_ID,
   baseUrl = "http://127.0.0.1:8787",
-  extensionIds = ["gbokjelbjnifepoeklddjcjoljnfaofk"],
+  extensionIds = [localExtensionId()],
   fetchImpl = fetch,
   now = Date.now,
 } = {}) {
@@ -170,7 +171,7 @@ if (require.main === module) {
   const server = createAuthServer({
     clientSecret,
     baseUrl: process.env.AUTH_BASE_URL || `http://127.0.0.1:${port}`,
-    extensionIds: (process.env.GITHUB_APP_EXTENSION_IDS || "gbokjelbjnifepoeklddjcjoljnfaofk").split(","),
+    extensionIds: [localExtensionId(), ...(process.env.GITHUB_APP_EXTENSION_IDS || "").split(",")],
   });
   server.listen(port, "127.0.0.1", () => {
     console.log(`GitHub login service listening on 127.0.0.1:${port}. Client secret ${clientSecret ? "configured" : "needs setup"}.`);

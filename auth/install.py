@@ -9,9 +9,9 @@ import argparse
 import re
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument("--extension-id", action="append", help="Allow this installed extension ID; repeat to allow multiple installations.")
+parser.add_argument("--extension-id", action="append", help="Allow an additional installed extension ID; this checkout is detected automatically.")
 args = parser.parse_args()
-extension_ids = args.extension_id or ["gbokjelbjnifepoeklddjcjoljnfaofk"]
+extension_ids = args.extension_id or []
 if any(not re.fullmatch(r"[a-p]{32}", value) for value in extension_ids):
     parser.error("Each extension ID must contain exactly 32 letters from a to p.")
 
@@ -30,10 +30,11 @@ configuration = {
     "RunAtLoad": True,
     "KeepAlive": True,
     "ProcessType": "Background",
-    "EnvironmentVariables": {"GITHUB_APP_EXTENSION_IDS": ",".join(extension_ids)},
     "StandardOutPath": str(logs / "service.log"),
     "StandardErrorPath": str(logs / "error.log"),
 }
+if extension_ids:
+    configuration["EnvironmentVariables"] = {"GITHUB_APP_EXTENSION_IDS": ",".join(extension_ids)}
 subprocess.run(["launchctl", "bootout", f"gui/{os.getuid()}/{label}"],
                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 with agent.open("wb") as output:
