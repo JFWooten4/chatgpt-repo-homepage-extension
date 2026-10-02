@@ -11,6 +11,7 @@ const ownerGroupsPerPageInput = document.getElementById("owner-groups-per-page")
 const showRepositorySearchInput = document.getElementById("show-repository-search");
 const showRepositoryTotalInput = document.getElementById("show-repository-total");
 const showWootenLinkSearchInput = document.getElementById("show-wooten-link-search");
+const showYoutubeSearchInput = document.getElementById("show-youtube-search");
 const pinnedRepositoryList = document.getElementById("pinned-repositories");
 const pinnedRepositoryTemplate = document.getElementById("pinned-repository-template");
 const hideDictationButtonInput = document.getElementById("hide-dictation-button");
@@ -23,7 +24,7 @@ const skipExternalSiteWarningInput = document.getElementById("skip-external-site
 const dismissHistoryRateLimitModalInput = document.getElementById("dismiss-history-rate-limit-modal");
 const hideHomeSuggestionsInput = document.getElementById("hide-home-suggestions");
 const hideModelControlsInput = document.getElementById("hide-model-controls");
-const showChatgptDisclaimerInput = document.getElementById("show-chatgpt-disclaimer");
+const hideChatgptDisclaimerInput = document.getElementById("hide-chatgpt-disclaimer");
 const hideCookiePreferencesInput = document.getElementById("hide-cookie-preferences");
 const clearTokensButton = document.getElementById("clear-tokens");
 const status = document.getElementById("status");
@@ -201,6 +202,7 @@ async function loadSettings() {
     showRepositorySearch: true,
     showRepositoryTotal: true,
     showWootenLinkSearch: false,
+    showYoutubeSearch: true,
     pinnedRepositories: [],
     hideDictationButton: false,
     preserveScrollPositionOnSend: false,
@@ -234,6 +236,7 @@ async function loadSettings() {
   showRepositorySearchInput.checked = Boolean(settings.showRepositorySearch);
   showRepositoryTotalInput.checked = Boolean(settings.showRepositoryTotal);
   showWootenLinkSearchInput.checked = Boolean(settings.showWootenLinkSearch);
+  showYoutubeSearchInput.checked = settings.showYoutubeSearch !== false;
   hideDictationButtonInput.checked = Boolean(settings.hideDictationButton);
   preserveScrollPositionOnSendInput.checked = Boolean(settings.preserveScrollPositionOnSend);
   compactNewChatHeaderInput.checked = Boolean(settings.compactNewChatHeader);
@@ -244,7 +247,7 @@ async function loadSettings() {
   dismissHistoryRateLimitModalInput.checked = Boolean(settings.dismissHistoryRateLimitModal);
   hideHomeSuggestionsInput.checked = settings.hideHomeSuggestions !== false;
   hideModelControlsInput.checked = settings.hideModelControls !== false;
-  showChatgptDisclaimerInput.checked = Boolean(settings.showChatgptDisclaimer);
+  hideChatgptDisclaimerInput.checked = !Boolean(settings.showChatgptDisclaimer);
   hideCookiePreferencesInput.checked = Boolean(settings.hideCookiePreferences);
 
   const initialOwnerOrderValue = ownerOrderInput.value;
@@ -307,6 +310,7 @@ async function saveSettings() {
       showRepositorySearch: showRepositorySearchInput.checked,
       showRepositoryTotal: showRepositoryTotalInput.checked,
       showWootenLinkSearch: showWootenLinkSearchInput.checked,
+      showYoutubeSearch: showYoutubeSearchInput.checked,
       pinnedRepositories: pinnedRepositoriesFromList(),
       hideDictationButton: hideDictationButtonInput.checked,
       preserveScrollPositionOnSend: preserveScrollPositionOnSendInput.checked,
@@ -317,7 +321,7 @@ async function saveSettings() {
       skipExternalSiteWarning: skipExternalSiteWarningInput.checked,
       dismissHistoryRateLimitModal: dismissHistoryRateLimitModalInput.checked,
       hideCookiePreferences: hideCookiePreferencesInput.checked,
-      showChatgptDisclaimer: showChatgptDisclaimerInput.checked,
+      showChatgptDisclaimer: !hideChatgptDisclaimerInput.checked,
       hideHomeSuggestions: hideHomeSuggestionsInput.checked,
       hideModelControls: hideModelControlsInput.checked,
     });
