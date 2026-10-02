@@ -18,7 +18,7 @@ async function fixture({ delayed = false } = {}) {
   await p.goto('https://context.test/');
   await p.evaluate(({ delayed }) => {
     window.calls = 0; window.listeners = []; window.pending = [];
-    window.chrome = { runtime: { id: 'fixture', getURL: p => `chrome-extension://fixture/${p}`, sendMessage: async () => ({ ok: true, owners: [] }) }, storage: { local: {
+    window.chrome = { runtime: { id: 'fixture', onMessage: { addListener(fn) { window.runtimeListener = fn; } }, getURL: p => `chrome-extension://fixture/${p}`, sendMessage: async () => ({ ok: true, owners: [] }) }, storage: { local: {
       get: async defaults => {
         calls++;
         if (delayed) return await new Promise((resolve, reject) => pending.push({ resolve, reject, defaults }));

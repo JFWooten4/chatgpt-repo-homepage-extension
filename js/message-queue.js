@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = "queuedChatMessages";
   const PAUSED_STORAGE_KEY = "queuedChatMessagesPaused";
+  const QUEUE_BUTTON_SETTING_KEY = "showMessageQueueButton";
   const PANEL_ID = "ghrc-message-queue";
   const QUEUE_BUTTON_ID = "ghrc-message-queue-button";
   const INTERRUPT_BUTTON_ID = "ghrc-message-interrupt-button";
@@ -28,6 +29,7 @@
   let interruptRunning = false;
   let enqueueRunning = false;
   let queuePaused = false;
+  let showQueueButton = false;
   let persistPending = Promise.resolve();
 
   function conversationIdFromPath(pathname = location.pathname) {
@@ -391,8 +393,13 @@
 
   async function loadQueueState() {
     if (!context.active()) return;
-    const stored = await chrome.storage.local.get({ [STORAGE_KEY]: {}, [PAUSED_STORAGE_KEY]: {} });
+    const stored = await chrome.storage.local.get({
+      [STORAGE_KEY]: {},
+      [PAUSED_STORAGE_KEY]: {},
+      [QUEUE_BUTTON_SETTING_KEY]: false,
+    });
     if (!context.active()) return;
+    showQueueButton = Boolean(stored[QUEUE_BUTTON_SETTING_KEY]);
     storageState = stored[STORAGE_KEY] && typeof stored[STORAGE_KEY] === "object"
       ? stored[STORAGE_KEY]
       : {};
@@ -640,16 +647,21 @@
     }
 
     let button = document.getElementById(QUEUE_BUTTON_ID);
-    if (!button) button = createQueueButton();
+    if (showQueueButton) {
+      if (!button) button = createQueueButton();
 
-    const badge = button.querySelector(".ghrc-message-queue-badge");
-    const badgeText = queue.length ? String(queue.length) : "";
-    if (badge.textContent !== badgeText) badge.textContent = badgeText;
-    if (badge.hidden !== (queue.length === 0)) badge.hidden = queue.length === 0;
-    const title = queue.length
-      ? `Queue current message (${queue.length} waiting)`
-      : "Queue current message";
-    if (button.title !== title) button.title = title;
+      const badge = button.querySelector(".ghrc-message-queue-badge");
+      const badgeText = queue.length ? String(queue.length) : "";
+      if (badge.textContent !== badgeText) badge.textContent = badgeText;
+      if (badge.hidden !== (queue.length === 0)) badge.hidden = queue.length === 0;
+      const title = queue.length
+        ? `Queue current message (${queue.length} waiting)`
+        : "Queue current message";
+      if (button.title !== title) button.title = title;
+    } else {
+      button?.remove();
+      button = null;
+    }
 
     let interruptButton = document.getElementById(INTERRUPT_BUTTON_ID);
     if (responseIsActive(composer) && composerText(composer).trim()) {
@@ -671,7 +683,7 @@
       interruptButton = null;
     }
     const nextButton = interruptButton || actionButton;
-    if (button.parentElement !== actionButton.parentElement || button.nextElementSibling !== nextButton) {
+    if (button && (button.parentElement !== actionButton.parentElement || button.nextElementSibling !== nextButton)) {
       nextButton.before(button);
     }
 
@@ -958,6 +970,10 @@
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
+    if (changes[QUEUE_BUTTON_SETTING_KEY]) {
+      showQueueButton = Boolean(changes[QUEUE_BUTTON_SETTING_KEY].newValue);
+      scheduleMount();
+    }
     if (changes[PAUSED_STORAGE_KEY]) {
       queuePaused = Boolean(changes[PAUSED_STORAGE_KEY].newValue?.[activeKey]);
       completionCandidateSince = null;

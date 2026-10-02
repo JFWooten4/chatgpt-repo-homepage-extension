@@ -18,7 +18,7 @@ before(async () => {
 });
 after(async () => { await browser?.close(); });
 
-async function fixture({ active = false, voice = false, editable = true, stored = {}, route = '/c/test', liveMarkup = false, clipboard = false, searches = false, delayQueueStorage = false } = {}) {
+async function fixture({ active = false, voice = false, editable = true, stored = {}, route = '/c/test', liveMarkup = false, clipboard = false, searches = false, delayQueueStorage = false, queueButton = true } = {}) {
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -29,14 +29,14 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     <button id="composer-submit-button" type="button"><svg viewBox="0 0 24 24"><rect width="10" height="10"/></svg></button>
     </form></div>` }));
   await page.goto(`https://queue.test${route}`);
-  await page.evaluate(({ active, voice, stored, liveMarkup, clipboard, delayQueueStorage }) => {
+  await page.evaluate(({ active, voice, stored, liveMarkup, clipboard, delayQueueStorage, queueButton }) => {
     window.liveMarkup = liveMarkup;
     if (liveMarkup) document.documentElement.setAttribute('data-theme', 'dark');
     window.sent = [];
     window.rejectSend = false;
     window.stops = 0;
     window.deferStop = false;
-    window.storage = { ...structuredClone(stored), showClipboardSendButton: clipboard };
+    window.storage = { ...structuredClone(stored), showClipboardSendButton: clipboard, showMessageQueueButton: queueButton };
     window.chrome = { runtime: { id: "fixture" }, storage: { local: {
       async get(defaults) {
         if (delayQueueStorage && "queuedChatMessages" in defaults) await new Promise(resolve => { window.resolveQueueStorage = resolve; });
@@ -123,7 +123,7 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     });
     if (active) { addTurn('user'); addTurn('assistant'); }
     update();
-  }, { active, voice, stored, liveMarkup, clipboard, delayQueueStorage });
+  }, { active, voice, stored, liveMarkup, clipboard, delayQueueStorage, queueButton });
   await page.addStyleTag({ content: queueCss + hatCss });
   if (searches) await page.evaluate(() => {
     const search = document.createElement('button');
@@ -135,7 +135,8 @@ async function fixture({ active = false, voice = false, editable = true, stored 
   await page.addScriptTag({ content: fs.readFileSync(path.join(__dirname, "../js/extension-context.js"), "utf8") });
   if (clipboard) await page.addScriptTag({ content: clipboardSource });
   await page.addScriptTag({ content: source });
-  if (!delayQueueStorage) await page.locator('#ghrc-message-queue-button').waitFor();
+  if (!delayQueueStorage && queueButton) await page.locator('#ghrc-message-queue-button').waitFor();
+  else if (!delayQueueStorage) await page.waitForFunction(() => window.storageListeners.length > 0);
   page.errors = errors;
   return page;
 }
@@ -150,6 +151,17 @@ async function enqueue(page, text, enter = false) {
 async function sentCount(page, count) {
   await page.waitForFunction(n => sent.length === n, count, { timeout: 10000 });
 }
+
+test('standalone queue button is opt-in and follows setting changes', async () => {
+  const p = await fixture({ queueButton: false });
+  assert.equal(await p.locator('#ghrc-message-queue-button').count(), 0);
+  await p.evaluate(() => chrome.storage.local.set({ showMessageQueueButton: true }));
+  await p.locator('#ghrc-message-queue-button').waitFor();
+  await p.evaluate(() => chrome.storage.local.set({ showMessageQueueButton: false }));
+  await p.waitForFunction(() => !document.getElementById('ghrc-message-queue-button'));
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});
 
 test('empty disabled send button does not deadlock; FIFO waits for complete responses', async () => {
   const p = await fixture({ active: true });

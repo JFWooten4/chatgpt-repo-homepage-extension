@@ -6,6 +6,19 @@
   const LOADING_TEXT = "Loading repositories…";
   let searchCategorizationScheduled = false;
 
+  function preloadRepositories() {
+    try {
+      chrome.runtime.sendMessage({ type: "preload-repositories" }, () => {
+        // Consume lastError so an extension reload does not surface a console error.
+        void chrome.runtime.lastError;
+      });
+    } catch {
+      // A document_start script from before an extension reload can lose its worker.
+    }
+  }
+
+  preloadRepositories();
+
   function normalizedPins(pinnedRepositories) {
     const seen = new Set();
     return (Array.isArray(pinnedRepositories) ? pinnedRepositories : [])

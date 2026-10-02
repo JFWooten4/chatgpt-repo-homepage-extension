@@ -1097,6 +1097,14 @@
   window.addEventListener("ghrc:route-change", scheduleMount);
   window.addEventListener("popstate", scheduleMount);
 
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type !== "repository-cache-updated") return false;
+    repositoryRequest = null;
+    const widget = document.getElementById(WIDGET_ID);
+    if (widget?.isConnected) void loadRepositories(widget);
+    return false;
+  });
+
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName !== "local") return;
 
