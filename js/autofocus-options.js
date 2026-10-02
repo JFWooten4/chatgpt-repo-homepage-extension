@@ -2,6 +2,7 @@
   const AUTO_FOCUS_SETTING_KEY = "autoFocusComposer";
   const FORCE_HIGH_SETTING_KEY = "forceHighThinking";
   const CLIPBOARD_SEND_SETTING_KEY = "showClipboardSendButton";
+  const MESSAGE_QUEUE_BUTTON_SETTING_KEY = "showMessageQueueButton";
   const HOVER_REVEAL_SIDEBAR_SETTING_KEY = "hoverRevealSidebar";
 
   function bindCheckbox(input, settingKey, defaultValue) {
@@ -19,6 +20,7 @@
   const autoFocusInput = document.getElementById("auto-focus-composer");
   bindCheckbox(autoFocusInput, AUTO_FOCUS_SETTING_KEY, true);
   bindCheckbox(document.getElementById("block-voice-prompts"), "blockVoicePrompts", false);
+  bindCheckbox(document.getElementById("show-message-queue-button"), MESSAGE_QUEUE_BUTTON_SETTING_KEY, false);
 
   const chatDisplayFieldset = autoFocusInput?.closest("fieldset");
   const disableWorkPreference = document.getElementById("disable-work-mode")?.closest("label.preference");
