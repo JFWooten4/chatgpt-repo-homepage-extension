@@ -56,6 +56,11 @@
   object-fit: cover;
 }
 
+#github-repositories-for-chatgpt .ghrc-highlighted-page-pdf .ghrc-highlighted-page-image {
+  background: #ffffff;
+  object-fit: contain;
+}
+
 #github-repositories-for-chatgpt .ghrc-highlighted-page-fallback {
   align-items: center;
   color: light-dark(#666666, #aaaaaa);

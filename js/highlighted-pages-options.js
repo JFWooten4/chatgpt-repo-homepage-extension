@@ -94,7 +94,12 @@
     if (!response?.ok) {
       throw new Error(response?.error || "The webpage preview could not be loaded.");
     }
-    return response.preview;
+    const preview = response.preview;
+    if (preview.documentType === "pdf") {
+      const { renderPdfPreview } = await import("./pdf-preview.mjs");
+      preview.imageDataUrl = await renderPdfPreview(preview.url);
+    }
+    return preview;
   }
 
   async function refreshPage(page, row) {
@@ -122,6 +127,7 @@
     const row = template.content.firstElementChild.cloneNode(true);
     row.dataset.id = page.id;
     const image = previewImage(page);
+    if (page.documentType === "pdf") row.classList.add("highlighted-page-setting-pdf");
     if (image) {
       row.querySelector(".highlighted-page-setting-preview").style.backgroundImage = `url("${image}")`;
     }

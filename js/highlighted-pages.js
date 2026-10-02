@@ -34,6 +34,7 @@
   function createCard(page) {
     const card = document.createElement("a");
     card.className = "ghrc-highlighted-page";
+    if (page.documentType === "pdf") card.classList.add("ghrc-highlighted-page-pdf");
     card.href = page.url;
     card.target = "_blank";
     card.rel = "noopener noreferrer";
