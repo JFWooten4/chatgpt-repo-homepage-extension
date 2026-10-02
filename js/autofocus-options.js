@@ -2,6 +2,7 @@
   const AUTO_FOCUS_SETTING_KEY = "autoFocusComposer";
   const FORCE_HIGH_SETTING_KEY = "forceHighThinking";
   const CLIPBOARD_SEND_SETTING_KEY = "showClipboardSendButton";
+  const HOVER_REVEAL_SIDEBAR_SETTING_KEY = "hoverRevealSidebar";
 
   function bindCheckbox(input, settingKey, defaultValue) {
     if (!input) return;
@@ -21,6 +22,24 @@
 
   const chatDisplayFieldset = autoFocusInput?.closest("fieldset");
   const disableWorkPreference = document.getElementById("disable-work-mode")?.closest("label.preference");
+
+  let sidebarHoverInput = document.getElementById("hover-reveal-sidebar");
+  if (!sidebarHoverInput && chatDisplayFieldset) {
+    const preference = document.createElement("label");
+    preference.className = "preference";
+    preference.innerHTML = `
+      <input id="hover-reveal-sidebar" type="checkbox" />
+      <span>
+        <strong>Reveal sidebar on hover</strong>
+        <small>Keeps the sidebar collapsed until you hover over the left edge, then collapses it again when you move away.</small>
+      </span>
+    `;
+    const preserveScrollPreference = document.getElementById("preserve-scroll-position-on-send")?.closest("label.preference");
+    if (preserveScrollPreference) preserveScrollPreference.insertAdjacentElement("beforebegin", preference);
+    else chatDisplayFieldset.append(preference);
+    sidebarHoverInput = preference.querySelector("input");
+  }
+  bindCheckbox(sidebarHoverInput, HOVER_REVEAL_SIDEBAR_SETTING_KEY, false);
 
   let highInput = document.getElementById("force-high-thinking");
   if (!highInput && chatDisplayFieldset) {
