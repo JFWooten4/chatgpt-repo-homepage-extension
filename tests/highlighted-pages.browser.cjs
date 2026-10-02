@@ -16,7 +16,7 @@ before(async () => {
   for (const directory of ["js", "css", "vendor/pdfjs"]) {
     fs.mkdirSync(path.join(extension, directory), { recursive: true });
   }
-  for (const file of ["js/pdf-preview.mjs", "js/highlighted-pages-worker.js", "js/highlighted-pages-options.js", "js/highlighted-pages.js", "css/highlighted-pages.css", "css/options.css"]) {
+  for (const file of ["js/pdf-preview.mjs", "js/highlighted-pages-worker.js", "js/highlighted-pages-options.js", "js/highlighted-pages.js", "css/highlighted-pages.css", "css/options.css", "css/styles.css"]) {
     fs.copyFileSync(path.join(root, file), path.join(extension, file));
   }
   fs.cpSync(path.join(root, "vendor/pdfjs"), path.join(extension, "vendor/pdfjs"), { recursive: true });
@@ -29,7 +29,7 @@ before(async () => {
   const options = fs.readFileSync(path.join(root, "options.html"), "utf8");
   const section = options.match(/<fieldset id="highlighted-pages-settings">[\s\S]*?<\/fieldset>/)[0];
   const template = options.match(/<template id="highlighted-page-template">[\s\S]*?<\/template>/)[0];
-  fs.writeFileSync(path.join(extension, "fixture.html"), `<!doctype html><link rel="stylesheet" href="css/options.css"><link rel="stylesheet" href="css/highlighted-pages.css">${section}${template}<div id="github-repositories-for-chatgpt"></div><script src="js/highlighted-pages-options.js"></script><script src="js/highlighted-pages.js"></script>`);
+  fs.writeFileSync(path.join(extension, "fixture.html"), `<!doctype html><link rel="stylesheet" href="css/options.css"><link rel="stylesheet" href="css/styles.css"><link rel="stylesheet" href="css/highlighted-pages.css">${section}${template}<div id="github-repositories-for-chatgpt"><p>Repository dashboard</p></div><script src="js/highlighted-pages-options.js"></script><script src="js/highlighted-pages.js"></script>`);
   context = await chromium.launchPersistentContext(path.join(temporary, "profile"), {
     executablePath: process.env.BROWSER_EXECUTABLE || "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
     headless: true,
@@ -87,6 +87,14 @@ test("adding and refreshing a PDF caches the complete first page, preserves link
   assert.equal(pixels.width, 280);
   assert.ok(pixels.color[0] > 240 && pixels.color[2] < 20, "first page is red; second page is blue");
   await page.locator(".ghrc-highlighted-page-pdf img").waitFor();
+  const layout = await page.evaluate(() => {
+    const widget = document.getElementById("github-repositories-for-chatgpt");
+    const highlights = document.getElementById("ghrc-highlighted-pages");
+    const repositoryBounds = widget.getBoundingClientRect();
+    const highlightBounds = highlights.getBoundingClientRect();
+    return { separate: widget.nextElementSibling === highlights, below: highlightBounds.top > repositoryBounds.bottom, sameWidth: repositoryBounds.width === highlightBounds.width, title: highlights.querySelector("h2").textContent };
+  });
+  assert.deepEqual(layout, { separate: true, below: true, sameWidth: true, title: "Highlighted webpages" });
   assert.equal(await page.locator(".ghrc-highlighted-page-pdf img").evaluate(image => getComputedStyle(image).objectFit), "contain");
   assert.equal(await page.locator(".highlighted-page-setting-preview").evaluate(image => getComputedStyle(image).backgroundSize), "contain");
   await page.locator(".refresh-highlight").click();
