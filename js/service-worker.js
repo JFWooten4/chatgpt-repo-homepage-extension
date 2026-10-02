@@ -324,7 +324,7 @@ async function repositoryPayload(state = null, { complete = true } = {}) {
   const resolvedOrder = resolvedOwnerOrder(repositories, ownerOrder);
   const resolvedOwnerState = complete
     ? await persistResolvedOwnerOrder(ownerOrder, resolvedOrder)
-    : { ownerOrder: resolvedOrder, stateChanged: false };
+    : { ownerOrder, stateChanged: false };
 
   return {
     payload: {
