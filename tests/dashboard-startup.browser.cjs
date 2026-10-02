@@ -52,7 +52,7 @@ test("cached dashboard controls and highlights mount before the host page finish
     });
     const worker = context.serviceWorkers()[0] || await context.waitForEvent("serviceworker");
     await worker.evaluate(() => chrome.storage.local.set({
-      showWootenLinkSearch: true, compactNewChatHeader: true,
+      showWootenLinkSearch: true, compactNewChatHeader: true, show2048Launcher: true,
       highlightedPages: [{ id: "saved", url: "https://example.com/", title: "Saved highlight" }],
     }));
     const page = await context.newPage();

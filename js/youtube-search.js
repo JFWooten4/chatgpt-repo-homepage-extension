@@ -2,7 +2,10 @@
   const WIDGET_ID = "github-repositories-for-chatgpt";
   const SEARCH_GROUP_CLASS = "ghrc-footer-searches";
   const YOUTUBE_SEARCH_CLASS = "ghrc-youtube-search";
+  const SETTING_KEY = "showYoutubeSearch";
   let mountScheduled = false;
+  let settingLoaded = false;
+  let showYoutubeSearch = true;
 
   function youtubeLogo() {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -73,10 +76,19 @@
   }
 
   function mountFooterSearches() {
+    if (!settingLoaded) return;
+
     document.querySelectorAll(`#${WIDGET_ID} .ghrc-dashboard-footer`).forEach((footer) => {
       let group = footer.querySelector(`:scope > .${SEARCH_GROUP_CLASS}`);
       const wootenSearch = footer.querySelector(":scope > .ghrc-wooten-link-search")
         || group?.querySelector(":scope > .ghrc-wooten-link-search");
+      let youtubeSearch = group?.querySelector(`:scope > .${YOUTUBE_SEARCH_CLASS}`);
+
+      if (!showYoutubeSearch) {
+        youtubeSearch?.remove();
+        if (group && !group.children.length) group.remove();
+        return;
+      }
 
       if (!group) {
         group = document.createElement("div");
@@ -87,7 +99,7 @@
         footer.insertBefore(group, firstTrailingControl);
       }
 
-      let youtubeSearch = group.querySelector(`:scope > .${YOUTUBE_SEARCH_CLASS}`);
+      youtubeSearch = group.querySelector(`:scope > .${YOUTUBE_SEARCH_CLASS}`);
       if (!youtubeSearch) {
         youtubeSearch = createYouTubeSearch();
         group.append(youtubeSearch);
@@ -111,10 +123,22 @@
     });
   }
 
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes[SETTING_KEY]) return;
+    showYoutubeSearch = changes[SETTING_KEY].newValue !== false;
+    settingLoaded = true;
+    scheduleMount();
+  });
+
   const observer = new MutationObserver(scheduleMount);
   observer.observe(document.documentElement, {
     childList: true,
     subtree: true,
   });
-  scheduleMount();
+
+  void chrome.storage.local.get({ [SETTING_KEY]: true }).then((settings) => {
+    showYoutubeSearch = settings[SETTING_KEY] !== false;
+    settingLoaded = true;
+    scheduleMount();
+  });
 })();

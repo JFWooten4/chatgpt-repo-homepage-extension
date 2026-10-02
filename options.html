@@ -72,15 +72,9 @@
         </details>
 
         <hr class="section-divider" />
-        <label for="owner-order">GitHub accounts</label>
-        <p class="help">Enter one GitHub username or organization name per line. The line order is the dashboard order. Additional accounts discovered through your GitHub tokens are appended automatically so every visible group can be placed exactly where you want it.</p>
-        <textarea
-          id="owner-order"
-          name="owner-order"
-          rows="6"
-          spellcheck="false"
-          placeholder="your-github-username&#10;your-organization"
-        ></textarea>
+        <label>GitHub accounts</label>
+        <p class="help">Drag accounts to set their dashboard order. Turn off “Show on dashboard” to hide an account without disconnecting it; hidden accounts remain available to repository search.</p>
+        <div id="github-accounts" class="github-accounts"></div>
 
         <hr class="section-divider" />
         <fieldset>
@@ -104,6 +98,13 @@
             <span>
               <strong>Show wooten.link search</strong>
               <small>Shows a reference search box at the bottom of the repository widget.</small>
+            </span>
+          </label>
+          <label class="preference">
+            <input id="show-youtube-search" type="checkbox" checked />
+            <span>
+              <strong>Show YouTube search</strong>
+              <small>Shows a YouTube search box at the bottom of the repository widget.</small>
             </span>
           </label>
 
@@ -211,10 +212,10 @@
             </span>
           </label>
           <label class="preference">
-            <input id="show-message-queue-button" type="checkbox" />
+            <input id="hide-message-queue-button" type="checkbox" checked />
             <span>
-              <strong>Show Add to queue button</strong>
-              <small>Adds a dedicated composer button for queuing the current draft. Other queue behavior still works when this is off.</small>
+              <strong>Hide Add to queue button</strong>
+              <small>Hides the dedicated composer button for queuing the current draft. Other queue behavior still works while this is hidden.</small>
             </span>
           </label>
           <label class="preference">
@@ -265,6 +266,13 @@
             </span>
           </label>
           <label class="preference">
+            <input id="show-2048-launcher" type="checkbox" />
+            <span>
+              <strong>Show 2048 game button</strong>
+              <small>Shows the 2048 launcher in the repository dashboard footer.</small>
+            </span>
+          </label>
+          <label class="preference">
             <input id="strip-utm-tracking" type="checkbox" checked />
             <span>
               <strong>Strip UTM tracking from links</strong>
@@ -300,10 +308,10 @@
             </span>
           </label>
           <label class="preference">
-            <input id="show-chatgpt-disclaimer" type="checkbox" />
+            <input id="hide-chatgpt-disclaimer" type="checkbox" checked />
             <span>
-              <strong>Show “ChatGPT can make mistakes” notice</strong>
-              <small>Shows the notice below the composer. Hidden by default.</small>
+              <strong>Hide “ChatGPT can make mistakes” notice</strong>
+              <small>Hides the notice below the composer.</small>
             </span>
           </label>
           <label class="preference">
@@ -336,6 +344,20 @@
           placeholder="github_pat_…"
         />
         <button class="secondary remove-token" type="button" aria-label="Remove GitHub token">Remove</button>
+      </div>
+    </template>
+    <template id="github-account-template">
+      <div class="github-account" draggable="true">
+        <span class="drag-handle" aria-hidden="true">⋮⋮</span>
+        <code></code>
+        <label class="github-account-visibility">
+          <input class="github-account-visible" type="checkbox" checked />
+          <span>Show on dashboard</span>
+        </label>
+        <div class="github-account-controls">
+          <button class="secondary move-account-up" type="button" aria-label="Move account up">↑</button>
+          <button class="secondary move-account-down" type="button" aria-label="Move account down">↓</button>
+        </div>
       </div>
     </template>
     <template id="pinned-repository-template">

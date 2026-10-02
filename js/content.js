@@ -9,6 +9,7 @@
   const HIDDEN_WELCOME_CLASS = "ghrc-hidden-welcome";
   const USAGE_STORAGE_KEY = "repositoryUsage";
   const PINNED_STORAGE_KEY = "pinnedRepositories";
+  const HIDDEN_OWNERS_KEY = "hiddenOwners";
   const OWNER_GROUPS_PER_PAGE_KEY = "ownerGroupsPerPage";
   const SHOW_REPOSITORY_SEARCH_KEY = "showRepositorySearch";
   const SHOW_REPOSITORY_TOTAL_KEY = "showRepositoryTotal";
@@ -211,6 +212,18 @@
       });
   }
 
+  function normalizedHiddenOwners(owners) {
+    const seen = new Set();
+    return (Array.isArray(owners) ? owners : [])
+      .map((owner) => typeof owner === "string" ? owner.trim() : "")
+      .filter((owner) => {
+        const key = owner.toLowerCase();
+        if (!owner || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  }
+
   function normalizedOwnerGroupsPerPage(value) {
     const parsed = Number.parseInt(value, 10);
     if (!Number.isFinite(parsed)) return DEFAULT_OWNER_GROUPS_PER_PAGE;
@@ -237,16 +250,27 @@
     });
   }
 
-  function groupRepositories(repositories, ownerOrder, usage, pinnedRepositories) {
+  function groupRepositories(
+    repositories,
+    ownerOrder,
+    usage,
+    pinnedRepositories,
+    hiddenOwners = [],
+  ) {
     const groups = new Map();
     const seenRepositories = new Set();
+    const hiddenOwnerKeys = new Set(
+      normalizedHiddenOwners(hiddenOwners).map((owner) => owner.toLowerCase()),
+    );
 
     for (const repository of repositories) {
+      const ownerKey = repository.owner.login.toLowerCase();
+      if (hiddenOwnerKeys.has(ownerKey)) continue;
+
       const repositoryKey = repository.fullName.toLowerCase();
       if (seenRepositories.has(repositoryKey)) continue;
       seenRepositories.add(repositoryKey);
 
-      const ownerKey = repository.owner.login.toLowerCase();
       if (!groups.has(ownerKey)) {
         groups.set(ownerKey, {
           owner: repository.owner,
@@ -892,6 +916,7 @@
     payload,
     usage,
     pinnedRepositories,
+    hiddenOwners,
     ownerGroupsPerPage,
     showRepositorySearch,
     showRepositoryTotal,
@@ -917,6 +942,7 @@
       payload.ownerOrder,
       usage,
       pinnedRepositories,
+      hiddenOwners,
     );
     const columns = document.createElement("div");
     columns.className = "ghrc-columns";
@@ -987,6 +1013,7 @@
         chrome.storage.local.get({
           [USAGE_STORAGE_KEY]: {},
           [PINNED_STORAGE_KEY]: [],
+          [HIDDEN_OWNERS_KEY]: [],
           [OWNER_GROUPS_PER_PAGE_KEY]: DEFAULT_OWNER_GROUPS_PER_PAGE,
           [SHOW_REPOSITORY_SEARCH_KEY]: true,
           [SHOW_REPOSITORY_TOTAL_KEY]: true,
@@ -1005,6 +1032,7 @@
           payload,
           stored[USAGE_STORAGE_KEY],
           stored[PINNED_STORAGE_KEY],
+          stored[HIDDEN_OWNERS_KEY],
           stored[OWNER_GROUPS_PER_PAGE_KEY],
           Boolean(stored[SHOW_REPOSITORY_SEARCH_KEY]),
           Boolean(stored[SHOW_REPOSITORY_TOTAL_KEY]),
@@ -1116,6 +1144,7 @@
       changes.githubToken
       || changes.githubTokens
       || changes.ownerOrder
+      || changes.hiddenOwners
       || changes.ownerGroupsPerPage
       || changes.showRepositorySearch
       || changes.showRepositoryTotal
