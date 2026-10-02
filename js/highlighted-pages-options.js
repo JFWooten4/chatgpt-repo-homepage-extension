@@ -82,7 +82,8 @@
 
   async function fetchPreview(urlValue) {
     const url = normalizedUrl(urlValue);
-    const granted = await chrome.permissions.request({ origins: [originPattern(url)] });
+    const access = { origins: [originPattern(url)] };
+    const granted = await chrome.permissions.contains(access) || await chrome.permissions.request(access);
     if (!granted) {
       throw new Error("Page access was not granted, so the preview could not be cached.");
     }
@@ -94,7 +95,13 @@
     if (!response?.ok) {
       throw new Error(response?.error || "The webpage preview could not be loaded.");
     }
-    return response.preview;
+    const preview = response.preview;
+    if (preview.documentType === "pdf") {
+      showStatus("Rendering PDF first page…");
+      const { renderPdfPreview } = await import("./pdf-preview.mjs");
+      preview.imageDataUrl = await renderPdfPreview(preview.url);
+    }
+    return preview;
   }
 
   async function refreshPage(page, row) {
@@ -102,11 +109,11 @@
     busy = true;
     const button = row.querySelector(".refresh-highlight");
     button.disabled = true;
-    showStatus(`Refreshing ${page.title || page.url}…`);
+    showStatus(`Refreshing ${page.customTitle || page.title || page.url}…`);
     try {
       const preview = await fetchPreview(page.url);
       const index = pages.findIndex((entry) => entry.id === page.id);
-      if (index >= 0) pages[index] = { ...preview, id: page.id };
+      if (index >= 0) pages[index] = { ...preview, id: page.id, customTitle: pages[index].customTitle || "" };
       await save();
       render();
       showStatus("Cached preview refreshed.", "success");
@@ -122,14 +129,31 @@
     const row = template.content.firstElementChild.cloneNode(true);
     row.dataset.id = page.id;
     const image = previewImage(page);
+    if (page.documentType === "pdf") row.classList.add("highlighted-page-setting-pdf");
     if (image) {
       row.querySelector(".highlighted-page-setting-preview").style.backgroundImage = `url("${image}")`;
     }
-    row.querySelector(".highlighted-page-setting-copy strong").textContent = page.title || page.url;
+    row.querySelector(".highlighted-page-setting-copy strong").textContent = page.customTitle || page.title || page.url;
     row.querySelector(".highlighted-page-setting-copy small").textContent =
       page.hostname || new URL(page.url).hostname;
     row.querySelector(".move-highlight-up").addEventListener("click", () => moveRow(row, -1));
     row.querySelector(".move-highlight-down").addEventListener("click", () => moveRow(row, 1));
+    row.querySelector(".rename-highlight").addEventListener("click", async () => {
+      const name = window.prompt("Highlight name (leave blank to use the original title):", page.customTitle || page.title || "");
+      if (name === null) return;
+      const current = pages.find((entry) => entry.id === page.id);
+      if (!current) return;
+      const previous = current.customTitle;
+      current.customTitle = name.trim();
+      try {
+        await save();
+        render();
+        showStatus(current.customTitle ? "Highlight renamed." : "Original highlight title restored.", "success");
+      } catch (error) {
+        current.customTitle = previous;
+        showStatus(error.message, "error");
+      }
+    });
     row.querySelector(".refresh-highlight").addEventListener("click", () => void refreshPage(page, row));
     row.querySelector(".remove-highlight").addEventListener("click", async () => {
       pages = pages.filter((entry) => entry.id !== page.id);

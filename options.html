@@ -181,8 +181,8 @@
 
         <hr class="section-divider" />
         <fieldset id="highlighted-pages-settings">
-          <legend>Highlighted webpages</legend>
-          <p class="help">Add webpages and PDF documents to a single horizontal shelf beneath the repository dashboard. Preview details are cached locally and only refreshed when you ask.</p>
+          <legend>Highlights</legend>
+          <p class="help">Add webpages and PDF documents to a single horizontal shelf beneath the repository dashboard. PDFs show their first page. Preview details are cached locally and only refreshed when you ask.</p>
           <div class="highlighted-page-add">
             <input id="highlighted-page-url" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://example.com/page" aria-label="Webpage URL" />
             <button id="add-highlighted-page" class="secondary" type="button">Add</button>
@@ -194,6 +194,9 @@
         <hr class="section-divider" />
         <fieldset>
           <legend>ChatGPT display</legend>
+          <label for="composer-placeholder">Composer placeholder</label>
+          <input id="composer-placeholder" type="text" placeholder="For example, Dash" aria-describedby="composer-placeholder-help" />
+          <p id="composer-placeholder-help" class="help">Choose the text shown in the empty chat input. Leave blank to use ChatGPT’s default.</p>
           <label class="preference">
             <input id="auto-focus-composer" type="checkbox" checked />
             <span>
@@ -379,6 +382,7 @@
         <div class="highlighted-page-controls">
           <button class="secondary move-highlight-up" type="button" aria-label="Move highlighted webpage up">↑</button>
           <button class="secondary move-highlight-down" type="button" aria-label="Move highlighted webpage down">↓</button>
+          <button class="secondary rename-highlight" type="button">Rename</button>
           <button class="secondary refresh-highlight" type="button">Refresh</button>
           <button class="secondary remove-highlight" type="button">Remove</button>
         </div>

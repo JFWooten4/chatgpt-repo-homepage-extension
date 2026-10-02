@@ -183,7 +183,7 @@
             </div>
           </fieldset>
           <fieldset id="highlighted-pages-settings">
-            <legend>Highlighted webpages</legend>
+            <legend>Highlights</legend>
             <p class="help">Add webpages to a horizontal shelf beneath the repositories. Cached previews stay in your chosen order.</p>
             <div class="highlighted-page-add">
               <input id="highlighted-page-url" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://example.com/page" aria-label="Webpage URL" />
@@ -197,6 +197,9 @@
         <section id="panel-chatgpt" class="popup-panel" role="tabpanel" aria-labelledby="tab-chatgpt" hidden>
           <fieldset class="popup-first-fieldset">
             <legend>ChatGPT display</legend>
+            <label for="composer-placeholder">Composer placeholder</label>
+            <input id="composer-placeholder" type="text" placeholder="For example, Dash" aria-describedby="composer-placeholder-help" />
+            <p id="composer-placeholder-help" class="help">Choose the text shown in the empty chat input. Leave blank to use ChatGPT’s default.</p>
             <label class="preference">
               <input id="auto-focus-composer" type="checkbox" checked />
               <span>

@@ -126,7 +126,7 @@
     const finalUrl = response.url || requestedUrl.toString();
     const final = new URL(finalUrl);
     if (/^application\/(?:pdf|x-pdf)(?:\s*;|\s*$)/i.test(contentType)) {
-      // A link preview does not need to download or parse the PDF body.
+      // The options page renders the PDF using its canvas; only metadata is needed here.
       await response.body?.cancel();
       if (requestedUrl.hash) final.hash = requestedUrl.hash;
       let filename = final.pathname.split("/").pop() || "PDF document";
@@ -140,9 +140,10 @@
         hostname: final.hostname.replace(/^www\./i, ""),
         title: filename.slice(0, 180),
         description: "PDF document",
+        documentType: "pdf",
         siteName: "",
         imageDataUrl: "",
-        faviconDataUrl: await cachedImage("/favicon.ico", finalUrl, MAX_FAVICON_BYTES),
+        faviconDataUrl: "",
         fetchedAt: Date.now(),
       };
     }

@@ -503,6 +503,12 @@ button.secondary {
   width: 42px;
 }
 
+.highlighted-page-setting-pdf .highlighted-page-setting-preview {
+  background-color: #ffffff;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
 .highlighted-page-setting-copy {
   display: grid;
   gap: 2px;
