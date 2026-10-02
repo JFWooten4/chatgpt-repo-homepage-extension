@@ -17,10 +17,22 @@
     });
   }
 
+  function bindInvertedCheckbox(input, settingKey, defaultValue) {
+    if (!input) return;
+
+    void chrome.storage.local.get({ [settingKey]: defaultValue }).then((settings) => {
+      input.checked = !Boolean(settings[settingKey]);
+    });
+
+    input.addEventListener("change", () => {
+      void chrome.storage.local.set({ [settingKey]: !input.checked });
+    });
+  }
+
   const autoFocusInput = document.getElementById("auto-focus-composer");
   bindCheckbox(autoFocusInput, AUTO_FOCUS_SETTING_KEY, true);
   bindCheckbox(document.getElementById("block-voice-prompts"), "blockVoicePrompts", false);
-  bindCheckbox(document.getElementById("show-message-queue-button"), MESSAGE_QUEUE_BUTTON_SETTING_KEY, false);
+  bindInvertedCheckbox(document.getElementById("hide-message-queue-button"), MESSAGE_QUEUE_BUTTON_SETTING_KEY, false);
 
   const chatDisplayFieldset = autoFocusInput?.closest("fieldset");
   const disableWorkPreference = document.getElementById("disable-work-mode")?.closest("label.preference");
