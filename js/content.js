@@ -1127,10 +1127,9 @@
   // Warm repository data as soon as the content script starts. On a cache hit this
   // resolves while ChatGPT is still building the page, so the dashboard can paint
   // with data on its first mount instead of visibly arriving afterward.
-  void context.run(requestRepositories).then(() => {
-    if (!context.active()) repositoryRequest = null;
-  }).catch(() => {
+  void requestRepositories().catch(error => {
     repositoryRequest = null;
+    if (/extension context invalidated/i.test(error?.message || "") || !context.active()) context.handleError(error);
   });
 
   void context.run(loadDisplayPreferences);

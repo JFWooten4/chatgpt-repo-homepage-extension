@@ -26,7 +26,7 @@ function fixture() {
     getComputedStyle: () => ({ display: 'block', visibility: 'visible' }),
     KeyboardEvent: class { constructor(type, args) { this.type = type; Object.assign(this, args); } },
     window: { setTimeout(callback, delay) { timers.push({ callback, delay }); } }, requestAnimationFrame() {},
-    chrome: { storage: { local: { set(value) { storageWrites.push(value); return Promise.resolve(); } } } },
+    chrome: { runtime: { id: "fixture" }, storage: { local: { set(value) { storageWrites.push(value); return Promise.resolve(); } } } },
     document: {
       getElementById: (id) => elements.get(id),
       createElement: () => new Element(),
@@ -35,6 +35,7 @@ function fixture() {
     },
   };
   vm.createContext(context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, "../js/extension-context.js"), "utf8"), context);
   vm.runInContext(source.slice(0, source.indexOf('  chrome.storage.onChanged')) + `
     globalThis.api = { effortLevel, ensureStyle, selectMaximum, controlCacheKey, scanControls, finishSelection,
       begin(selector, state, initialLevel, focusedComposer) { pending = { selector, state, initialLevel, focusedComposer }; },

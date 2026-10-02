@@ -1,4 +1,6 @@
 (() => {
+  const context = globalThis.__ghrcExtensionContext;
+  if (!context?.active()) return;
   const SETTING_KEY = "forceHighThinking";
   const CACHE_KEY = "forceHighThinkingConfirmedTargets";
   const SELECTOR_ATTR = "data-ghrc-high-thinking-selector";
@@ -54,7 +56,7 @@
     const cacheKey = controlCacheKey(control);
     if (!cacheKey || confirmedTargets[cacheKey] === level) return;
     confirmedTargets = { ...confirmedTargets, [cacheKey]: level };
-    void chrome.storage.local.set({ [CACHE_KEY]: confirmedTargets });
+    void context.run(() => chrome.storage.local.set({ [CACHE_KEY]: confirmedTargets }));
   }
 
   function effortLevel(control) {
@@ -166,6 +168,7 @@
   }
 
   function scanControls() {
+    if (!context.active()) return;
     scanScheduled = false;
     if (!enabled) return;
     ensureStyle();
@@ -214,6 +217,7 @@
   }
 
   function scheduleScan() {
+    if (!context.active()) return;
     if (!enabled || scanScheduled) return;
     scanScheduled = true;
     requestAnimationFrame(scanControls);
@@ -253,15 +257,25 @@
     if (pending) finishSelection("", true);
     document.querySelectorAll(`[${AUTO_MENU_ATTR}]`).forEach(menu => menu.removeAttribute(AUTO_MENU_ATTR));
   }, true);
-  new MutationObserver(() => {
+  const observer = new MutationObserver(() => {
+    if (!context.active()) return;
     // Conceal portaled menus in the mutation microtask, before the next paint.
     if (pending) findMenu(pending.selector);
     scheduleScan();
-  }).observe(document, {
+  });
+  context.onStop(() => {
+    observer.disconnect();
+    enabled = false;
+    pending = null;
+    document.querySelectorAll(`[${AUTO_MENU_ATTR}]`).forEach(menu => menu.removeAttribute(AUTO_MENU_ATTR));
+  });
+  observer.observe(document, {
     childList: true, subtree: true, characterData: true, attributes: true,
     attributeFilter: ["aria-label", "aria-selected", "aria-checked", "aria-valuenow", "data-state", "data-selected-reasoning-effort", "title"],
   });
-  void chrome.storage.local.get({ [SETTING_KEY]: false, [CACHE_KEY]: {} }).then((settings) => {
+  void context.run(async () => {
+    const settings = await chrome.storage.local.get({ [SETTING_KEY]: false, [CACHE_KEY]: {} });
+    if (!context.active()) return;
     const value = settings[CACHE_KEY];
     confirmedTargets = value && typeof value === "object" && !Array.isArray(value) ? value : {};
     setEnabled(Boolean(settings[SETTING_KEY]));
