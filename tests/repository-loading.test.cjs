@@ -210,7 +210,7 @@ test("cold repository loads return a first-page payload while the complete refre
   assert.equal(payload.refreshing, true);
   assert.equal(payload.repositories.length, 100);
   assert.equal(payload.repositories[0].owner.displayName, "octo");
-  assert.deepEqual(payload.ownerOrder, []);
+  assert.equal(payload.ownerOrder.length, 0);
 
   const cachedPartial = await worker.send({ type: "load-repositories" });
   assert.equal(cachedPartial.cached, true);
