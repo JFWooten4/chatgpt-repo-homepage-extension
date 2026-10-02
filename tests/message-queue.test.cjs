@@ -55,6 +55,7 @@ test("recognizes unmodified Enter as a send or queue gesture", () => {
   };
 
   assert.equal(helpers.shouldQueueComposerEnter(enter), true);
+  assert.equal(helpers.shouldQueueComposerEnter({ ...enter, keyCode: 229 }), false);
   for (const modifier of ["shiftKey", "altKey", "ctrlKey", "metaKey", "isComposing"]) {
     assert.equal(helpers.shouldQueueComposerEnter({ ...enter, [modifier]: true }), false);
   }

@@ -39,10 +39,14 @@ async function fixture({ active = false, voice = false, editable = true, stored 
     window.storage = { ...structuredClone(stored), showClipboardSendButton: clipboard, showMessageQueueButton: queueButton };
     window.chrome = { runtime: { id: "fixture" }, storage: { local: {
       async get(defaults) {
-        if (delayQueueStorage && "queuedChatMessages" in defaults) await new Promise(resolve => { window.resolveQueueStorage = resolve; });
+        if (delayQueueStorage && !window.queueStorageReleased && "queuedChatMessages" in defaults) await new Promise(resolve => {
+          window.resolveQueueStorage = () => { window.queueStorageReleased = true; resolve(); };
+        });
         return { ...defaults, ...structuredClone(window.storage) };
       },
       async set(values) {
+        if (window.delayQueueSave && "queuedChatMessages" in values) await new Promise(resolve => { window.resolveQueueSave = resolve; });
+        if (window.rejectQueueSave && "queuedChatMessages" in values) throw new Error('Queue storage unavailable');
         const changes = {};
         for (const [key, value] of Object.entries(values)) {
           if (JSON.stringify(window.storage[key]) !== JSON.stringify(value))
@@ -147,6 +151,7 @@ async function enqueue(page, text, enter = false) {
   if (enter) await editor.press('Enter');
   else await page.locator('#ghrc-message-queue-button').click();
   await page.waitForFunction(n => document.querySelectorAll('.ghrc-message-queue-editor').length === n + 1, count);
+  await page.waitForFunction(() => !read().trim());
 }
 async function sentCount(page, count) {
   await page.waitForFunction(n => sent.length === n, count, { timeout: 10000 });
@@ -160,6 +165,110 @@ test('standalone queue button is opt-in and follows setting changes', async () =
   await p.evaluate(() => chrome.storage.local.set({ showMessageQueueButton: false }));
   await p.waitForFunction(() => !document.getElementById('ghrc-message-queue-button'));
   assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
+for (const route of ['/', '/?temporary-chat=true', '/c/test']) {
+  test(`busy Enter queues before a host document capture handler on ${route}`, async () => {
+    const p = await fixture({ active: true, route });
+    await p.evaluate(() => {
+      document.addEventListener('keydown', event => {
+        if (event.key === 'Enter' && !event.defaultPrevented) button.click();
+      }, true);
+    });
+    await enqueue(p, 'Keep generating; queue this', true);
+    assert.equal(await p.evaluate(() => stops), 0);
+    assert.deepEqual(await p.evaluate(() => sent), []);
+    assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Keep generating; queue this');
+    await p.close();
+  });
+}
+
+test('busy Enter waits for initial storage and suppresses repeated Enter', async () => {
+  const p = await fixture({ active: true, route: '/', delayQueueStorage: true });
+  const editor = p.locator('[data-composer-markdown]');
+  await editor.fill('Wait for storage');
+  await editor.press('Enter');
+  await editor.press('Enter');
+  assert.equal(await editor.innerText(), 'Wait for storage');
+  assert.equal(await p.evaluate(() => stops), 0);
+  await p.evaluate(() => resolveQueueStorage());
+  await p.waitForFunction(() => document.querySelectorAll('.ghrc-message-queue-editor').length === 1);
+  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Wait for storage');
+  await p.waitForFunction(() => !read().trim());
+  await p.close();
+});
+
+test('queue save preserves a draft edited while storage is pending', async () => {
+  const p = await fixture({ active: true });
+  await p.evaluate(() => { window.delayQueueSave = true; });
+  const editor = p.locator('[data-composer-markdown]');
+  await editor.fill('Save this');
+  await editor.press('Enter');
+  await p.waitForFunction(() => typeof resolveQueueSave === 'function');
+  assert.equal(await editor.innerText(), 'Save this');
+  await editor.fill('My next draft');
+  await p.evaluate(() => { window.delayQueueSave = false; resolveQueueSave(); });
+  await p.waitForTimeout(100);
+  assert.equal(await editor.innerText(), 'My next draft');
+  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Save this');
+  await p.close();
+});
+
+test('failed queue storage keeps the draft and allows a single retry', async () => {
+  const p = await fixture({ active: true });
+  await p.evaluate(() => { window.rejectQueueSave = true; });
+  const editor = p.locator('[data-composer-markdown]');
+  await editor.fill('Retry this');
+  await editor.press('Enter');
+  await p.waitForTimeout(100);
+  assert.equal(await editor.innerText(), 'Retry this');
+  assert.equal(await p.locator('.ghrc-message-queue-editor').count(), 0);
+  await p.evaluate(() => { window.rejectQueueSave = false; });
+  await editor.press('Enter');
+  await p.waitForFunction(() => document.querySelectorAll('.ghrc-message-queue-editor').length === 1);
+  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Retry this');
+  assert.equal(await p.evaluate(() => stops), 0);
+  await p.close();
+});
+
+test('distinct Enter requests save in FIFO order while the first save is pending', async () => {
+  const p = await fixture({ active: true });
+  await p.evaluate(() => { window.delayQueueSave = true; });
+  const editor = p.locator('[data-composer-markdown]');
+  await editor.fill('First pending message');
+  await editor.press('Enter');
+  await p.waitForFunction(() => typeof resolveQueueSave === 'function');
+  await editor.fill('Second pending message');
+  await editor.press('Enter');
+  await p.evaluate(() => { window.delayQueueSave = false; resolveQueueSave(); });
+  await p.waitForFunction(() => document.querySelectorAll('.ghrc-message-queue-editor').length === 2 && !read().trim());
+  assert.deepEqual(await p.locator('.ghrc-message-queue-editor').evaluateAll(items => items.map(item => item.value)), ['First pending message', 'Second pending message']);
+  assert.equal(await p.evaluate(() => stops), 0);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  await p.close();
+});
+
+test('Enter during delayed native submission queues without sending another message', async () => {
+  const p = await fixture({ route: '/' });
+  await p.evaluate(() => {
+    window.delayedNativeSends = 0;
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.defaultPrevented) {
+        event.preventDefault(); event.stopImmediatePropagation();
+        window.delayedNativeSends++;
+        clear(); update();
+      }
+    }, true);
+  });
+  const editor = p.locator('[data-composer-markdown]');
+  await editor.fill('First native message');
+  await editor.press('Enter');
+  await enqueue(p, 'Second message', true);
+  await p.waitForTimeout(2000);
+  assert.equal(await p.evaluate(() => delayedNativeSends), 1);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  assert.equal(await p.locator('.ghrc-message-queue-editor').inputValue(), 'Second message');
   await p.close();
 });
 
