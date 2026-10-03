@@ -758,3 +758,109 @@ test('Steer preserves draft edits made while waiting for the response to stop', 
   assert.equal(await p.evaluate(() => stops), 1);
   await p.close();
 });
+
+async function attachmentFixture(page) {
+  await page.evaluate(() => {
+    document.querySelector('form').insertAdjacentHTML('afterbegin', '<input type="file" aria-label="Attach files" multiple><div data-composer-attachments></div>');
+    window.sentContexts = [];
+    const input = document.querySelector('input[type=file]');
+    input.addEventListener('change', () => {
+      const surface = document.querySelector('[data-composer-attachments]');
+      for (const file of input.files) {
+        const chip = document.createElement('div');
+        chip.textContent = file.name;
+        const remove = document.createElement('button');
+        remove.type = 'button'; remove.setAttribute('aria-label', `Remove file ${file.name}`);
+        remove.addEventListener('click', () => chip.remove());
+        chip.append(remove); surface.append(chip);
+      }
+    });
+    button.addEventListener('click', () => {
+      if (!window.active || window.rejectSend) return;
+      const surface = document.querySelector('[data-composer-attachments]');
+      sentContexts.push([...surface.children].map(e => e.textContent));
+      surface.replaceChildren();
+    });
+  });
+}
+
+test('queued attachments stay with their message behind earlier text prompts', async () => {
+  const p = await fixture({ active: true });
+  await attachmentFixture(p);
+  await enqueue(p, 'First plain prompt', true);
+  await p.locator('input[type=file]').setInputFiles({ name: 'example.txt', mimeType: 'text/plain', buffer: Buffer.from('Exact file bytes') });
+  await enqueue(p, 'Use my file', true);
+  assert.equal(await p.locator('[data-composer-attachments]').textContent(), '');
+  const stored = await p.evaluate(() => storage.queuedChatMessages['conversation:test'][1]);
+  assert.equal(Buffer.from(stored.attachments[0].dataUrl.split(',')[1], 'base64').toString(), 'Exact file bytes');
+  await p.evaluate(() => finish());
+  await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sentContexts), [[]]);
+  await p.evaluate(() => finish());
+  await sentCount(p, 2);
+  assert.deepEqual(await p.evaluate(() => sent), ['First plain prompt', 'Use my file']);
+  assert.deepEqual(await p.evaluate(() => sentContexts), [[], ['example.txt']]);
+  assert.deepEqual(p.errors, []);
+  await p.close();
+});
+
+test('Ask ChatGPT selected text belongs to its queued prompt', async () => {
+  const p = await fixture({ active: true });
+  await enqueue(p, 'Earlier prompt', true);
+  await p.evaluate(() => {
+    const quote = document.createElement('blockquote');
+    quote.dataset.composerQuote = '';
+    quote.append(document.createTextNode('Selected passage'));
+    const close = document.createElement('button');
+    close.type = 'button'; close.setAttribute('aria-label', 'Remove quote');
+    close.addEventListener('click', () => quote.remove());
+    quote.append(close); document.querySelector('form').prepend(quote);
+  });
+  await enqueue(p, 'Explain this', true);
+  assert.equal(await p.locator('blockquote').count(), 0);
+  await p.evaluate(() => finish()); await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sent), ['Earlier prompt']);
+  await p.evaluate(() => finish()); await sentCount(p, 2);
+  assert.deepEqual(await p.evaluate(() => sent), ['Earlier prompt', '> Selected passage\n\nExplain this']);
+  await p.close();
+});
+
+test('a new attachment draft cannot be consumed by an older queued prompt', async () => {
+  const p = await fixture({ active: true });
+  await attachmentFixture(p);
+  await enqueue(p, 'Older prompt', true);
+  await p.locator('input[type=file]').setInputFiles({ name: 'draft.txt', mimeType: 'text/plain', buffer: Buffer.from('Draft') });
+  await p.locator('[data-composer-markdown]').fill('Unfinished attachment draft');
+  await p.evaluate(() => finish());
+  await p.waitForTimeout(1900);
+  assert.deepEqual(await p.evaluate(() => sent), []);
+  assert.equal(await p.evaluate(() => read()), 'Unfinished attachment draft');
+  await p.getByRole('button', { name: 'Remove file draft.txt', exact: true }).click();
+  await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sentContexts), [[]]);
+  await p.close();
+});
+
+test('saved attachments survive reload and reattach when their prompt sends', async () => {
+  const p = await fixture({ stored: { queuedChatMessages: { 'conversation:test': [{ id: 'saved-file', text: 'Saved prompt', attachments: [{ name: 'saved.txt', type: 'text/plain', dataUrl: 'data:text/plain;base64,U2F2ZWQgYnl0ZXM=' }] }] }, queuedChatMessagesPaused: { 'conversation:test': true } } });
+  await attachmentFixture(p);
+  await p.getByRole('button', { name: 'Resume queue', exact: true }).click();
+  await sentCount(p, 1);
+  assert.deepEqual(await p.evaluate(() => sentContexts), [['saved.txt']]);
+  assert.deepEqual(await p.evaluate(() => sent), ['Saved prompt']);
+  await p.close();
+});
+
+test('a failed attachment queue save preserves the original native draft', async () => {
+  const p = await fixture({ active: true });
+  await attachmentFixture(p);
+  await p.locator('input[type=file]').setInputFiles({ name: 'keep.txt', mimeType: 'text/plain', buffer: Buffer.from('Keep') });
+  await p.locator('[data-composer-markdown]').fill('Keep file draft');
+  await p.evaluate(() => { window.rejectQueueSave = true; });
+  await p.locator('[data-composer-markdown]').press('Enter');
+  await p.waitForTimeout(300);
+  assert.equal(await p.evaluate(() => read()), 'Keep file draft');
+  assert.equal(await p.getByRole('button', { name: 'Remove file keep.txt', exact: true }).count(), 1);
+  assert.equal(await p.locator('.ghrc-message-queue-editor').count(), 0);
+  await p.close();
+});
