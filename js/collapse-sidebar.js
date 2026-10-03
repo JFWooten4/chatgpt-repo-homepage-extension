@@ -7,6 +7,7 @@
   const EDGE_HOTSPOT_WIDTH = 64;
   const FALLBACK_SIDEBAR_WIDTH = 320;
   const COLLAPSE_DELAY_MS = 90;
+  const REVEAL_DELAY_MS = 350;
   const REVEAL_RETRY_MS = 750;
   let initialCollapseFinished = false;
   let hoverRevealEnabled = false;
@@ -68,13 +69,19 @@
 
   function scheduleReveal() {
     if (revealFrame !== null) return;
-    revealDeadline = Date.now() + REVEAL_RETRY_MS;
+    const revealAt = Date.now() + REVEAL_DELAY_MS;
+    revealDeadline = revealAt + REVEAL_RETRY_MS;
 
     const attemptReveal = () => {
       revealFrame = null;
 
       if (!context.active() || !hoverRevealEnabled || !pointer.inside || pointer.x > EDGE_HOTSPOT_WIDTH) {
         revealDeadline = 0;
+        return;
+      }
+
+      if (Date.now() < revealAt) {
+        revealFrame = window.requestAnimationFrame(attemptReveal);
         return;
       }
 
