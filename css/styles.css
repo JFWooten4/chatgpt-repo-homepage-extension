@@ -519,6 +519,7 @@ html.dark #github-repositories-for-chatgpt {
   justify-self: end;
   min-height: 0;
   padding: 0;
+  transform: translateY(-6px);
 }
 
 #github-repositories-for-chatgpt .ghrc-dashboard-footer .ghrc-pagination button {
