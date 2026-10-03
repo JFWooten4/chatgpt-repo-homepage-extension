@@ -38,6 +38,88 @@
   let enterChain = Promise.resolve();
   const pendingEnterTexts = new Set();
   let nativeSubmission = null;
+  const capturedFiles = new Map();
+
+  function composerContext(composer = findComposerInput()) {
+    const form = findComposerForm(composer);
+    if (!form) return { files: [], quote: null };
+    const files = [...form.querySelectorAll('button[aria-label*="Remove" i]')]
+      .filter(button => /file|attachment|image|upload/i.test(button.getAttribute("aria-label") || ""));
+    const quoteRoot = form.querySelector('[data-composer-quote], [data-testid="composer-reply-preview"], [data-testid="composer-quote"], blockquote');
+    const quoteButton = quoteRoot?.querySelector("button") || form.querySelector('button[aria-label*="Remove quote" i], button[aria-label*="Remove quoted" i], button[aria-label*="Clear quote" i]');
+    const quote = quoteRoot || quoteButton?.closest('[data-composer-quote], blockquote')
+      || quoteButton?.parentElement;
+    const attachmentSurface = form.querySelector('[data-composer-attachments]');
+    return { files, quote, quoteButton, unknown: Boolean(attachmentSurface?.childElementCount && !files.length && !quote) };
+  }
+
+  function hasComposerContext(composer) {
+    const state = composerContext(composer);
+    return Boolean(state.files.length || state.quote || state.unknown);
+  }
+
+  async function captureComposerContext(composer) {
+    const state = composerContext(composer);
+    if (state.unknown) return null;
+    const attachments = [];
+    for (const button of state.files) {
+      const label = button.getAttribute("aria-label") || "";
+      const file = [...capturedFiles.values()].find(file => label.includes(file.name)
+        || button.parentElement?.textContent.includes(file.name));
+      if (!file) return null;
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      if (attachments.some(attachment => attachment.name === file.name)) return null;
+      attachments.push({ name: file.name, type: file.type, lastModified: file.lastModified, dataUrl });
+    }
+    const quotedContent = state.quote?.cloneNode(true);
+    for (const button of quotedContent?.querySelectorAll("button") || []) button.remove();
+    const quote = (quotedContent?.textContent || "").trim();
+    if (state.quote && (!quote || !state.quoteButton)) return null;
+    return { attachments, quote, state };
+  }
+
+  async function clearComposerContext(snapshot, composer) {
+    for (const button of [...snapshot.state.files, snapshot.state.quoteButton].filter(Boolean)) button.click();
+    await new Promise(resolve => window.setTimeout(resolve, 80));
+    return !hasComposerContext(composer);
+  }
+
+  function contextMatches(snapshot, composer) {
+    const current = composerContext(composer);
+    return current.quote === snapshot.quote && current.unknown === snapshot.unknown
+      && current.files.length === snapshot.files.length
+      && current.files.every((button, index) => button === snapshot.files[index]);
+  }
+
+  async function restoreAttachments(item, composer) {
+    const key = activeKey;
+    if (!item.attachments?.length) return true;
+    const input = findComposerForm(composer)?.querySelector('input[type="file"][aria-label="Attach files"], input[type="file"]');
+    if (!input) return false;
+    const transfer = new DataTransfer();
+    for (const attachment of item.attachments) {
+      if (typeof attachment?.name !== "string" || typeof attachment.dataUrl !== "string"
+        || !/^data:[^,]*;base64,/.test(attachment.dataUrl)) return false;
+      const bytes = Uint8Array.from(atob(attachment.dataUrl.slice(attachment.dataUrl.indexOf(",") + 1)), char => char.charCodeAt(0));
+      transfer.items.add(new File([bytes], attachment.name, { type: attachment.type, lastModified: attachment.lastModified }));
+    }
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    const deadline = Date.now() + 60_000;
+    while (Date.now() < deadline) {
+      if (!context.active() || composer !== findComposerInput() || conversationKey() !== key || activeKey !== key) return false;
+      const state = composerContext(composer);
+      if (state.files.length === item.attachments.length
+        && !findComposerForm(composer)?.querySelector('[role="progressbar"], [aria-busy="true"]')) return true;
+      await new Promise(resolve => window.setTimeout(resolve, 80));
+    }
+    return false;
+  }
 
   function conversationIdFromPath(pathname = location.pathname) {
     return String(pathname || "").match(/\/c\/([^/?#]+)(?:[/?#]|$)/i)?.[1] || "";
@@ -64,6 +146,7 @@
           ? item.id
           : `queued-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         text,
+        attachments: Array.isArray(item.attachments) ? item.attachments : [],
         createdAt: Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
       }];
     });
@@ -110,6 +193,16 @@
 
   const context = globalThis.__ghrcExtensionContext;
   if (!context?.active()) return;
+
+  // Keep the original bytes: uploaded chips alone cannot recreate a file.
+  for (const type of ["change", "drop", "paste"]) {
+    document.addEventListener(type, event => {
+      const form = findComposerForm();
+      if (!form?.contains(event.target)) return;
+      const files = event.target?.files || event.dataTransfer?.files || event.clipboardData?.files;
+      for (const file of files || []) capturedFiles.set(file.name, file);
+    }, true);
+  }
 
   function isVisible(element) {
     return Boolean(element?.isConnected && element.getClientRects().length);
@@ -209,7 +302,8 @@
         }
         return [...node.childNodes].map(readNode).join("");
       };
-      return paragraphs.map(readNode).join("\n");
+      return paragraphs.map(node => node.childNodes.length === 1
+        && node.firstChild.nodeName === "BR" ? "" : readNode(node)).join("\n");
     }
 
     return composer.innerText || composer.textContent || "";
@@ -367,7 +461,7 @@
   }
 
   function storageCopy() {
-    return queue.map(({ id, text, createdAt }) => ({ id, text, createdAt }));
+    return queue.map(({ id, text, createdAt, attachments }) => ({ id, text, createdAt, attachments }));
   }
 
   function persistQueue() {
@@ -565,6 +659,11 @@
     steer.addEventListener("click", () => void context.run(() => sendQueueHead(item.id, true)));
 
     controls.append(steer, up, down, remove);
+    if (item.attachments?.length) {
+      const names = item.attachments.map(file => file.name).join(", ");
+      textarea.setAttribute("aria-description", `Attachments: ${names}`);
+      row.title = `Attachments: ${names}`;
+    }
     row.append(ordinal, textarea, controls);
     return row;
   }
@@ -771,12 +870,12 @@
     }
   }
 
-  async function enqueueText(text) {
+  async function enqueueText(text, attachments = []) {
     if (!context.active()) return false;
     if (!stateLoaded || routeSyncRunning || conversationKey() !== activeKey) return false;
     text = normalizedText(text);
     if (!text.trim()) return false;
-    const item = { id: itemId(), text, createdAt: Date.now() };
+    const item = { id: itemId(), text, attachments, createdAt: Date.now() };
     queue.push(item);
     completionCandidateSince = null;
     renderQueue();
@@ -807,7 +906,14 @@
       const composer = findComposerInput();
       const text = normalizedText(composerText(composer));
       if (!composer || !text.trim()) return false;
-      const queued = await enqueueText(text);
+      const snapshot = await captureComposerContext(composer);
+      if (!snapshot || !contextMatches(snapshot.state, composer)) return false;
+      const queuedText = snapshot.quote ? `> ${snapshot.quote.replace(/\n/g, "\n> ")}\n\n${text}` : text;
+      const queued = await enqueueText(queuedText, snapshot.attachments);
+      if (queued && !await clearComposerContext(snapshot, composer)) {
+        queuePaused = true;
+        await persistQueue();
+      }
       // Keep the draft until storage accepts it, and preserve edits made while saving.
       if (queued && composer === findComposerInput() && textMatchesComposer(composer, text)) {
         await replaceComposerText(composer, "");
@@ -849,9 +955,10 @@
     }
 
     const composer = findComposerInput();
-    if (!composer) return;
+    if (!composer || hasComposerContext(composer)) return;
     let draft = composerText(composer);
     let composerReplaced = false;
+    let restoredContext = null;
     const focused = document.activeElement;
     sendingItemId = item.id;
     renderQueue();
@@ -874,7 +981,10 @@
         || !queue.some(candidate => candidate.id === item.id)) return;
       draft = composerText(composer);
       const beforeUserTurns = roleTurns("user").length;
+      if (hasComposerContext(composer)) return;
       composerReplaced = true;
+      if (!await restoreAttachments(item, composer)) return;
+      restoredContext = composerContext(composer);
       if (!await replaceComposerText(composer, item.text)) return;
 
       const deadline = Date.now() + SUBMIT_TIMEOUT_MS;
@@ -901,7 +1011,8 @@
 
       if (!context.active() || (queuePaused && !steer) || key !== activeKey || conversationKey() !== key
         || routeSyncRunning || responseIsActive()
-        || !textMatchesComposer(composer, item.text)) return;
+        || !textMatchesComposer(composer, item.text)
+        || !contextMatches(restoredContext, composer)) return;
       sendButton.click();
 
       if (!await waitForSubmission(composer, item.text, beforeUserTurns)) return;
@@ -918,6 +1029,12 @@
     } finally {
       const sameConversation = key === activeKey || (key.startsWith("new:")
         && activeKey.startsWith("conversation:") && conversationKey() === activeKey);
+      if (composerReplaced && item.attachments?.length && sameConversation
+        && composer === findComposerInput() && queue.some(candidate => candidate.id === item.id)) {
+        for (const button of restoredContext?.files || []) {
+          if (button.isConnected) button.click();
+        }
+      }
       if (composerReplaced && sameConversation && conversationKey() === activeKey
         && composer === findComposerInput()) {
         const current = composerText(composer);
@@ -1002,6 +1119,7 @@
   }
 
   async function queueComposerEnter(composer, text, key) {
+    const contextRequest = captureComposerContext(composer);
     enterPending++;
     pendingEnterTexts.add(text);
     const request = enterChain.catch(() => {}).then(async () => {
@@ -1014,7 +1132,14 @@
         || conversationKey() !== key || composer !== findComposerInput()) return;
       if (activeKey !== key) await syncConversationKey();
       if (context.active() && activeKey === key && composer === findComposerInput()) {
-        const queued = await enqueueText(text);
+        const snapshot = await contextRequest;
+        if (!snapshot || !contextMatches(snapshot.state, composer)) return;
+        const queuedText = snapshot.quote ? `> ${snapshot.quote.replace(/\n/g, "\n> ")}\n\n${text}` : text;
+        const queued = await enqueueText(queuedText, snapshot.attachments);
+        if (queued && !await clearComposerContext(snapshot, composer)) {
+          queuePaused = true;
+          await persistQueue();
+        }
         if (queued && composer === findComposerInput() && textMatchesComposer(composer, text)) {
           await replaceComposerText(composer, "");
           composer.focus({ preventScroll: true });
