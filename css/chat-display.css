@@ -1,3 +1,7 @@
+html[data-ghrc-hide-share-label] [data-ghrc-share-label] {
+  display: none !important;
+}
+
 /* Apply the default before asynchronous preferences and React hydration. */
 html:not([data-ghrc-show-home-suggestions]) [class~="group/home-suggestions"],
 html:not([data-ghrc-show-home-suggestions]) [class~="group/home-suggestion-list-item"],
